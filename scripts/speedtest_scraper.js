@@ -17,6 +17,9 @@
 
   if (!isSpeedtest && !isFast) return;
 
+  // Only execute in the top-level benchmark window, never inside ad/tracker iframes
+  if (window.top !== window.self) return;
+
   const platformName = isSpeedtest ? 'Speedtest.net' : 'Fast.com';
   console.log(`[NetPulse] ${platformName} Scraper active on`, currentHost);
 
@@ -118,28 +121,36 @@
   /**
    * On-Page Speedtest NetPulse HUD
    */
+  /**
+   * On-Page Speedtest NetPulse HUD
+   */
   function injectSpeedtestHud() {
     if (document.getElementById('netpulse-speedtest-hud')) return;
 
     const hud = document.createElement('div');
     hud.id = 'netpulse-speedtest-hud';
     hud.style.cssText = [
-      'position: fixed',
-      'top: 14px',
-      'right: 14px',
-      'z-index: 999999',
-      'background-color: #0b0f19',
-      'border: 1px solid #1f2937',
-      'border-radius: 6px',
-      'padding: 8px 12px',
-      'color: #f3f4f6',
-      'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      'font-size: 12px',
-      'display: flex',
-      'align-items: center',
-      'gap: 10px',
-      'box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6)',
-      'user-select: none'
+      'position: fixed !important',
+      'top: 14px !important',
+      'right: 14px !important',
+      'width: auto !important',
+      'height: auto !important',
+      'max-width: 400px !important',
+      'z-index: 999999 !important',
+      'background-color: #0b0f19 !important',
+      'border: 1px solid #1f2937 !important',
+      'border-radius: 6px !important',
+      'padding: 7px 11px !important',
+      'color: #f3f4f6 !important',
+      'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important',
+      'font-size: 12px !important',
+      'display: flex !important',
+      'align-items: center !important',
+      'gap: 8px !important',
+      'box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important',
+      'user-select: none !important',
+      'pointer-events: auto !important',
+      'box-sizing: border-box !important'
     ].join(';');
 
     hud.innerHTML = `
@@ -154,12 +165,14 @@
         <span id="netpulse-st-dot" style="width: 7px; height: 7px; border-radius: 50%; background-color: #10b981; display: inline-block;"></span>
         <span id="netpulse-st-status" style="font-family: ui-monospace, monospace; color: #9ca3af; font-size: 11px;">${platformName} Detected</span>
       </div>
-      <button id="netpulse-st-capture-btn" style="background-color: #111827; border: 1px solid #1f2937; color: #f3f4f6; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-family: inherit;">Capture Now</button>
+      <button id="netpulse-st-capture-btn" type="button" style="background-color: #111827; border: 1px solid #1f2937; color: #f3f4f6; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-family: inherit;">Capture Now</button>
+      <button id="netpulse-st-close-btn" type="button" title="Dismiss NetPulse Badge" style="background: none; border: none; color: #6b7280; cursor: pointer; padding: 0 3px; font-size: 15px; line-height: 1; margin-left: 2px;">&times;</button>
     `;
 
     document.body.appendChild(hud);
 
-    document.getElementById('netpulse-st-capture-btn').addEventListener('click', () => {
+    document.getElementById('netpulse-st-capture-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
       const extracted = extractCurrentSpeedtest();
       if (extracted && extracted.downloadMbps > 0) {
         recordSpeedtestResult(extracted, true);
@@ -167,9 +180,22 @@
         showToast('NetPulse: No Active Result Yet', 'Test is either still running or has not started yet.', false);
       }
     });
+
+    const closeBtn = document.getElementById('netpulse-st-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hud.remove();
+      });
+    }
   }
 
+  let currentHudText = '';
+  let currentHudColor = '';
   function updateHudStatus(text, color = '#10b981') {
+    if (currentHudText === text && currentHudColor === color) return;
+    currentHudText = text;
+    currentHudColor = color;
     const dot = document.getElementById('netpulse-st-dot');
     const status = document.getElementById('netpulse-st-status');
     if (dot) dot.style.backgroundColor = color;
@@ -187,7 +213,7 @@
       try {
         const elements = document.querySelectorAll(selector);
         for (const el of elements) {
-          const rawText = (el.innerText || el.textContent || '').trim();
+          const rawText = (el.textContent || '').trim();
           if (!rawText || rawText === '—' || rawText === '-') continue;
 
           // Check direct parse
@@ -262,40 +288,50 @@
       '[class*="jitter-speed" i]'
     ], true);
 
-    const bodyText = (document.body ? document.body.innerText : '') || '';
+    let bodyText = null;
+    function getBodyText() {
+      if (bodyText === null) {
+        bodyText = (document.body ? document.body.textContent : '') || '';
+      }
+      return bodyText;
+    }
 
     // Strategy 2: Text Regex Fallback if DOM selectors missed
-    if (!downloadSpeed && bodyText) {
-      // Multi-column layout: "DOWNLOAD ... UPLOAD \n 58.51 ... 32.10"
-      const multiCol = bodyText.match(/DOWNLOAD[^\r\n]*UPLOAD[^\r\n]*[\r\n]+[\s]*([\d.]+)[\s]+([\d.]+)/i);
+    if (!downloadSpeed) {
+      const bt = getBodyText();
+      const multiCol = bt.match(/DOWNLOAD[^\r\n]*UPLOAD[^\r\n]*[\r\n]+[\s]*([\d.]+)[\s]+([\d.]+)/i);
       if (multiCol) {
         downloadSpeed = parseSpeed(multiCol[1]);
         if (!uploadSpeed) uploadSpeed = parseSpeed(multiCol[2]);
       }
     }
 
-    if (!downloadSpeed && bodyText) {
-      const dlMatch = bodyText.match(/DOWNLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
-                      bodyText.match(/([\d.]+)\s*(?:Mbps)?\s*DOWNLOAD/i) ||
-                      bodyText.match(/Download(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i);
+    if (!downloadSpeed) {
+      const bt = getBodyText();
+      const dlMatch = bt.match(/DOWNLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
+                      bt.match(/([\d.]+)\s*(?:Mbps)?\s*DOWNLOAD/i) ||
+                      bt.match(/Download(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i);
       if (dlMatch) downloadSpeed = parseSpeed(dlMatch[1]);
     }
 
-    if (!uploadSpeed && bodyText) {
-      const ulMatch = bodyText.match(/UPLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
-                      bodyText.match(/([\d.]+)\s*(?:Mbps)?\s*UPLOAD/i) ||
-                      bodyText.match(/Upload(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i);
+    if (!uploadSpeed) {
+      const bt = getBodyText();
+      const ulMatch = bt.match(/UPLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
+                      bt.match(/([\d.]+)\s*(?:Mbps)?\s*UPLOAD/i) ||
+                      bt.match(/Upload(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i);
       if (ulMatch) uploadSpeed = parseSpeed(ulMatch[1]);
     }
 
-    if (!ping && bodyText) {
-      const pingMatch = bodyText.match(/Ping\s*(?:ms)?[\s\r\n]+([\d]+)/i) ||
-                        bodyText.match(/([\d]+)\s*(?:ms)?\s*Ping/i);
+    if (!ping) {
+      const bt = getBodyText();
+      const pingMatch = bt.match(/Ping\s*(?:ms)?[\s\r\n]+([\d]+)/i) ||
+                        bt.match(/([\d]+)\s*(?:ms)?\s*Ping/i);
       if (pingMatch) ping = parseLatency(pingMatch[1]);
     }
 
-    if (!jitter && bodyText) {
-      const jitterMatch = bodyText.match(/Jitter\s*(?:ms)?[\s\r\n]+([\d]+)/i);
+    if (!jitter) {
+      const bt = getBodyText();
+      const jitterMatch = bt.match(/Jitter\s*(?:ms)?[\s\r\n]+([\d]+)/i);
       if (jitterMatch) jitter = parseLatency(jitterMatch[1]);
     }
 
@@ -311,8 +347,9 @@
       const m = resultUrl.match(/\/result\/(?:c\/)?(\d+)/i);
       if (m) resultId = m[1];
     }
-    if (!resultId && bodyText) {
-      const idMatch = bodyText.match(/Result\s*ID:?\s*(\d+)/i);
+    if (!resultId) {
+      const bt = getBodyText();
+      const idMatch = bt.match(/Result\s*ID:?\s*(\d+)/i);
       if (idMatch) {
         resultId = idMatch[1];
         resultUrl = `https://www.speedtest.net/result/${resultId}`;
@@ -325,10 +362,11 @@
                     document.querySelector('[data-isp]') ||
                     document.querySelector('.result-data-source') ||
                     document.querySelector('.result-item-host .result-data-value');
-    if (ispElem && ispElem.innerText.trim()) {
-      isp = ispElem.innerText.trim();
-    } else if (bodyText) {
-      const ispMatch = bodyText.match(/Connections[\s\r\n]+(?:Multi|Single)[\s\r\n]+([^\r\n]+)/i);
+    if (ispElem && ispElem.textContent.trim()) {
+      isp = ispElem.textContent.trim();
+    } else {
+      const bt = getBodyText();
+      const ispMatch = bt.match(/Connections[\s\r\n]+(?:Multi|Single)[\s\r\n]+([^\r\n]+)/i);
       if (ispMatch) {
         isp = ispMatch[1].trim();
       }
@@ -341,14 +379,15 @@
                        document.querySelector('.server-name') ||
                        document.querySelector('.server-current') ||
                        document.querySelector('[data-server]');
-    if (serverElem && serverElem.innerText.trim()) {
-      server = serverElem.innerText.trim();
-    } else if (bodyText) {
-      const ipBlock = bodyText.match(/(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})[\s\r\n]+([\s\S]*?)\s*Change Server/i);
+    if (serverElem && serverElem.textContent.trim()) {
+      server = serverElem.textContent.trim();
+    } else {
+      const bt = getBodyText();
+      const ipBlock = bt.match(/(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})[\s\r\n]+([\s\S]*?)\s*Change Server/i);
       if (ipBlock && ipBlock[1]) {
         server = ipBlock[1].trim().split(/[\r\n]+/).map(s => s.trim()).filter(Boolean).join(' ');
       } else {
-        const beforeChange = bodyText.match(/([\s\S]*?)\s*Change Server/i);
+        const beforeChange = bt.match(/([\s\S]*?)\s*Change Server/i);
         if (beforeChange && beforeChange[1]) {
           const lines = beforeChange[1].trim().split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
           if (lines.length > 0) server = lines.slice(-2).join(' ');
@@ -386,17 +425,17 @@
 
     if (!speedValElem) return null;
 
-    const dlVal = speedValElem.innerText.trim();
-    const dlUnit = speedUnitElem ? speedUnitElem.innerText.trim() : 'Mbps';
+    const dlVal = (speedValElem.textContent || '').trim();
+    const dlUnit = speedUnitElem ? (speedUnitElem.textContent || '').trim() : 'Mbps';
     const downloadSpeed = parseSpeed(dlVal, dlUnit);
 
     if (downloadSpeed !== null && downloadSpeed > 0) {
-      const ulVal = uploadValElem ? uploadValElem.innerText.trim() : null;
-      const ulUnit = uploadUnitElem ? uploadUnitElem.innerText.trim() : 'Mbps';
+      const ulVal = uploadValElem ? (uploadValElem.textContent || '').trim() : null;
+      const ulUnit = uploadUnitElem ? (uploadUnitElem.textContent || '').trim() : 'Mbps';
       const uploadSpeed = parseSpeed(ulVal, ulUnit);
 
-      const ping = parseLatency(latencyValElem ? latencyValElem.innerText : null);
-      const jitter = parseLatency(bufferbloatValElem ? bufferbloatValElem.innerText : null);
+      const ping = parseLatency(latencyValElem ? latencyValElem.textContent : null);
+      const jitter = parseLatency(bufferbloatValElem ? bufferbloatValElem.textContent : null);
 
       return {
         source: 'Fast.com',
@@ -510,50 +549,49 @@
   // --- Speedtest.net Observers ---
   function initSpeedtestNet() {
     const checkDom = () => {
-      const extracted = extractCurrentSpeedtest();
-      const bodyText = (document.body ? document.body.innerText : '') || '';
-
-      const hasResultId = !!(
-        (extracted && extracted.resultId) ||
+      // 1. Idle state check:
+      // If the "GO" button is present and there are no results yet, the user is on the home screen.
+      // Short-circuit immediately to avoid unnecessary DOM queries and CPU usage.
+      const hasResultIndicators = !!(
         document.querySelector('a[href*="/result/"]') ||
         document.querySelector('.result-item-id') ||
-        bodyText.includes('Result ID:')
+        document.querySelector('.result-view') ||
+        document.querySelector('.result-data-large.download-speed') ||
+        document.querySelector('.share-button, .social-share')
       );
 
-      const hasShareOrSurvey = !!(
-        document.querySelector('.share-button, .social-share') ||
-        (bodyText.includes('Share') && (bodyText.includes('RECOMMEND') || bodyText.includes('Change Server')))
-      );
+      const startButton = document.querySelector('.start-button, .js-start-test');
+      const isStartButtonPresent = !!(startButton && !startButton.closest('[style*="display: none"], [style*="visibility: hidden"]'));
 
-      const hasBothSpeeds = !!(
-        extracted &&
-        extracted.downloadMbps > 0 &&
-        extracted.uploadMbps > 0
-      );
+      if (isStartButtonPresent && !hasResultIndicators) {
+        isTestRunning = false;
+        updateHudStatus('Speedtest.net Ready', '#10b981');
+        return;
+      }
 
-      const isCompleted = extracted && extracted.downloadMbps > 0 && (hasResultId || hasShareOrSurvey || hasBothSpeeds);
+      // 2. Active test check:
+      const isGaugeActive = !!document.querySelector('.gauge-assembly.testing, .test-mode-progress, .gauge-speed-download, .gauge-speed-upload');
 
-      // Check if test is currently in progress
-      const isStartButtonGone = !document.querySelector('.start-button:not([style*="display: none"]), .js-start-test:not([style*="display: none"])');
-      const isGaugeActive = document.querySelector('.gauge-assembly.testing, .test-mode-progress, .gauge-speed-download, .gauge-speed-upload');
-
-      if (!isCompleted && (isStartButtonGone || isGaugeActive)) {
+      if (!hasResultIndicators && (isGaugeActive || !isStartButtonPresent)) {
         isTestRunning = true;
         updateHudStatus('Test in progress...', '#3b82f6');
         return;
       }
 
-      if (isCompleted) {
-        if (isTestRunning || hasResultId || hasBothSpeeds) {
+      // 3. Completed state check:
+      if (hasResultIndicators) {
+        const extracted = extractCurrentSpeedtest();
+        if (extracted && extracted.downloadMbps > 0) {
           isTestRunning = false;
           recordSpeedtestResult(extracted, false);
         }
       }
     };
 
-    const observer = new MutationObserver(checkDom);
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
+    // Run periodic non-blocking check every 1.5 seconds.
+    // Zero MutationObserver on document.body, keeping browser event loop 100% fluid and responsive.
     setInterval(checkDom, 1500);
+    setTimeout(checkDom, 1000);
   }
 
   // --- Fast.com Observers ---
@@ -571,26 +609,29 @@
                           (progressIndicator && progressIndicator.classList.contains('succeeded')) ||
                           (speedContainer && speedContainer.classList.contains('succeeded'));
 
-      if (!isSucceeded && speedValElem.innerText.trim() !== '') {
+      const rawVal = (speedValElem.textContent || '').trim();
+
+      if (!isSucceeded && rawVal !== '') {
         fastRecorded = false;
         updateHudStatus('Measuring speed...', '#3b82f6');
       }
 
       if (isSucceeded && !fastRecorded) {
+        fastRecorded = true;
+        // Wait briefly for Fast.com to finish calculating final upload/latency if expanded
         setTimeout(() => {
-          if (fastRecorded) return;
-          fastRecorded = true;
           const extracted = extractCurrentSpeedtest();
           if (extracted) {
             recordSpeedtestResult(extracted, false);
           }
-        }, 2500);
+        }, 1500);
       }
     };
 
-    const observer = new MutationObserver(checkFast);
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
+    // Run periodic non-blocking check every 1.5 seconds.
+    // Zero MutationObserver on document.body, keeping Fast.com animations smooth and clicks responsive.
     setInterval(checkFast, 1500);
+    setTimeout(checkFast, 1000);
   }
 
   // Global manual hook

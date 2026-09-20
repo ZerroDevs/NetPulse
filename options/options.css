@@ -36,22 +36,22 @@
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
-/* Light Theme */
+/* Light Theme - Soft Eye-Comfort Grey (Non-White) */
 [data-theme="light"] {
-  --bg-canvas: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-subtle: #f1f5f9;
-  --bg-input: #f8fafc;
-  --border-subtle: #e2e8f0;
-  --border-medium: #cbd5e1;
+  --bg-canvas: #dbe0e6;
+  --bg-card: #eaedf1;
+  --bg-subtle: #e2e6eb;
+  --bg-input: #dbe0e6;
+  --border-subtle: #bcc4cf;
+  --border-medium: #9aa5b5;
   --border-focus: #4f46e5;
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-primary: #111827;
+  --text-secondary: #283342;
+  --text-muted: #536275;
 
-  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05);
-  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 /* Base Reset */

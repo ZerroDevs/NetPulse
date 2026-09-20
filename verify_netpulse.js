@@ -226,6 +226,14 @@ filesToCheck.forEach((f) => {
   assert(!hasEmoji, `Zero-Emoji check: ${f} contains NO unicode emojis`);
 });
 
+// 10. Speedtest & Fast.com Non-Blocking Performance & Responsiveness Assertions
+const scraperContent = fs.readFileSync(path.join(ROOT_DIR, 'scripts/speedtest_scraper.js'), 'utf8');
+assert(!scraperContent.includes('new MutationObserver'), 'speedtest_scraper.js does NOT instantiate runaway MutationObserver on document.body');
+assert(!scraperContent.includes('document.body.innerText'), 'speedtest_scraper.js does NOT trigger synchronous layout reflow with document.body.innerText');
+assert(scraperContent.includes('window.top !== window.self'), 'speedtest_scraper.js includes top-level benchmark window guard');
+assert(scraperContent.includes('netpulse-st-close-btn'), 'speedtest_scraper.js includes dismissible HUD close button');
+assert(scraperContent.includes('Speedtest.net Ready'), 'speedtest_scraper.js includes fast idle short-circuit for Speedtest home screen');
+
 console.log(`\nVerification Complete: ${passes} passed, ${failures} failed.`);
 if (failures > 0) {
   process.exit(1);

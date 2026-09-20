@@ -43,37 +43,37 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* Light Mode Solid Palette (ZERO GRADIENTS) */
+/* Light Mode Solid Palette - Soft Eye-Comfort Grey (Non-White) */
 [data-theme="light"] {
-  --bg-canvas: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f1f5f9;
-  --border-color: #e2e8f0;
-  --border-light: #cbd5e1;
+  --bg-canvas: #dbe0e6;
+  --bg-card: #eaedf1;
+  --bg-card-hover: #e2e6eb;
+  --border-color: #bcc4cf;
+  --border-light: #9aa5b5;
 
   --accent-emerald: #059669;
-  --accent-emerald-dark: #d1fae5;
-  --accent-emerald-text: #065f46;
+  --accent-emerald-dark: #bbf7d0;
+  --accent-emerald-text: #064e3b;
 
   --accent-blue: #2563eb;
-  --accent-blue-dark: #dbeafe;
+  --accent-blue-dark: #bfdbfe;
   --accent-blue-text: #1e40af;
 
   --accent-amber: #d97706;
-  --accent-amber-dark: #fef3c7;
-  --accent-amber-text: #92400e;
+  --accent-amber-dark: #fde68a;
+  --accent-amber-text: #78350f;
 
   --accent-rose: #e11d48;
-  --accent-rose-dark: #ffe4e6;
+  --accent-rose-dark: #fecdd3;
   --accent-rose-text: #9f1239;
 
   --accent-indigo: #4f46e5;
   --accent-indigo-hover: #4338ca;
 
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --text-dark: #94a3b8;
+  --text-primary: #111827;
+  --text-secondary: #283342;
+  --text-muted: #536275;
+  --text-dark: #7b8a9d;
 }
 
 * {
