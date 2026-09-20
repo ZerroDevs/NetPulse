@@ -427,6 +427,17 @@
   async function recordSpeedtestResult(testData, isManual = false) {
     if (!testData || !testData.downloadMbps) return;
 
+    // Check configuration settings if triggered automatically
+    if (!isManual) {
+      try {
+        const cfgStorage = await chrome.storage.local.get(['netpulse_settings']);
+        const settings = cfgStorage.netpulse_settings || {};
+        if (testData.source === 'Speedtest.net' && settings.autoCaptureSpeedtest === false) return;
+        if (testData.source === 'Fast.com' && settings.autoCaptureFast === false) return;
+        if (settings.minSpeedThreshold && testData.downloadMbps < settings.minSpeedThreshold) return;
+      } catch (e) {}
+    }
+
     const testKey = `${testData.source}_${testData.downloadMbps}_${testData.uploadMbps}_${testData.resultId || Math.floor(Date.now() / 30000)}`;
     if (lastLoggedTestId === testKey) {
       if (isManual) {

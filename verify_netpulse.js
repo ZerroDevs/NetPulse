@@ -54,6 +54,12 @@ const requiredFiles = [
   'dashboard/dashboard.html',
   'dashboard/dashboard.css',
   'dashboard/dashboard.js',
+  'options/options.html',
+  'options/options.css',
+  'options/options.js',
+  'analysis/analysis.html',
+  'analysis/analysis.css',
+  'analysis/analysis.js',
   'scripts/router_scraper.js',
   'scripts/speedtest_scraper.js',
   'icons/icon.svg',
@@ -155,7 +161,36 @@ assert(pingTest && pingTest[1] === '20', 'Regex parses idle Ping: 20 ms');
 const idTest = testPageText.match(/Result\s*ID:?\s*(\d+)/i);
 assert(idTest && idTest[1] === '19696300354', 'Regex parses Result ID: 19696300354');
 
-// 7. Strict ZERO GRADIENT Verification across all project source files
+// 7. Check Manifest Options UI
+assert(manifest.options_ui && manifest.options_ui.page === 'options/options.html', 'Manifest includes options_ui page options/options.html');
+
+// 8. Check i18n Keys for Options & Analysis
+assert(I18n.t('options_title', 'en') === 'Settings & Gateway Configuration', 'EN translation for options_title exists');
+assert(I18n.t('options_title', 'ar') === 'الإعدادات وتكوين البوابة', 'AR translation for options_title exists');
+assert(I18n.t('analysis_title', 'en') === 'Deep RF Correlation & Carrier Aggregation Studio', 'EN translation for analysis_title exists');
+assert(I18n.t('analysis_title', 'ar') === 'استوديو التحليل العميق للتردد اللاسلكي ودمج الترددات', 'AR translation for analysis_title exists');
+assert(I18n.t('nav_analysis', 'en') === 'Deep RF Analysis', 'EN translation for nav_analysis exists');
+assert(I18n.t('nav_analysis', 'ar') === 'التحليل العميق للإشارة', 'AR translation for nav_analysis exists');
+assert(I18n.t('btn_sync_telemetry', 'en') === 'Sync with Dashboard', 'EN translation for btn_sync_telemetry exists');
+assert(I18n.t('btn_sync_telemetry', 'ar') === 'مزامنة مع لوحة التحكم', 'AR translation for btn_sync_telemetry exists');
+assert(I18n.t('btn_clear_analysis', 'en') === 'Clear History', 'EN translation for btn_clear_analysis exists');
+assert(I18n.t('btn_clear_analysis', 'ar') === 'مسح السجل', 'AR translation for btn_clear_analysis exists');
+assert(I18n.t('toast_telemetry_synced', 'en') === 'Telemetry successfully synced with Dashboard.', 'EN translation for toast_telemetry_synced exists');
+assert(I18n.t('toast_telemetry_synced', 'ar') === 'تمت مزامنة البيانات مع لوحة التحكم بنجاح.', 'AR translation for toast_telemetry_synced exists');
+assert(I18n.t('modal_clear_analysis_title', 'en') === 'Clear Analytical History', 'EN translation for modal_clear_analysis_title exists');
+assert(I18n.t('modal_clear_analysis_title', 'ar') === 'مسح سجل التحليلات', 'AR translation for modal_clear_analysis_title exists');
+
+// Verify removal of simulate telemetry button from dashboard and analysis html
+const dashHtmlContent = fs.readFileSync(path.join(ROOT_DIR, 'dashboard/dashboard.html'), 'utf8');
+assert(!dashHtmlContent.includes('id="btn-simulate-telemetry"'), 'dashboard.html does NOT contain btn-simulate-telemetry');
+const analysisHtmlContent = fs.readFileSync(path.join(ROOT_DIR, 'analysis/analysis.html'), 'utf8');
+assert(!analysisHtmlContent.includes('id="btn-inject-sample"'), 'analysis.html does NOT contain btn-inject-sample');
+assert(analysisHtmlContent.includes('id="btn-sync-telemetry"'), 'analysis.html contains btn-sync-telemetry');
+assert(analysisHtmlContent.includes('id="btn-clear-analysis"'), 'analysis.html contains btn-clear-analysis');
+assert(analysisHtmlContent.includes('id="modal-clear-overlay"'), 'analysis.html contains modal-clear-overlay confirmation modal');
+assert(analysisHtmlContent.includes('id="toast-banner"'), 'analysis.html contains toast-banner notification element');
+
+// 9. Strict ZERO GRADIENT Verification across all project source files
 const filesToCheck = [
   'popup/popup.html',
   'popup/popup.css',
@@ -163,6 +198,12 @@ const filesToCheck = [
   'dashboard/dashboard.html',
   'dashboard/dashboard.css',
   'dashboard/dashboard.js',
+  'options/options.html',
+  'options/options.css',
+  'options/options.js',
+  'analysis/analysis.html',
+  'analysis/analysis.css',
+  'analysis/analysis.js',
   'scripts/router_scraper.js',
   'scripts/speedtest_scraper.js',
   'shared/evaluator.js',

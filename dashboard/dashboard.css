@@ -187,6 +187,38 @@ body {
   color: var(--text-muted);
 }
 
+/* Topbar Navigation Links */
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-link:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-link-active {
+  background-color: var(--bg-hover);
+  color: var(--accent-indigo);
+  border-color: var(--border-color);
+}
+
 .connection-status-block {
   display: flex;
   align-items: center;
@@ -347,6 +379,18 @@ body {
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: 0.3px;
+}
+
+.section-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .overall-rf-summary {

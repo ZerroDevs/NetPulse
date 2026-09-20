@@ -522,9 +522,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Open Full Dashboard Handler
+  // Navigation Handlers
   openDashboardBtn.addEventListener('click', () => {
     const dashboardUrl = chrome.runtime.getURL('dashboard/dashboard.html');
     chrome.tabs.create({ url: dashboardUrl });
   });
+
+  const btnOpenAnalysis = document.getElementById('btn-open-analysis');
+  if (btnOpenAnalysis) {
+    btnOpenAnalysis.addEventListener('click', () => {
+      const analysisUrl = chrome.runtime.getURL('analysis/analysis.html');
+      chrome.tabs.create({ url: analysisUrl });
+    });
+  }
+
+  const btnOpenOptions = document.getElementById('btn-open-options');
+  if (btnOpenOptions) {
+    btnOpenOptions.addEventListener('click', () => {
+      const optionsUrl = chrome.runtime.getURL('options/options.html');
+      chrome.tabs.create({ url: optionsUrl });
+    });
+  }
 });

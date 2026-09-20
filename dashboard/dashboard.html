@@ -33,7 +33,43 @@
         </div>
       </div>
 
+      <!-- Navigation Links -->
+      <nav class="topbar-nav">
+        <a href="dashboard.html" class="nav-link nav-link-active">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span data-i18n="nav_dashboard">Telemetry Dashboard</span>
+        </a>
+        <a href="../analysis/analysis.html" class="nav-link">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <span data-i18n="nav_analysis">Deep RF Analysis</span>
+        </a>
+        <a href="../options/options.html" class="nav-link">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span data-i18n="nav_options">Settings &amp; Gateway</span>
+        </a>
+      </nav>
+
       <div class="topbar-actions">
+        <!-- Portals & Quick Links Modal -->
+        <button id="btn-open-portals" class="btn btn-secondary" type="button" title="Open Network Portals &amp; Quick Links Modal">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span data-i18n="portals_modal_btn">Portals &amp; Links</span>
+        </button>
+
         <!-- Language Switcher (EN / AR) -->
         <button id="btn-lang-toggle" class="btn-toggle-switch" type="button" title="Switch Language / تبديل اللغة">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -62,40 +98,6 @@
           <span id="theme-label-text">Light</span>
         </button>
 
-        <button id="btn-scan-router" class="btn btn-secondary" type="button" title="Search open tabs for 192.168 router and trigger manual scrape">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
-          </svg>
-          <span id="btn-scan-router-label" data-i18n="scan_router_tab">Scan Router Tab</span>
-        </button>
-        <button id="btn-scan-speedtest" class="btn btn-secondary" type="button" title="Search open tabs for Speedtest.net or Fast.com and capture result">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-          </svg>
-          <span id="btn-scan-speedtest-label" data-i18n="capture_speedtest_tab">Capture Speedtest Tab</span>
-        </button>
-        <button id="btn-simulate-telemetry" class="btn btn-secondary" type="button" title="Inject simulated live router telemetry &amp; speedtest sample">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          <span data-i18n="simulate_telemetry">Simulate Telemetry</span>
-        </button>
-        <button id="btn-refresh-telemetry" class="btn btn-secondary" type="button" title="Request telemetry snapshot from storage">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-          </svg>
-          <span data-i18n="refresh">Refresh</span>
-        </button>
-        <button id="btn-open-portals" class="btn btn-secondary" type="button" title="Open Network Portals &amp; Quick Links Modal">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-          </svg>
-          <span data-i18n="portals_modal_btn">Portals &amp; Links</span>
-        </button>
         <a href="https://192.168.1.1" target="_blank" rel="noreferrer" class="btn btn-primary" title="Open Router Web GUI">
           <span data-i18n="open_router_gui">Open Router GUI</span>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -118,9 +120,28 @@
             </svg>
             <h2 class="section-heading" data-i18n="rf_telemetry_title">Live Cellular RF Telemetry</h2>
           </div>
-          <div class="overall-rf-summary">
-            <span class="label-tiny" data-i18n="overall_state">OVERALL STATE</span>
-            <span id="overall-rf-badge" class="badge-health badge-health-unknown" data-i18n="awaiting_signal">Awaiting Signal</span>
+
+          <div class="section-header-right">
+            <div class="overall-rf-summary">
+              <span class="label-tiny" data-i18n="overall_state">OVERALL STATE</span>
+              <span id="overall-rf-badge" class="badge-health badge-health-unknown" data-i18n="awaiting_signal">Awaiting Signal</span>
+            </div>
+            <div class="section-actions-group">
+              <button id="btn-scan-router" class="btn btn-secondary" type="button" title="Search open tabs for 192.168 router and trigger manual scrape">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                </svg>
+                <span id="btn-scan-router-label" data-i18n="scan_router_tab">Scan Router Tab</span>
+              </button>
+              <button id="btn-refresh-telemetry" class="btn btn-secondary" type="button" title="Request telemetry snapshot from storage">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                <span data-i18n="refresh">Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -328,6 +349,12 @@
           </div>
 
           <div class="table-actions-group">
+            <button id="btn-scan-speedtest" class="btn btn-secondary" type="button" title="Search open tabs for Speedtest.net or Fast.com and capture result">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+              </svg>
+              <span id="btn-scan-speedtest-label" data-i18n="capture_speedtest_tab">Capture Speedtest Tab</span>
+            </button>
             <button id="btn-export-csv" class="btn btn-secondary" type="button">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -416,7 +443,7 @@
                       <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
                     <p class="empty-text" data-i18n="empty_history_title">No network speedtest or RF correlation records recorded yet.</p>
-                    <span class="empty-sub" data-i18n="empty_history_sub">Run a test on Speedtest.net or Fast.com, or click "Capture Speedtest Tab" or "Simulate Telemetry" above.</span>
+                    <span class="empty-sub" data-i18n="empty_history_sub">Run a test on Speedtest.net or Fast.com, or click "Capture Speedtest Tab" above.</span>
                   </div>
                 </td>
               </tr>

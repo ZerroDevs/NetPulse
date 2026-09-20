@@ -60,7 +60,8 @@ Production-ready cellular router telemetry monitor and automated Speedtest / Fas
 
 9. **Full-Page Standalone Analytics Dashboard (`dashboard/dashboard.html`)**
    - Dedicated browser tab with live gauges, Carrier Aggregation breakdown, and Diagnostic Advice engine.
-   - Topbar actions: `Scan Router Tab`, `Capture Speedtest Tab`, `Simulate Telemetry`, `Refresh`, `Portals & Links`, `Language Selector`, `Theme Switcher`, and `Open Router GUI`.
+   - Streamlined Topbar: `Portals & Links`, `Language Selector`, `Theme Switcher`, and `Open Router GUI`.
+   - Contextual Controls: `Scan Router Tab` and `Refresh` in the RF Telemetry section; `Capture Speedtest Tab` in the History section.
    - Searchable, filterable, and sortable Speedtest and RF correlation history log.
    - One-click RFC-4180 CSV export and JSON export.
    - Interactive modals for "Portals & Links" and "Clear All Data".

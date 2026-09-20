@@ -72,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnScanRouterLabel = document.getElementById('btn-scan-router-label');
   const btnScanSpeedtest = document.getElementById('btn-scan-speedtest');
   const btnScanSpeedtestLabel = document.getElementById('btn-scan-speedtest-label');
-  const btnSimulate = document.getElementById('btn-simulate-telemetry');
   const btnRefresh = document.getElementById('btn-refresh-telemetry');
   const btnExportCsv = document.getElementById('btn-export-csv');
   const btnExportJson = document.getElementById('btn-export-json');
@@ -491,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
         : (i18n ? i18n.t('empty_search_title', currentLang) : 'No matching records found for the current search filter.');
 
       const emptySub = allHistory.length === 0
-        ? (i18n ? i18n.t('empty_history_sub', currentLang) : 'Run a test on Speedtest.net or Fast.com, or click "Capture Speedtest Tab" or "Simulate Telemetry" above.')
+        ? (i18n ? i18n.t('empty_history_sub', currentLang) : 'Run a test on Speedtest.net or Fast.com, or click "Capture Speedtest Tab" above.')
         : (i18n ? i18n.t('empty_search_sub', currentLang) : 'Try adjusting search keywords or resetting source filter.');
 
       historyTbody.innerHTML = `
@@ -783,135 +782,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       btnScanSpeedtestLabel.textContent = i18n ? i18n.t('capture_speedtest_tab', currentLang) : 'Capture Speedtest Tab';
     }
-  });
-
-  /* ==========================================================================
-     SIMULATE TELEMETRY
-     ========================================================================== */
-  btnSimulate.addEventListener('click', async () => {
-    const variations = [
-      {
-        rsrp: -74,
-        sinr: 24,
-        rsrq: -7,
-        rssi: -52,
-        band: 'n78',
-        dlBw: '100 MHz',
-        ulBw: '20 MHz',
-        pci: 342,
-        cellId: '2F48A1',
-        caBands: ['n78', 'B3', 'B1', 'B20'],
-        dlSpeed: 542.4,
-        ulSpeed: 94.2,
-        ping: 16,
-        jitter: 2,
-        source: 'Speedtest.net (Simulated)'
-      },
-      {
-        rsrp: -86,
-        sinr: 16,
-        rsrq: -11,
-        rssi: -64,
-        band: 'n78',
-        dlBw: '100 MHz',
-        ulBw: '20 MHz',
-        pci: 342,
-        cellId: '2F48A1',
-        caBands: ['n78', 'B3'],
-        dlSpeed: 288.6,
-        ulSpeed: 45.1,
-        ping: 22,
-        jitter: 4,
-        source: 'Fast.com (Simulated)'
-      },
-      {
-        rsrp: -94,
-        sinr: 8,
-        rsrq: -16,
-        rssi: -72,
-        band: 'B3',
-        dlBw: '20 MHz',
-        ulBw: '20 MHz',
-        pci: 118,
-        cellId: '1A9904',
-        caBands: ['B3', 'B20'],
-        dlSpeed: 64.2,
-        ulSpeed: 18.5,
-        ping: 34,
-        jitter: 9,
-        source: 'Speedtest.net (Simulated)'
-      }
-    ];
-
-    const pick = variations[Math.floor(Math.random() * variations.length)];
-
-    const simulatedMetrics = {
-      rsrp: pick.rsrp,
-      sinr: pick.sinr,
-      rsrq: pick.rsrq,
-      rssi: pick.rssi,
-      band: pick.band,
-      pci: pick.pci,
-      cellId: pick.cellId,
-      dlBandwidth: pick.dlBw,
-      ulBandwidth: pick.ulBw,
-      caBands: pick.caBands,
-      networkType: '5G SA'
-    };
-
-    const health = evaluator.getOverallHealth(simulatedMetrics.rsrp, simulatedMetrics.sinr, simulatedMetrics.rsrq);
-    const advice = evaluator.generateDiagnosticAdvice(simulatedMetrics);
-
-    const routerPayload = {
-      timestamp: Date.now(),
-      status: 'connected',
-      source: 'Zyxel NR5103E (Simulated)',
-      routerUrl: 'https://192.168.1.1',
-      metrics: simulatedMetrics,
-      eval: {
-        overallGrade: health.status,
-        overallColor: health.color,
-        rsrpGrade: evaluator.evaluateMetric('rsrp', simulatedMetrics.rsrp).grade,
-        sinrGrade: evaluator.evaluateMetric('sinr', simulatedMetrics.sinr).grade,
-        rsrqGrade: evaluator.evaluateMetric('rsrq', simulatedMetrics.rsrq).grade,
-        advice: advice
-      }
-    };
-
-    const speedtestPayload = {
-      source: pick.source,
-      downloadMbps: pick.dlSpeed,
-      uploadMbps: pick.ulSpeed,
-      pingMs: pick.ping,
-      jitterMs: pick.jitter,
-      isp: 'Three UK 5G',
-      server: 'London Core 01'
-    };
-
-    const correlation = evaluator.correlateSpeedtestWithRF(speedtestPayload, simulatedMetrics);
-
-    const historyRecord = {
-      id: 'sim_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      timestamp: Date.now(),
-      dateIso: new Date().toISOString(),
-      source: pick.source,
-      speedtest: speedtestPayload,
-      router: simulatedMetrics,
-      correlationAnalysis: correlation
-    };
-
-    allHistory.unshift(historyRecord);
-    if (allHistory.length > 500) allHistory.length = 500;
-
-    await chrome.storage.local.set({
-      netpulse_router_latest: routerPayload,
-      netpulse_history: allHistory
-    });
-
-    renderLiveTelemetry(routerPayload);
-    applyFiltersAndSort();
-
-    showToast(i18n ? i18n.t('toast_telemetry_simulated', currentLang) : 'Simulated RF telemetry and Speedtest sample injected successfully.');
   });
 
   /* ==========================================================================

@@ -123,12 +123,18 @@
    */
   function autoFillRouterCredentials() {
     try {
-      chrome.storage.local.get(['netpulse_router_creds'], (result) => {
-        const creds = result.netpulse_router_creds || DEFAULT_ROUTER_CREDS;
-        if (creds.autoFill === false) return;
+      chrome.storage.local.get(['netpulse_settings', 'netpulse_router_creds'], (result) => {
+        const settings = result.netpulse_settings || {};
+        const creds = result.netpulse_router_creds || {};
 
-        const targetUser = creds.user || DEFAULT_ROUTER_CREDS.user;
-        const targetPass = creds.pass || DEFAULT_ROUTER_CREDS.pass;
+        const autoFill = settings.autofillEnabled !== undefined
+          ? settings.autofillEnabled
+          : (creds.autoFill !== undefined ? creds.autoFill : DEFAULT_ROUTER_CREDS.autoFill);
+
+        if (autoFill === false) return;
+
+        const targetUser = settings.routerUsername || creds.user || DEFAULT_ROUTER_CREDS.user;
+        const targetPass = settings.routerPassword || creds.pass || DEFAULT_ROUTER_CREDS.pass;
 
         // 1. Find all visible, interactive inputs on the page
         const allInputs = Array.from(document.querySelectorAll('input')).filter(el => {
@@ -702,7 +708,10 @@
     }, 600);
 
     if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(runExtraction, 8000);
+    chrome.storage.local.get(['netpulse_settings'], (res) => {
+      const rateSec = (res.netpulse_settings && res.netpulse_settings.pollingRate) ? res.netpulse_settings.pollingRate : 5;
+      pollTimer = setInterval(runExtraction, rateSec * 1000);
+    });
   }
 
   if (document.readyState === 'loading') {
