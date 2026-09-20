@@ -1,0 +1,72 @@
+{
+  "manifest_version": 3,
+  "name": "NetPulse",
+  "version": "1.0.2",
+  "description": "Cellular router RF telemetry monitor and automated Speedtest / Fast.com performance correlation engine.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "NetPulse Telemetry",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "*://192.168.1.1/*",
+    "https://*.speedtest.net/*",
+    "https://fast.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "shared/evaluator.js",
+        "scripts/router_scraper.js"
+      ],
+      "run_at": "document_end",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://*.speedtest.net/*",
+        "https://fast.com/*"
+      ],
+      "js": [
+        "shared/evaluator.js",
+        "scripts/speedtest_scraper.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "shared/evaluator.js",
+        "shared/i18n.js",
+        "icons/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

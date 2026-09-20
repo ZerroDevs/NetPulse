@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPulse Telemetry</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+          <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+          <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+        <span class="brand-name" data-i18n="brand_name">NetPulse</span>
+      </div>
+
+      <div class="header-right">
+        <!-- Language Switcher -->
+        <button id="btn-popup-lang" class="btn-icon-toggle" type="button" title="Switch Language / تبديل اللغة">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span id="popup-lang-text" class="mono">AR</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="btn-popup-theme" class="btn-icon-toggle" type="button" title="Toggle Light/Dark Theme">
+          <span id="popup-theme-icon">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          </span>
+        </button>
+
+        <span id="connection-pill" class="status-pill status-unknown">
+          <span class="status-dot"></span>
+          <span id="connection-label" data-i18n="awaiting_router">Awaiting Router</span>
+        </span>
+      </div>
+    </header>
+
+    <!-- Active Tab Context Indicator -->
+    <div id="active-tab-banner" class="active-tab-pill mono" style="display: none;">
+      <span class="active-tab-dot"></span>
+      <span id="active-tab-text">Detected: --</span>
+    </div>
+
+    <!-- RF Health Banner & Router Manual Scan -->
+    <section class="health-section">
+      <div class="health-card">
+        <div class="health-meta">
+          <span class="label-tiny" data-i18n="rf_link_health">RF LINK HEALTH</span>
+          <span id="rf-last-updated" class="mono text-muted">--:--:--</span>
+        </div>
+        <div class="health-status-row">
+          <div id="overall-health-badge" class="health-badge">
+            <span id="overall-health-text" data-i18n="no_signal_telemetry">No Signal Telemetry</span>
+          </div>
+          <div class="router-target mono" title="Target Gateway">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#9ca3af" stroke-width="2">
+              <rect x="2" y="2" width="20" height="8" rx="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+            <span id="router-ip-text">192.168.*</span>
+          </div>
+        </div>
+
+        <!-- Manual Check / Scan Active Tab Button -->
+        <div class="manual-scan-box">
+          <button id="btn-manual-scan" class="btn-scan" type="button">
+            <svg id="scan-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            </svg>
+            <span id="btn-scan-label" data-i18n="manual_check_router">Manual Check / Scan Router Tab</span>
+          </button>
+          <div id="scan-status-msg" class="scan-status mono"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live RF Metrics Grid (2x2) -->
+    <section class="metrics-grid">
+      <!-- RSRP -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-name" data-i18n="metric_rsrp_name">RSRP</span>
+          <span id="rsrp-badge" class="badge-tier">--</span>
+        </div>
+        <div class="metric-value-row">
+          <span id="rsrp-value" class="metric-value mono">--</span>
+          <span class="metric-unit" data-i18n="unit_dbm">dBm</span>
+        </div>
+        <div class="benchmark-guide">Benchmark: &gt;= -80</div>
+      </div>
+
+      <!-- SINR -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-name" data-i18n="metric_sinr_name">SINR</span>
+          <span id="sinr-badge" class="badge-tier">--</span>
+        </div>
+        <div class="metric-value-row">
+          <span id="sinr-value" class="metric-value mono">--</span>
+          <span class="metric-unit" data-i18n="unit_db">dB</span>
+        </div>
+        <div class="benchmark-guide">Benchmark: &gt;= 20</div>
+      </div>
+
+      <!-- RSRQ -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-name" data-i18n="metric_rsrq_name">RSRQ</span>
+          <span id="rsrq-badge" class="badge-tier">--</span>
+        </div>
+        <div class="metric-value-row">
+          <span id="rsrq-value" class="metric-value mono">--</span>
+          <span class="metric-unit" data-i18n="unit_db">dB</span>
+        </div>
+        <div class="benchmark-guide">Benchmark: &gt;= -9</div>
+      </div>
+
+      <!-- RSSI -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-name" data-i18n="metric_rssi_name">RSSI</span>
+          <span id="rssi-badge" class="badge-tier">--</span>
+        </div>
+        <div class="metric-value-row">
+          <span id="rssi-value" class="metric-value mono">--</span>
+          <span class="metric-unit" data-i18n="unit_dbm">dBm</span>
+        </div>
+        <div class="benchmark-guide">Benchmark: &gt;= -65</div>
+      </div>
+    </section>
+
+    <!-- Band & Carrier Aggregation Mini Card -->
+    <section class="ca-mini-card">
+      <div class="ca-item">
+        <span class="label-tiny" data-i18n="ca_primary_band">PRIMARY BAND</span>
+        <span id="ca-primary-band" class="mono text-highlight">--</span>
+      </div>
+      <div class="ca-divider"></div>
+      <div class="ca-item">
+        <span class="label-tiny" data-i18n="ca_bandwidth">BANDWIDTH</span>
+        <span id="ca-bandwidth" class="mono text-highlight">--</span>
+      </div>
+      <div class="ca-divider"></div>
+      <div class="ca-item">
+        <span class="label-tiny" data-i18n="ca_carriers_count">CARRIER AGG</span>
+        <span id="ca-carriers-count" class="mono text-highlight">--</span>
+      </div>
+    </section>
+
+    <!-- Latest Speedtest Card -->
+    <section class="speedtest-section">
+      <div class="speedtest-card">
+        <div class="speedtest-header">
+          <div class="speedtest-title-group">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6366f1" stroke-width="2">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+            <span class="section-title" data-i18n="latest_speedtest">LATEST SPEEDTEST</span>
+          </div>
+          <span id="st-source-time" class="mono text-muted" data-i18n="no_tests_recorded">No tests recorded</span>
+        </div>
+        
+        <div class="speedtest-stats-row">
+          <!-- Download -->
+          <div class="st-stat-col">
+            <div class="st-label-flex">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#10b981" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+              </svg>
+              <span data-i18n="stat_down">DOWN</span>
+            </div>
+            <div class="st-num-flex">
+              <span id="st-down-val" class="mono st-val">--</span>
+              <span class="st-unit" data-i18n="unit_mbps">Mbps</span>
+            </div>
+          </div>
+
+          <!-- Upload -->
+          <div class="st-stat-col">
+            <div class="st-label-flex">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#3b82f6" stroke-width="2.5">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+              <span data-i18n="stat_up">UP</span>
+            </div>
+            <div class="st-num-flex">
+              <span id="st-up-val" class="mono st-val">--</span>
+              <span class="st-unit" data-i18n="unit_mbps">Mbps</span>
+            </div>
+          </div>
+
+          <!-- Ping / Latency -->
+          <div class="st-stat-col">
+            <div class="st-label-flex">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#f59e0b" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span data-i18n="stat_ping">PING</span>
+            </div>
+            <div class="st-num-flex">
+              <span id="st-ping-val" class="mono st-val">--</span>
+              <span class="st-unit" data-i18n="unit_ms">ms</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="st-paired-indicator" class="st-correlation-footer">
+          <span class="mono text-muted" data-i18n="rf_pairing_placeholder">RF telemetry pairing will appear here.</span>
+        </div>
+
+        <!-- Manual Capture Speedtest Button -->
+        <div class="manual-scan-box" style="margin-top: 4px;">
+          <button id="btn-manual-speedtest" class="btn-scan" type="button">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+            <span id="btn-speedtest-label" data-i18n="manual_capture_speedtest">Manual Capture Speedtest Tab</span>
+          </button>
+          <div id="st-scan-status" class="scan-status mono"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Primary Action: Open Full Dashboard -->
+    <footer class="footer">
+      <button id="open-dashboard-btn" class="btn-primary" type="button">
+        <span data-i18n="open_dashboard">Open Full Analytics Dashboard</span>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </button>
+    </footer>
+  </div>
+
+  <script src="../shared/evaluator.js"></script>
+  <script src="../shared/i18n.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
