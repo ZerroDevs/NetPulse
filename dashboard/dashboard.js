@@ -78,10 +78,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnExportJson = document.getElementById('btn-export-json');
   const btnOpenClearModal = document.getElementById('btn-open-clear-modal');
 
-  // Modal Elements
+  // Clear Modal Elements
   const modalClearOverlay = document.getElementById('modal-clear-overlay');
   const btnModalCancel = document.getElementById('btn-modal-cancel');
   const btnModalConfirm = document.getElementById('btn-modal-confirm');
+
+  // Network Portals Modal Elements
+  const btnOpenPortals = document.getElementById('btn-open-portals');
+  const modalPortalsOverlay = document.getElementById('modal-portals-overlay');
+  const btnPortalsClose = document.getElementById('btn-portals-close');
+  const btnPortalsCloseX = document.getElementById('btn-portals-close-x');
+  const btnToggleCredPass = document.getElementById('btn-toggle-cred-pass');
+  const credDisplayPass = document.getElementById('cred-display-pass');
+  const credDisplayUser = document.getElementById('cred-display-user');
+  let configuredRouterPass = 'SKdigital8008@';
+  let isPassRevealed = false;
 
   // Toast Element
   const toastBanner = document.getElementById('toast-banner');
@@ -175,6 +186,62 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape' && modalClearOverlay.classList.contains('active')) {
       closeClearModal();
     }
+  });
+
+  /* ==========================================================================
+     NETWORK PORTALS & QUICK LINKS MODAL WORKFLOW
+     ========================================================================== */
+  function openPortalsModal() {
+    modalPortalsOverlay.classList.add('active');
+    if (btnPortalsClose) btnPortalsClose.focus();
+  }
+
+  function closePortalsModal() {
+    modalPortalsOverlay.classList.remove('active');
+  }
+
+  if (btnOpenPortals) {
+    btnOpenPortals.addEventListener('click', openPortalsModal);
+  }
+  if (btnPortalsClose) {
+    btnPortalsClose.addEventListener('click', closePortalsModal);
+  }
+  if (btnPortalsCloseX) {
+    btnPortalsCloseX.addEventListener('click', closePortalsModal);
+  }
+
+  modalPortalsOverlay.addEventListener('click', (e) => {
+    if (e.target === modalPortalsOverlay) {
+      closePortalsModal();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalPortalsOverlay.classList.contains('active')) {
+      closePortalsModal();
+    }
+  });
+
+  // Password visibility toggle
+  if (btnToggleCredPass && credDisplayPass) {
+    btnToggleCredPass.addEventListener('click', () => {
+      isPassRevealed = !isPassRevealed;
+      credDisplayPass.textContent = isPassRevealed ? configuredRouterPass : '•••••••••••••';
+    });
+  }
+
+  // Copy credentials to clipboard handlers
+  document.querySelectorAll('.btn-copy-cred[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const text = btn.getAttribute('data-copy');
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast(i18n ? i18n.t('copied_to_clipboard', currentLang) : 'Copied to clipboard');
+      } catch (err) {
+        console.warn('Clipboard write failed:', err);
+      }
+    });
   });
 
   // Confirm delete handler
@@ -493,7 +560,8 @@ document.addEventListener('DOMContentLoaded', () => {
       'netpulse_router_latest',
       'netpulse_history',
       'netpulse_theme',
-      'netpulse_lang'
+      'netpulse_lang',
+      'netpulse_router_creds'
     ], (res) => {
       // Preferences
       if (res.netpulse_theme) {
@@ -501,6 +569,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (res.netpulse_lang) {
         applyLanguage(res.netpulse_lang);
+      }
+
+      // Router Credentials
+      if (res.netpulse_router_creds) {
+        if (res.netpulse_router_creds.pass) {
+          configuredRouterPass = res.netpulse_router_creds.pass;
+          if (isPassRevealed && credDisplayPass) credDisplayPass.textContent = configuredRouterPass;
+        }
+        if (res.netpulse_router_creds.user && credDisplayUser) {
+          credDisplayUser.textContent = res.netpulse_router_creds.user;
+        }
       }
 
       renderLiveTelemetry(res.netpulse_router_latest || null);

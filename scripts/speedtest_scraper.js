@@ -23,10 +23,18 @@
   let lastLoggedTestId = null;
   let isTestRunning = false;
 
+  /**
+   * Parse speed values robustly, handling multi-number strings and units
+   */
   function parseSpeed(valStr, unitStr) {
     if (!valStr) return null;
-    const num = parseFloat(String(valStr).replace(/[^\d.]/g, ''));
-    if (isNaN(num)) return null;
+    const str = String(valStr).trim();
+    if (!str || str === '—' || str === '-') return null;
+
+    const match = str.match(/\b\d+(?:\.\d+)?\b/);
+    if (!match) return null;
+    const num = parseFloat(match[0]);
+    if (isNaN(num) || num <= 0) return null;
 
     const unit = (unitStr || '').toLowerCase();
     if (unit.includes('kbps')) return parseFloat((num / 1000).toFixed(2));
@@ -34,14 +42,22 @@
     return parseFloat(num.toFixed(2));
   }
 
+  /**
+   * Parse latency values robustly
+   */
   function parseLatency(valStr) {
     if (!valStr) return null;
-    const num = parseFloat(String(valStr).replace(/[^\d.]/g, ''));
-    return isNaN(num) ? null : Math.round(num);
+    const str = String(valStr).trim();
+    if (!str || str === '—' || str === '-') return null;
+
+    const match = str.match(/\b\d+(?:\.\d+)?\b/);
+    if (!match) return null;
+    const num = parseFloat(match[0]);
+    return isNaN(num) || num < 0 ? null : Math.round(num);
   }
 
   /**
-   * Display flat NetPulse toast notification in the DOM
+   * Display flat NetPulse toast notification in the DOM (Strict zero-gradient, zero-emoji)
    */
   function showToast(message, subtext, isSuccess = true) {
     const existing = document.getElementById('netpulse-toast-notification');
@@ -63,7 +79,7 @@
       'color: #f3f4f6',
       'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       'font-size: 13px',
-      'max-width: 400px',
+      'max-width: 420px',
       'display: flex',
       'flex-direction: column',
       'gap: 4px',
@@ -146,7 +162,7 @@
     document.getElementById('netpulse-st-capture-btn').addEventListener('click', () => {
       const extracted = extractCurrentSpeedtest();
       if (extracted && extracted.downloadMbps > 0) {
-        recordSpeedtestResult(extracted);
+        recordSpeedtestResult(extracted, true);
       } else {
         showToast('NetPulse: No Active Result Yet', 'Test is either still running or has not started yet.', false);
       }
@@ -164,103 +180,262 @@
   }
 
   /**
-   * Extract current speedtest metrics from the DOM (Speedtest.net or Fast.com)
+   * Helper to scan candidate DOM selectors for a valid numeric value
    */
-  function extractCurrentSpeedtest() {
-    if (isSpeedtest) {
-      const dlElem = document.querySelector('.download-speed') ||
-                     document.querySelector('span[data-download-status-value]') ||
-                     document.querySelector('.result-data-large.number.result-data-value.download-speed') ||
-                     document.querySelector('.result-item-download .result-data-value');
+  function findNumericFromSelectors(selectors, isLatency = false) {
+    for (const selector of selectors) {
+      try {
+        const elements = document.querySelectorAll(selector);
+        for (const el of elements) {
+          const rawText = (el.innerText || el.textContent || '').trim();
+          if (!rawText || rawText === '—' || rawText === '-') continue;
 
-      const ulElem = document.querySelector('.upload-speed') ||
-                     document.querySelector('span[data-upload-status-value]') ||
-                     document.querySelector('.result-data-large.number.result-data-value.upload-speed') ||
-                     document.querySelector('.result-item-upload .result-data-value');
+          // Check direct parse
+          const val = isLatency ? parseLatency(rawText) : parseSpeed(rawText);
+          if (val !== null && val > 0) return val;
 
-      const pingElem = document.querySelector('.ping-speed') ||
-                       document.querySelector('.result-data-value.ping-speed') ||
-                       document.querySelector('.result-item-ping .result-data-value');
-
-      const jitterElem = document.querySelector('.jitter-speed') ||
-                         document.querySelector('.result-data-value.jitter-speed') ||
-                         document.querySelector('.result-item-jitter .result-data-value');
-
-      const ispElem = document.querySelector('.js-data-isp');
-      const serverElem = document.querySelector('.js-data-sponsor');
-      const resultLink = document.querySelector('a.result-data-large[href*="/result/"]') ||
-                         document.querySelector('a[href*="/result/"]');
-
-      const dlVal = dlElem ? dlElem.innerText.trim() : null;
-      const ulVal = ulElem ? ulElem.innerText.trim() : null;
-
-      const downloadSpeed = parseSpeed(dlVal, 'mbps');
-      const uploadSpeed = parseSpeed(ulVal, 'mbps');
-      const ping = parseLatency(pingElem ? pingElem.innerText : null);
-      const jitter = parseLatency(jitterElem ? jitterElem.innerText : null);
-
-      if (downloadSpeed !== null && downloadSpeed > 0) {
-        return {
-          source: 'Speedtest.net',
-          downloadMbps: downloadSpeed,
-          uploadMbps: uploadSpeed || 0,
-          pingMs: ping || 0,
-          jitterMs: jitter || 0,
-          isp: ispElem ? ispElem.innerText.trim() : 'Speedtest ISP',
-          server: serverElem ? serverElem.innerText.trim() : 'Speedtest Server',
-          resultUrl: resultLink ? resultLink.href : window.location.href
-        };
+          // Check lines within container if label is included
+          const lines = rawText.split(/[\r\n]+/);
+          for (const line of lines) {
+            const lineVal = isLatency ? parseLatency(line) : parseSpeed(line);
+            if (lineVal !== null && lineVal > 0) return lineVal;
+          }
+        }
+      } catch (e) {
+        // Ignore selector errors
       }
-      return null;
+    }
+    return null;
+  }
+
+  /**
+   * Multi-strategy Speedtest.net extractor
+   */
+  function extractSpeedtestNetMetrics() {
+    // Strategy 1: Search prioritized DOM selectors
+    let downloadSpeed = findNumericFromSelectors([
+      '.result-item-download .result-data-value',
+      '.result-item-download [class*="result-data"]',
+      '.result-item-download span',
+      '.result-item-download',
+      'span[data-download-status-value]',
+      '.result-data-large.download-speed',
+      '.result-view-data .download-speed',
+      '.result-container .download-speed',
+      '.download-speed',
+      '[class*="download-speed" i]',
+      '[id*="download-speed" i]',
+      '[data-test-id="download-speed"]'
+    ], false);
+
+    let uploadSpeed = findNumericFromSelectors([
+      '.result-item-upload .result-data-value',
+      '.result-item-upload [class*="result-data"]',
+      '.result-item-upload span',
+      '.result-item-upload',
+      'span[data-upload-status-value]',
+      '.result-data-large.upload-speed',
+      '.result-view-data .upload-speed',
+      '.result-container .upload-speed',
+      '.upload-speed',
+      '[class*="upload-speed" i]',
+      '[id*="upload-speed" i]',
+      '[data-test-id="upload-speed"]'
+    ], false);
+
+    let ping = findNumericFromSelectors([
+      '.result-item-ping .result-data-value',
+      '.result-item-ping [class*="result-data"]',
+      '.result-item-ping span',
+      '.result-item-ping',
+      '.result-data-value.ping-speed',
+      '.ping-speed',
+      '[class*="ping-speed" i]'
+    ], true);
+
+    let jitter = findNumericFromSelectors([
+      '.result-item-jitter .result-data-value',
+      '.result-item-jitter span',
+      '.result-item-jitter',
+      '.jitter-speed',
+      '.result-data-value.jitter-speed',
+      '[class*="jitter-speed" i]'
+    ], true);
+
+    const bodyText = (document.body ? document.body.innerText : '') || '';
+
+    // Strategy 2: Text Regex Fallback if DOM selectors missed
+    if (!downloadSpeed && bodyText) {
+      // Multi-column layout: "DOWNLOAD ... UPLOAD \n 58.51 ... 32.10"
+      const multiCol = bodyText.match(/DOWNLOAD[^\r\n]*UPLOAD[^\r\n]*[\r\n]+[\s]*([\d.]+)[\s]+([\d.]+)/i);
+      if (multiCol) {
+        downloadSpeed = parseSpeed(multiCol[1]);
+        if (!uploadSpeed) uploadSpeed = parseSpeed(multiCol[2]);
+      }
     }
 
-    if (isFast) {
-      const speedValElem = document.getElementById('speed-value');
-      const speedUnitElem = document.getElementById('speed-units');
-      const uploadValElem = document.getElementById('upload-value');
-      const uploadUnitElem = document.getElementById('upload-units');
-      const latencyValElem = document.getElementById('latency-value');
-      const bufferbloatValElem = document.getElementById('bufferbloat-value');
+    if (!downloadSpeed && bodyText) {
+      const dlMatch = bodyText.match(/DOWNLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
+                      bodyText.match(/([\d.]+)\s*(?:Mbps)?\s*DOWNLOAD/i) ||
+                      bodyText.match(/Download(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i);
+      if (dlMatch) downloadSpeed = parseSpeed(dlMatch[1]);
+    }
 
-      if (!speedValElem) return null;
+    if (!uploadSpeed && bodyText) {
+      const ulMatch = bodyText.match(/UPLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
+                      bodyText.match(/([\d.]+)\s*(?:Mbps)?\s*UPLOAD/i) ||
+                      bodyText.match(/Upload(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i);
+      if (ulMatch) uploadSpeed = parseSpeed(ulMatch[1]);
+    }
 
-      const dlVal = speedValElem.innerText.trim();
-      const dlUnit = speedUnitElem ? speedUnitElem.innerText.trim() : 'Mbps';
-      const downloadSpeed = parseSpeed(dlVal, dlUnit);
+    if (!ping && bodyText) {
+      const pingMatch = bodyText.match(/Ping\s*(?:ms)?[\s\r\n]+([\d]+)/i) ||
+                        bodyText.match(/([\d]+)\s*(?:ms)?\s*Ping/i);
+      if (pingMatch) ping = parseLatency(pingMatch[1]);
+    }
 
-      if (downloadSpeed !== null && downloadSpeed > 0) {
-        const ulVal = uploadValElem ? uploadValElem.innerText.trim() : null;
-        const ulUnit = uploadUnitElem ? uploadUnitElem.innerText.trim() : 'Mbps';
-        const uploadSpeed = parseSpeed(ulVal, ulUnit);
+    if (!jitter && bodyText) {
+      const jitterMatch = bodyText.match(/Jitter\s*(?:ms)?[\s\r\n]+([\d]+)/i);
+      if (jitterMatch) jitter = parseLatency(jitterMatch[1]);
+    }
 
-        const ping = parseLatency(latencyValElem ? latencyValElem.innerText : null);
-        const jitter = parseLatency(bufferbloatValElem ? bufferbloatValElem.innerText : null);
-
-        return {
-          source: 'Fast.com',
-          downloadMbps: downloadSpeed,
-          uploadMbps: uploadSpeed || 0,
-          pingMs: ping || 0,
-          jitterMs: jitter || 0,
-          isp: 'Netflix / Fast.com CDN',
-          server: 'Fast.com Edge',
-          resultUrl: window.location.href
-        };
+    // Result ID & URL
+    let resultUrl = window.location.href;
+    let resultId = null;
+    const resultLinkElem = document.querySelector('a.result-data-large[href*="/result/"]') ||
+                           document.querySelector('a[href*="/result/"]') ||
+                           document.querySelector('.result-item-id a') ||
+                           document.querySelector('[data-result-id]');
+    if (resultLinkElem && resultLinkElem.href) {
+      resultUrl = resultLinkElem.href;
+      const m = resultUrl.match(/\/result\/(?:c\/)?(\d+)/i);
+      if (m) resultId = m[1];
+    }
+    if (!resultId && bodyText) {
+      const idMatch = bodyText.match(/Result\s*ID:?\s*(\d+)/i);
+      if (idMatch) {
+        resultId = idMatch[1];
+        resultUrl = `https://www.speedtest.net/result/${resultId}`;
       }
-      return null;
+    }
+
+    // ISP
+    let isp = 'Speedtest ISP';
+    const ispElem = document.querySelector('.js-data-isp') ||
+                    document.querySelector('[data-isp]') ||
+                    document.querySelector('.result-data-source') ||
+                    document.querySelector('.result-item-host .result-data-value');
+    if (ispElem && ispElem.innerText.trim()) {
+      isp = ispElem.innerText.trim();
+    } else if (bodyText) {
+      const ispMatch = bodyText.match(/Connections[\s\r\n]+(?:Multi|Single)[\s\r\n]+([^\r\n]+)/i);
+      if (ispMatch) {
+        isp = ispMatch[1].trim();
+      }
+    }
+
+    // Server
+    let server = 'Speedtest Server';
+    const serverElem = document.querySelector('.js-data-sponsor') ||
+                       document.querySelector('.host-location') ||
+                       document.querySelector('.server-name') ||
+                       document.querySelector('.server-current') ||
+                       document.querySelector('[data-server]');
+    if (serverElem && serverElem.innerText.trim()) {
+      server = serverElem.innerText.trim();
+    } else if (bodyText) {
+      const ipBlock = bodyText.match(/(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})[\s\r\n]+([\s\S]*?)\s*Change Server/i);
+      if (ipBlock && ipBlock[1]) {
+        server = ipBlock[1].trim().split(/[\r\n]+/).map(s => s.trim()).filter(Boolean).join(' ');
+      } else {
+        const beforeChange = bodyText.match(/([\s\S]*?)\s*Change Server/i);
+        if (beforeChange && beforeChange[1]) {
+          const lines = beforeChange[1].trim().split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+          if (lines.length > 0) server = lines.slice(-2).join(' ');
+        }
+      }
+    }
+
+    if (downloadSpeed !== null && downloadSpeed > 0) {
+      return {
+        source: 'Speedtest.net',
+        downloadMbps: downloadSpeed,
+        uploadMbps: uploadSpeed || 0,
+        pingMs: ping || 0,
+        jitterMs: jitter || 0,
+        isp: isp,
+        server: server,
+        resultUrl: resultUrl,
+        resultId: resultId
+      };
     }
 
     return null;
   }
 
   /**
+   * Fast.com extractor
+   */
+  function extractFastComMetrics() {
+    const speedValElem = document.getElementById('speed-value');
+    const speedUnitElem = document.getElementById('speed-units');
+    const uploadValElem = document.getElementById('upload-value');
+    const uploadUnitElem = document.getElementById('upload-units');
+    const latencyValElem = document.getElementById('latency-value');
+    const bufferbloatValElem = document.getElementById('bufferbloat-value');
+
+    if (!speedValElem) return null;
+
+    const dlVal = speedValElem.innerText.trim();
+    const dlUnit = speedUnitElem ? speedUnitElem.innerText.trim() : 'Mbps';
+    const downloadSpeed = parseSpeed(dlVal, dlUnit);
+
+    if (downloadSpeed !== null && downloadSpeed > 0) {
+      const ulVal = uploadValElem ? uploadValElem.innerText.trim() : null;
+      const ulUnit = uploadUnitElem ? uploadUnitElem.innerText.trim() : 'Mbps';
+      const uploadSpeed = parseSpeed(ulVal, ulUnit);
+
+      const ping = parseLatency(latencyValElem ? latencyValElem.innerText : null);
+      const jitter = parseLatency(bufferbloatValElem ? bufferbloatValElem.innerText : null);
+
+      return {
+        source: 'Fast.com',
+        downloadMbps: downloadSpeed,
+        uploadMbps: uploadSpeed || 0,
+        pingMs: ping || 0,
+        jitterMs: jitter || 0,
+        isp: 'Netflix / Fast.com CDN',
+        server: 'Fast.com Edge',
+        resultUrl: window.location.href
+      };
+    }
+    return null;
+  }
+
+  /**
+   * Extract current speedtest metrics from the DOM (Speedtest.net or Fast.com)
+   */
+  function extractCurrentSpeedtest() {
+    if (isSpeedtest) return extractSpeedtestNetMetrics();
+    if (isFast) return extractFastComMetrics();
+    return null;
+  }
+
+  /**
    * Save test result and pair with latest router telemetry
    */
-  async function recordSpeedtestResult(testData) {
+  async function recordSpeedtestResult(testData, isManual = false) {
     if (!testData || !testData.downloadMbps) return;
 
-    const testKey = `${testData.source}_${testData.downloadMbps}_${testData.uploadMbps}_${Math.floor(Date.now() / 15000)}`;
+    const testKey = `${testData.source}_${testData.downloadMbps}_${testData.uploadMbps}_${testData.resultId || Math.floor(Date.now() / 30000)}`;
     if (lastLoggedTestId === testKey) {
+      if (isManual) {
+        showToast(
+          'NetPulse: Result Already Logged',
+          `DL: ${testData.downloadMbps} Mbps | UL: ${testData.uploadMbps || '--'} Mbps | Ping: ${testData.pingMs || '--'} ms (Recorded)`,
+          true
+        );
+      }
       return; // Deduplicate
     }
     lastLoggedTestId = testKey;
@@ -324,46 +499,50 @@
   // --- Speedtest.net Observers ---
   function initSpeedtestNet() {
     const checkDom = () => {
-      const resultLink = document.querySelector('a.result-data-large[href*="/result/"]') ||
-                         document.querySelector('a[href*="/result/"]') ||
-                         document.querySelector('.result-item-id a');
+      const extracted = extractCurrentSpeedtest();
+      const bodyText = (document.body ? document.body.innerText : '') || '';
 
-      const dlElem = document.querySelector('.download-speed') ||
-                     document.querySelector('span[data-download-status-value]') ||
-                     document.querySelector('.result-data-large.number.result-data-value.download-speed');
+      const hasResultId = !!(
+        (extracted && extracted.resultId) ||
+        document.querySelector('a[href*="/result/"]') ||
+        document.querySelector('.result-item-id') ||
+        bodyText.includes('Result ID:')
+      );
 
-      const ulElem = document.querySelector('.upload-speed') ||
-                     document.querySelector('span[data-upload-status-value]') ||
-                     document.querySelector('.result-data-large.number.result-data-value.upload-speed');
+      const hasShareOrSurvey = !!(
+        document.querySelector('.share-button, .social-share') ||
+        (bodyText.includes('Share') && (bodyText.includes('RECOMMEND') || bodyText.includes('Change Server')))
+      );
 
-      const dlVal = dlElem ? dlElem.innerText.trim() : null;
-      const ulVal = ulElem ? ulElem.innerText.trim() : null;
+      const hasBothSpeeds = !!(
+        extracted &&
+        extracted.downloadMbps > 0 &&
+        extracted.uploadMbps > 0
+      );
 
-      const isCompleted = (resultLink && dlVal && dlVal !== '—' && dlVal !== '') ||
-                          (dlVal && ulVal && dlVal !== '—' && ulVal !== '—' && !isNaN(parseFloat(dlVal)) && !isNaN(parseFloat(ulVal)) && parseFloat(dlVal) > 0);
+      const isCompleted = extracted && extracted.downloadMbps > 0 && (hasResultId || hasShareOrSurvey || hasBothSpeeds);
 
-      const isStillTesting = document.querySelector('.gauge-assembly') &&
-                            !document.querySelector('.result-item-id') &&
-                            (ulVal === '—' || ulVal === '');
+      // Check if test is currently in progress
+      const isStartButtonGone = !document.querySelector('.start-button:not([style*="display: none"]), .js-start-test:not([style*="display: none"])');
+      const isGaugeActive = document.querySelector('.gauge-assembly.testing, .test-mode-progress, .gauge-speed-download, .gauge-speed-upload');
 
-      if (isStillTesting) {
+      if (!isCompleted && (isStartButtonGone || isGaugeActive)) {
         isTestRunning = true;
         updateHudStatus('Test in progress...', '#3b82f6');
         return;
       }
 
-      if (isCompleted && (isTestRunning || resultLink)) {
-        const extracted = extractCurrentSpeedtest();
-        if (extracted) {
+      if (isCompleted) {
+        if (isTestRunning || hasResultId || hasBothSpeeds) {
           isTestRunning = false;
-          recordSpeedtestResult(extracted);
+          recordSpeedtestResult(extracted, false);
         }
       }
     };
 
     const observer = new MutationObserver(checkDom);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
-    setInterval(checkDom, 2000);
+    setInterval(checkDom, 1500);
   }
 
   // --- Fast.com Observers ---
@@ -392,7 +571,7 @@
           fastRecorded = true;
           const extracted = extractCurrentSpeedtest();
           if (extracted) {
-            recordSpeedtestResult(extracted);
+            recordSpeedtestResult(extracted, false);
           }
         }, 2500);
       }
@@ -407,7 +586,7 @@
   window.__netpulse_speedtest_scrape = function () {
     const extracted = extractCurrentSpeedtest();
     if (extracted) {
-      return recordSpeedtestResult(extracted);
+      return recordSpeedtestResult(extracted, true);
     }
     return Promise.resolve(null);
   };
@@ -419,7 +598,7 @@
     if (message.type === 'TRIGGER_SPEEDTEST_SCRAPE') {
       const extracted = extractCurrentSpeedtest();
       if (extracted) {
-        recordSpeedtestResult(extracted).then((entry) => {
+        recordSpeedtestResult(extracted, true).then((entry) => {
           sendResponse({ status: 'ok', data: entry || extracted });
         });
       } else {

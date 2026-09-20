@@ -48,7 +48,11 @@
     {
       "matches": [
         "https://*.speedtest.net/*",
-        "https://fast.com/*"
+        "https://speedtest.net/*",
+        "http://*.speedtest.net/*",
+        "http://speedtest.net/*",
+        "https://fast.com/*",
+        "https://*.fast.com/*"
       ],
       "js": [
         "shared/evaluator.js",

@@ -112,8 +112,50 @@ assert(I18n.t('status_optimal', 'en') === 'Optimal RF', 'EN translation for stat
 assert(I18n.t('status_optimal', 'ar') === 'استقبال إشارة مثالي', 'AR translation for status_optimal is "استقبال إشارة مثالي"');
 assert(I18n.t('clear_all_data', 'ar') === 'مسح جميع البيانات', 'AR translation for clear_all_data is "مسح جميع البيانات"');
 assert(I18n.t('modal_btn_confirm', 'ar') === 'تأكيد الحذف', 'AR translation for modal_btn_confirm is "تأكيد الحذف"');
+assert(I18n.t('portals_modal_btn', 'en') === 'Portals & Links', 'EN translation for portals_modal_btn is "Portals & Links"');
+assert(I18n.t('portals_modal_btn', 'ar') === 'روابط البوابات', 'AR translation for portals_modal_btn is "روابط البوابات"');
+assert(I18n.t('portal_autofill_badge', 'en') === 'Auto-Fill Active', 'EN translation for portal_autofill_badge is "Auto-Fill Active"');
+assert(I18n.t('portal_autofill_badge', 'ar') === 'التعبئة التلقائية مفعلة', 'AR translation for portal_autofill_badge is "التعبئة التلقائية مفعلة"');
 
-// 5. Strict ZERO GRADIENT Verification across all project source files
+// 5. Portals Modal & Auto-fill Verification
+const dashboardHtml = fs.readFileSync(path.join(ROOT_DIR, 'dashboard/dashboard.html'), 'utf8');
+assert(dashboardHtml.includes('id="modal-portals-overlay"'), 'Dashboard contains modal-portals-overlay');
+assert(dashboardHtml.includes('https://192.168.1.1'), 'Dashboard modal links to https://192.168.1.1');
+assert(dashboardHtml.includes('https://www.speedtest.net'), 'Dashboard modal links to speedtest.net');
+assert(dashboardHtml.includes('https://fast.com'), 'Dashboard modal links to fast.com');
+assert(dashboardHtml.includes('id="btn-open-portals"'), 'Dashboard topbar contains btn-open-portals');
+
+const routerScraperCode = fs.readFileSync(path.join(ROOT_DIR, 'scripts/router_scraper.js'), 'utf8');
+assert(routerScraperCode.includes('autoFillRouterCredentials'), 'router_scraper.js includes autoFillRouterCredentials function');
+assert(routerScraperCode.includes('SKdigital8008@'), 'router_scraper.js includes target password SKdigital8008@');
+assert(routerScraperCode.includes('admin'), 'router_scraper.js includes target username admin');
+
+// 6. Speedtest Scraper Engine Verification
+const speedtestCode = fs.readFileSync(path.join(ROOT_DIR, 'scripts/speedtest_scraper.js'), 'utf8');
+assert(speedtestCode.includes('extractSpeedtestNetMetrics'), 'speedtest_scraper.js includes extractSpeedtestNetMetrics');
+assert(speedtestCode.includes('findNumericFromSelectors'), 'speedtest_scraper.js includes multi-selector scanner');
+assert(speedtestCode.includes('DOWNLOAD[^\\r\\n]*UPLOAD'), 'speedtest_scraper.js includes multi-column layout fallback regex');
+
+// Test speedtest regex on real screenshot text
+const testPageText = `
+  DOWNLOAD Mbps       UPLOAD Mbps
+     58.51              32.10
+  Ping ms   20   126   159
+  Result ID: 19696300354
+  Connections Multi
+  Almadar Aljadid
+`;
+
+const multiColTest = testPageText.match(/DOWNLOAD[^\r\n]*UPLOAD[^\r\n]*[\r\n]+[\s]*([\d.]+)[\s]+([\d.]+)/i);
+assert(multiColTest && multiColTest[1] === '58.51' && multiColTest[2] === '32.10', 'Regex parses DL: 58.51 and UL: 32.10 from Speedtest layout');
+
+const pingTest = testPageText.match(/Ping\s*(?:ms)?[\s\r\n]+([\d]+)/i);
+assert(pingTest && pingTest[1] === '20', 'Regex parses idle Ping: 20 ms');
+
+const idTest = testPageText.match(/Result\s*ID:?\s*(\d+)/i);
+assert(idTest && idTest[1] === '19696300354', 'Regex parses Result ID: 19696300354');
+
+// 7. Strict ZERO GRADIENT Verification across all project source files
 const filesToCheck = [
   'popup/popup.html',
   'popup/popup.css',

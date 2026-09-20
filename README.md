@@ -37,12 +37,18 @@ Production-ready cellular router telemetry monitor and automated Speedtest / Fas
    - Zero-gradient flat design preserved across both dark (`#0b0f19` / `#111827`) and light (`#f8fafc` / `#ffffff`) palettes.
    - One-click theme toggle (Sun / Moon vector icons) in Popup and Dashboard with persistent storage in `netpulse_theme`.
 
-6. **Interactive "Clear All Data" Confirmation Workflow**
+6. **Interactive "Network Portals & Quick Links" Modal & Auto-Fill Credentials**
+   - Modal accessible via the topbar "Portals & Links" button.
+   - Quick launch cards for **192.168.1.1** (Zyxel Gateway), **Speedtest.net**, and **Fast.com**.
+   - Configured credentials preview (`User: admin`, `Password: SKdigital8008@`) with show/hide toggle and copy-to-clipboard actions.
+   - **Automatic Router Credential Injection**: When `192.168.1.1` (or any `192.168.*.*` router) is opened, NetPulse automatically fills `admin` and `SKdigital8008@` into the login inputs, triggering synthetic prototype events so client-side framework state accepts the credentials.
+
+7. **Interactive "Clear All Data" Confirmation Workflow**
    - Centered modal dialog with solid dark/light backdrop overlay.
    - Supports keyboard `Escape` dismissal, backdrop click dismissal, and cancel action.
    - Safely flushes telemetry history without wiping user preferences (preserves language and theme).
 
-7. **Compact Quick Popup (`popup/popup.html`)**
+8. **Compact Quick Popup (`popup/popup.html`)**
    - 380px compact window with active tab auto-detection banner.
    - Language selector and theme toggle buttons.
    - **Dual Manual Scan Buttons**:
@@ -52,12 +58,12 @@ Production-ready cellular router telemetry monitor and automated Speedtest / Fas
    - Summary card of the most recent Speedtest run.
    - Flat Indigo button: "Open Full Analytics Dashboard".
 
-8. **Full-Page Standalone Analytics Dashboard (`dashboard/dashboard.html`)**
+9. **Full-Page Standalone Analytics Dashboard (`dashboard/dashboard.html`)**
    - Dedicated browser tab with live gauges, Carrier Aggregation breakdown, and Diagnostic Advice engine.
-   - Topbar actions: `Scan Router Tab`, `Capture Speedtest Tab`, `Simulate Telemetry`, `Refresh`, `Language Selector`, `Theme Switcher`, and `Open Router GUI`.
+   - Topbar actions: `Scan Router Tab`, `Capture Speedtest Tab`, `Simulate Telemetry`, `Refresh`, `Portals & Links`, `Language Selector`, `Theme Switcher`, and `Open Router GUI`.
    - Searchable, filterable, and sortable Speedtest and RF correlation history log.
    - One-click RFC-4180 CSV export and JSON export.
-   - Interactive modal for "Clear All Data".
+   - Interactive modals for "Portals & Links" and "Clear All Data".
 
 ---
 

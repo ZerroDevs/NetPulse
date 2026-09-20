@@ -162,6 +162,23 @@
       toast_data_cleared: 'All historical telemetry and speedtest records have been permanently cleared.',
       toast_telemetry_simulated: 'Simulated RF telemetry and Speedtest sample injected successfully.',
 
+      // Portals & Quick Links Modal
+      portals_modal_btn: 'Portals & Links',
+      portals_modal_title: 'Network Portals & Quick Links',
+      portals_modal_desc: 'Direct access to your local gateway controls and network benchmark tools with automatic credential injection.',
+      portal_router_title: 'Zyxel Router Gateway (192.168.1.1)',
+      portal_router_desc: 'Zyxel NR5103E Web Management Console. NetPulse automatically fills configured credentials upon opening.',
+      portal_autofill_badge: 'Auto-Fill Active',
+      portal_user_label: 'Username',
+      portal_pass_label: 'Password',
+      portal_btn_launch: 'Launch Portal',
+      portal_speedtest_title: 'Speedtest by Ookla (speedtest.net)',
+      portal_speedtest_desc: 'Global benchmark for broadband throughput, latency, and jitter with passive NetPulse correlation.',
+      portal_fast_title: 'Fast.com by Netflix (fast.com)',
+      portal_fast_desc: 'Lightweight Netflix CDN video streaming throughput measurement with automatic live capture.',
+      modal_btn_close: 'Close',
+      copied_to_clipboard: 'Copied to clipboard',
+
       // General Units
       unit_dbm: 'dBm',
       unit_db: 'dB',
@@ -313,6 +330,23 @@
       modal_btn_confirm: 'تأكيد الحذف',
       toast_data_cleared: 'تم مسح جميع سجلات التردد اللاسلكي واختبارات السرعة بنجاح.',
       toast_telemetry_simulated: 'تم حقن عينة بيانات لاسلكية واختبار سرعة بنجاح.',
+
+      // Portals & Quick Links Modal
+      portals_modal_btn: 'روابط البوابات',
+      portals_modal_title: 'بوابات الشبكة والروابط السريعة',
+      portals_modal_desc: 'وصول فوري للوحة تحكم الراوتر المحلي وأدوات قياس الشبكة مع التعبئة التلقائية لبيانات الدخول.',
+      portal_router_title: 'بوابة الراوتر Zyxel (192.168.1.1)',
+      portal_router_desc: 'لوحة تحكم راوتر Zyxel NR5103E. يقوم NetPulse بتعبئة بيانات الدخول المحددة تلقائياً فور الفتح.',
+      portal_autofill_badge: 'التعبئة التلقائية مفعلة',
+      portal_user_label: 'اسم المستخدم',
+      portal_pass_label: 'كلمة المرور',
+      portal_btn_launch: 'فتح البوابة',
+      portal_speedtest_title: 'مقياس Speedtest (speedtest.net)',
+      portal_speedtest_desc: 'المعيار العالمي لقياس سعة النطاق الترددي وزمن الاستجابة مع الربط التلقائي في NetPulse.',
+      portal_fast_title: 'مقياس Fast.com (fast.com)',
+      portal_fast_desc: 'قياس مباشر لسرعة التنزيل عبر خوادم شبكة نتفليكس مع الالتقاط التلقائي.',
+      modal_btn_close: 'إغلاق',
+      copied_to_clipboard: 'تم النسخ إلى الحافظة',
 
       // General Units
       unit_dbm: 'dBm',

@@ -33,6 +33,285 @@
 
   let lastCommittedData = null;
   let pollTimer = null;
+  let credentialsInjected = false;
+
+  // Default credentials configured for Zyxel NR5103E & 192.168.1.1
+  const DEFAULT_ROUTER_CREDS = {
+    user: 'admin',
+    pass: 'SKdigital8008@',
+    autoFill: true
+  };
+
+  /**
+   * Robust value injector supporting browser execCommand, prototype descriptors, and native input events
+   * Completely avoids dummy keystroke events that corrupt passwords.
+   */
+  function setNativeInputValue(element, value) {
+    if (!element || element.disabled || element.readOnly) return false;
+
+    try {
+      element.focus();
+    } catch (e) {}
+
+    // Method 1: document.execCommand('insertText') - simulates genuine user typing/pasting
+    let execOk = false;
+    try {
+      element.select();
+      execOk = document.execCommand('insertText', false, value);
+    } catch (e) {
+      execOk = false;
+    }
+
+    // Method 2: HTMLInputElement prototype descriptor setter
+    if (element.value !== value) {
+      try {
+        const proto = Object.getPrototypeOf(element);
+        const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+        if (descriptor && descriptor.set) {
+          descriptor.set.call(element, value);
+        } else {
+          element.value = value;
+        }
+      } catch (e) {
+        element.value = value;
+      }
+    }
+
+    // Method 3: Direct assignment fallback
+    if (element.value !== value) {
+      element.value = value;
+    }
+
+    // Dispatch native InputEvent & change events with correct data payload
+    try {
+      element.dispatchEvent(new InputEvent('input', {
+        bubbles: true,
+        cancelable: true,
+        data: value,
+        inputType: 'insertText'
+      }));
+    } catch (e) {
+      element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+    }
+
+    try {
+      element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+    } catch (e) {}
+
+    return element.value === value;
+  }
+
+  /**
+   * Detects the Login button on the router GUI
+   */
+  function findLoginButton() {
+    const candidates = Array.from(document.querySelectorAll('button, input[type="submit"], input[type="button"], a, div[role="button"], span[role="button"], div, span'));
+    for (const el of candidates) {
+      const text = (el.innerText || el.textContent || el.value || '').trim();
+      if (/^Login$/i.test(text) || /^Log In$/i.test(text) || /^تسجيل الدخول$/i.test(text)) {
+        if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'A' || el.classList.contains('btn') || el.style.cursor === 'pointer' || el.onclick || el.getAttribute('role') === 'button' || (el.id && el.id.toLowerCase().includes('login')) || (el.className && typeof el.className === 'string' && el.className.toLowerCase().includes('login'))) {
+          return el;
+        }
+      }
+    }
+    return document.querySelector('#loginBtn, #btnLogin, .login-btn, button[type="submit"], input[type="submit"], .btn-login');
+  }
+
+  /**
+   * Automatically detect and inject credentials into router login form
+   * Specifically tailored for Zyxel NR5103E ("User Name", "Password", "Login")
+   */
+  function autoFillRouterCredentials() {
+    try {
+      chrome.storage.local.get(['netpulse_router_creds'], (result) => {
+        const creds = result.netpulse_router_creds || DEFAULT_ROUTER_CREDS;
+        if (creds.autoFill === false) return;
+
+        const targetUser = creds.user || DEFAULT_ROUTER_CREDS.user;
+        const targetPass = creds.pass || DEFAULT_ROUTER_CREDS.pass;
+
+        // 1. Find all visible, interactive inputs on the page
+        const allInputs = Array.from(document.querySelectorAll('input')).filter(el => {
+          return el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'submit' && el.type !== 'button' && (el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        });
+
+        if (allInputs.length === 0) return;
+
+        let userInput = null;
+        let passInput = null;
+
+        // 2. Identify Password Input
+        // Method A: Exact type="password"
+        passInput = allInputs.find(el => el.type === 'password');
+
+        // Method B: Input adjacent to "Password" label
+        if (!passInput) {
+          const passLabels = Array.from(document.querySelectorAll('label, div, span, p')).filter(el => /^Password$/i.test((el.textContent || '').trim()));
+          for (const lbl of passLabels) {
+            if (lbl.htmlFor) {
+              const target = document.getElementById(lbl.htmlFor);
+              if (target && allInputs.includes(target)) { passInput = target; break; }
+            }
+            let next = lbl.nextElementSibling;
+            while (next) {
+              const inp = next.tagName === 'INPUT' ? next : next.querySelector('input');
+              if (inp && allInputs.includes(inp)) { passInput = inp; break; }
+              next = next.nextElementSibling;
+            }
+            if (passInput) break;
+          }
+        }
+
+        // Method C: Input with password-like name/id
+        if (!passInput) {
+          passInput = allInputs.find(el => /password|pwd/i.test(el.name || '') || /password|pwd/i.test(el.id || ''));
+        }
+
+        // 3. Identify User Name Input
+        // Method A: Input adjacent to "User Name" or "Username" label (matches screenshot)
+        const userLabels = Array.from(document.querySelectorAll('label, div, span, p')).filter(el => {
+          const t = (el.textContent || '').trim();
+          return /^User\s*Name$/i.test(t) || /^Username$/i.test(t) || /^اسم المستخدم$/i.test(t);
+        });
+        for (const lbl of userLabels) {
+          if (lbl.htmlFor) {
+            const target = document.getElementById(lbl.htmlFor);
+            if (target && allInputs.includes(target) && target !== passInput) { userInput = target; break; }
+          }
+          let next = lbl.nextElementSibling;
+          while (next) {
+            const inp = next.tagName === 'INPUT' ? next : next.querySelector('input');
+            if (inp && allInputs.includes(inp) && inp !== passInput) { userInput = inp; break; }
+            next = next.nextElementSibling;
+          }
+          if (userInput) break;
+        }
+
+        // Method B: Input with username-like name/id
+        if (!userInput) {
+          userInput = allInputs.find(el => el !== passInput && (/username|user|admin/i.test(el.name || '') || /username|user|admin/i.test(el.id || '')));
+        }
+
+        // 4. Guaranteed 2-Field Layout Resolver (Matches user's exact login form)
+        // If there are 2 inputs on the page, the top is User Name and bottom is Password
+        if (allInputs.length >= 2) {
+          if (!userInput && passInput) {
+            userInput = allInputs.find(el => el !== passInput);
+          } else if (userInput && !passInput) {
+            passInput = allInputs.find(el => el !== userInput);
+          } else if (!userInput && !passInput) {
+            userInput = allInputs[0];
+            passInput = allInputs[1];
+          }
+        } else if (allInputs.length === 1) {
+          if (allInputs[0].type === 'password') {
+            passInput = allInputs[0];
+          } else {
+            userInput = allInputs[0];
+          }
+        }
+
+        // ABSOLUTE SAFETY INVARIANT: userInput and passInput MUST NEVER BE THE SAME
+        if (userInput && passInput && userInput === passInput) {
+          if (allInputs.length >= 2) {
+            userInput = allInputs[0];
+            passInput = allInputs[1];
+          }
+        }
+
+        // 5. Fill User Name with targetUser ("admin")
+        let userFilled = false;
+        if (userInput) {
+          if (userInput.value !== targetUser) {
+            setNativeInputValue(userInput, targetUser);
+          }
+          userFilled = (userInput.value === targetUser);
+        }
+
+        // 6. Fill Password with targetPass ("SKdigital8008@")
+        let passFilled = false;
+        if (passInput && passInput !== userInput) {
+          if (passInput.value !== targetPass) {
+            setNativeInputValue(passInput, targetPass);
+          }
+          passFilled = (passInput.value === targetPass);
+        }
+
+        // 7. Anti-Wipe Protection: if a page change-listener wiped or swapped values, re-assert cleanly
+        setTimeout(() => {
+          if (userInput && userInput.value !== targetUser) {
+            setNativeInputValue(userInput, targetUser);
+          }
+          if (passInput && passInput !== userInput && passInput.value !== targetPass) {
+            setNativeInputValue(passInput, targetPass);
+          }
+        }, 120);
+
+        setTimeout(() => {
+          if (userInput && userInput.value !== targetUser) {
+            setNativeInputValue(userInput, targetUser);
+          }
+          if (passInput && passInput !== userInput && passInput.value !== targetPass) {
+            setNativeInputValue(passInput, targetPass);
+          }
+        }, 350);
+
+        // 8. Find and activate the "Login" button from the screenshot
+        const loginBtn = findLoginButton();
+        if (loginBtn) {
+          if (loginBtn.hasAttribute('disabled')) {
+            loginBtn.removeAttribute('disabled');
+          }
+          loginBtn.classList.remove('disabled');
+          loginBtn.style.opacity = '1';
+          loginBtn.style.cursor = 'pointer';
+          loginBtn.style.pointerEvents = 'auto';
+
+          // Safety hook on Login button click: guarantee correct credentials before form submission
+          if (!loginBtn.__netpulse_bound) {
+            loginBtn.__netpulse_bound = true;
+            loginBtn.addEventListener('mousedown', () => {
+              if (userInput && userInput.value !== targetUser) setNativeInputValue(userInput, targetUser);
+              if (passInput && passInput !== userInput && passInput.value !== targetPass) setNativeInputValue(passInput, targetPass);
+            });
+          }
+        }
+
+        // 9. Wire up One-Click Log In on the NetPulse HUD
+        const hudLoginBtn = document.getElementById('netpulse-hud-login-btn');
+        if (hudLoginBtn) {
+          hudLoginBtn.style.display = 'inline-block';
+          hudLoginBtn.onclick = () => {
+            if (userInput) setNativeInputValue(userInput, targetUser);
+            if (passInput && passInput !== userInput) setNativeInputValue(passInput, targetPass);
+
+            if (loginBtn) {
+              if (loginBtn.hasAttribute('disabled')) loginBtn.removeAttribute('disabled');
+              loginBtn.click();
+            } else {
+              const form = document.querySelector('form');
+              if (form) form.submit();
+            }
+          };
+        }
+
+        if (userFilled && passFilled) {
+          credentialsInjected = true;
+          console.log('[NetPulse] Router credentials successfully populated. User:', targetUser, '| Pass:', targetPass);
+
+          const hudLabel = document.getElementById('netpulse-hud-label');
+          if (hudLabel && !hudLabel.textContent.includes('RSRP:')) {
+            hudLabel.textContent = `Auto-filled: ${targetUser}`;
+            hudLabel.style.color = '#10b981';
+          }
+        } else {
+          credentialsInjected = false;
+        }
+      });
+    } catch (err) {
+      console.warn('[NetPulse] Auto-fill evaluation error:', err);
+    }
+  }
 
   function parseNumeric(val) {
     if (val === null || val === undefined) return null;
@@ -319,6 +598,7 @@
         <span id="netpulse-hud-label" style="font-family: ui-monospace, monospace; color: #9ca3af; font-size: 11px;">Listening...</span>
       </div>
       <div style="display: flex; gap: 6px;">
+        <button id="netpulse-hud-login-btn" style="display: none; background-color: #6366f1; border: 1px solid #6366f1; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 700;">Log In</button>
         <button id="netpulse-hud-sync-btn" style="background-color: #111827; border: 1px solid #1f2937; color: #f3f4f6; padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-family: inherit;">Scan Now</button>
       </div>
     `;
@@ -360,6 +640,8 @@
   function observeMutations() {
     let debounceTimer = null;
     const observer = new MutationObserver(() => {
+      autoFillRouterCredentials();
+
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         runExtraction();
@@ -375,15 +657,16 @@
     }
   }
 
-  // Expose global manual scrape hook for chrome.scripting or popup injection
+  // Expose global manual scrape & auto-fill hooks for chrome.scripting or popup injection
   window.__netpulse_manual_scrape = function () {
     const m = extractRouterMetrics();
     return commitTelemetry(m, 'manual_scan');
   };
 
   window.__netpulse_extract_now = extractRouterMetrics;
+  window.__netpulse_autofill_now = autoFillRouterCredentials;
 
-  // Runtime message listener for on-demand scans
+  // Runtime message listener for on-demand scans and credential injection
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'TRIGGER_ROUTER_SCRAPE') {
       const metrics = extractRouterMetrics();
@@ -392,13 +675,31 @@
       });
       return true;
     }
+    if (message.type === 'TRIGGER_AUTOFILL_CREDS') {
+      credentialsInjected = false;
+      autoFillRouterCredentials();
+      sendResponse({ status: 'ok' });
+      return true;
+    }
   });
 
   // Initialization
   function init() {
     injectHud();
+    autoFillRouterCredentials();
     runExtraction();
     observeMutations();
+
+    // Periodic retry for initial 10s to ensure dynamically rendered SPAs receive credentials
+    let attempts = 0;
+    const fillInterval = setInterval(() => {
+      if (credentialsInjected || attempts > 15) {
+        clearInterval(fillInterval);
+        return;
+      }
+      attempts++;
+      autoFillRouterCredentials();
+    }, 600);
 
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(runExtraction, 8000);

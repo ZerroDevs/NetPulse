@@ -88,6 +88,14 @@
           </svg>
           <span data-i18n="refresh">Refresh</span>
         </button>
+        <button id="btn-open-portals" class="btn btn-secondary" type="button" title="Open Network Portals &amp; Quick Links Modal">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span data-i18n="portals_modal_btn">Portals &amp; Links</span>
+        </button>
         <a href="https://192.168.1.1" target="_blank" rel="noreferrer" class="btn btn-primary" title="Open Router Web GUI">
           <span data-i18n="open_router_gui">Open Router GUI</span>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -438,6 +446,167 @@
       <div class="modal-actions">
         <button id="btn-modal-cancel" class="modal-btn-cancel" type="button" data-i18n="modal_btn_cancel">Cancel</button>
         <button id="btn-modal-confirm" class="modal-btn-confirm" type="button" data-i18n="modal_btn_confirm">Confirm Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive "Network Portals & Quick Links" Modal -->
+  <div id="modal-portals-overlay" class="modal-overlay" tabindex="-1" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-wide" id="modal-portals-card">
+      <div class="modal-header-row">
+        <div class="modal-icon-badge modal-icon-badge-portal">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+        </div>
+        <div class="modal-title-wrap">
+          <h3 class="modal-title" data-i18n="portals_modal_title">Network Portals &amp; Quick Links</h3>
+          <p class="modal-subtitle" data-i18n="portals_modal_desc">Direct access to your local gateway controls and network benchmark tools with automatic credential injection.</p>
+        </div>
+        <button id="btn-portals-close-x" class="modal-close-icon-btn" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="portals-list">
+        <!-- Portal Card 1: 192.168.1.1 with Auto-fill Credentials -->
+        <div class="portal-card portal-card-router">
+          <div class="portal-header">
+            <div class="portal-badge-group">
+              <div class="portal-icon-box portal-icon-router">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                  <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                  <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                </svg>
+              </div>
+              <div>
+                <h4 class="portal-name" data-i18n="portal_router_title">Zyxel Router Gateway (192.168.1.1)</h4>
+                <div class="portal-url-text font-mono">https://192.168.1.1</div>
+              </div>
+            </div>
+            <span class="badge-autofill" data-i18n="portal_autofill_badge">Auto-Fill Active</span>
+          </div>
+
+          <p class="portal-desc" data-i18n="portal_router_desc">Zyxel NR5103E Web Management Console. NetPulse automatically fills configured credentials upon opening.</p>
+
+          <!-- Auto-fill Credentials Preview Box -->
+          <div class="credentials-box">
+            <div class="cred-field">
+              <span class="cred-label" data-i18n="portal_user_label">Username</span>
+              <div class="cred-value-wrap">
+                <code class="cred-value font-mono" id="cred-display-user">admin</code>
+                <button class="btn-copy-cred" type="button" data-copy="admin" title="Copy username">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="cred-field">
+              <span class="cred-label" data-i18n="portal_pass_label">Password</span>
+              <div class="cred-value-wrap">
+                <code class="cred-value font-mono" id="cred-display-pass">•••••••••••••</code>
+                <button id="btn-toggle-cred-pass" class="btn-copy-cred" type="button" title="Show/hide password">
+                  <svg id="icon-eye-show" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
+                <button class="btn-copy-cred" type="button" data-copy="SKdigital8008@" title="Copy password">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="portal-footer">
+            <a href="https://192.168.1.1" target="_blank" rel="noreferrer" class="btn-portal-launch btn-portal-primary">
+              <span data-i18n="portal_btn_launch">Launch Portal</span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Portal Card 2: Speedtest.net -->
+        <div class="portal-card">
+          <div class="portal-header">
+            <div class="portal-badge-group">
+              <div class="portal-icon-box portal-icon-speedtest">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                </svg>
+              </div>
+              <div>
+                <h4 class="portal-name" data-i18n="portal_speedtest_title">Speedtest by Ookla (speedtest.net)</h4>
+                <div class="portal-url-text font-mono">https://www.speedtest.net</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="portal-desc" data-i18n="portal_speedtest_desc">Global benchmark for broadband throughput, latency, and jitter with passive NetPulse correlation.</p>
+
+          <div class="portal-footer">
+            <a href="https://www.speedtest.net" target="_blank" rel="noreferrer" class="btn-portal-launch btn-portal-secondary">
+              <span data-i18n="portal_btn_launch">Launch Portal</span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Portal Card 3: Fast.com -->
+        <div class="portal-card">
+          <div class="portal-header">
+            <div class="portal-badge-group">
+              <div class="portal-icon-box portal-icon-fast">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                </svg>
+              </div>
+              <div>
+                <h4 class="portal-name" data-i18n="portal_fast_title">Fast.com by Netflix (fast.com)</h4>
+                <div class="portal-url-text font-mono">https://fast.com</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="portal-desc" data-i18n="portal_fast_desc">Lightweight Netflix CDN video streaming throughput measurement with automatic live capture.</p>
+
+          <div class="portal-footer">
+            <a href="https://fast.com" target="_blank" rel="noreferrer" class="btn-portal-launch btn-portal-secondary">
+              <span data-i18n="portal_btn_launch">Launch Portal</span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-portals-close" class="modal-btn-cancel" type="button" data-i18n="modal_btn_close">Close</button>
       </div>
     </div>
   </div>
