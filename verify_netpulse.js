@@ -65,7 +65,9 @@ const requiredFiles = [
   'icons/icon.svg',
   'icons/icon16.png',
   'icons/icon48.png',
-  'icons/icon128.png'
+  'icons/icon128.png',
+  'LICENSE',
+  'README.md'
 ];
 
 requiredFiles.forEach((relPath) => {
@@ -233,6 +235,16 @@ assert(!scraperContent.includes('document.body.innerText'), 'speedtest_scraper.j
 assert(scraperContent.includes('window.top !== window.self'), 'speedtest_scraper.js includes top-level benchmark window guard');
 assert(scraperContent.includes('netpulse-st-close-btn'), 'speedtest_scraper.js includes dismissible HUD close button');
 assert(scraperContent.includes('Speedtest.net Ready'), 'speedtest_scraper.js includes fast idle short-circuit for Speedtest home screen');
+
+// 11. Developer Attribution & License Verification
+const readmeContent = fs.readFileSync(path.join(ROOT_DIR, 'README.md'), 'utf8');
+assert(readmeContent.includes('@ZerroDevs'), 'README.md mentions lead developer @ZerroDevs');
+assert(readmeContent.includes('https://github.com/ZerroDevs'), 'README.md links to ZerroDevs GitHub profile');
+assert(readmeContent.includes('MIT License'), 'README.md specifies MIT License');
+
+const licenseContent = fs.readFileSync(path.join(ROOT_DIR, 'LICENSE'), 'utf8');
+assert(licenseContent.includes('ZerroDevs'), 'LICENSE includes ZerroDevs copyright holder');
+assert(licenseContent.includes('MIT License'), 'LICENSE is valid MIT License');
 
 console.log(`\nVerification Complete: ${passes} passed, ${failures} failed.`);
 if (failures > 0) {

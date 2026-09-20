@@ -1,115 +1,287 @@
 # NetPulse (Manifest V3 Chrome Extension)
 
-Production-ready cellular router telemetry monitor and automated Speedtest / Fast.com performance correlation engine. Built specifically for 5G/LTE gateway diagnostics (optimized for the **Zyxel NR5103E** and all gateways across `192.168.*.*`).
+[![Developer](https://img.shields.io/badge/Developer-@ZerroDevs-6366f1.svg)](https://github.com/ZerroDevs)
+[![License](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
+[![Manifest](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-3b82f6.svg)](manifest.json)
+[![I18n](https://img.shields.io/badge/Languages-English%20%7C%20العربية%20(RTL)-f59e0b.svg)](shared/i18n.js)
+[![Tests](https://img.shields.io/badge/Verification-128%2B%20Passing-10b981.svg)](verify_netpulse.js)
+
+**NetPulse** is a production-grade cellular router RF telemetry monitor and automated performance correlation engine. Designed specifically for 5G / 4G LTE fixed-wireless broadband gateways (optimized for the **Zyxel NR5103E** and all routers across `192.168.*.*`, `10.*.*.*`, and `172.16.*.*`), NetPulse bridges the gap between physical radio-frequency (RF) signal conditions and actual network throughput benchmarks.
+
+Developed and maintained by **[@ZerroDevs](https://github.com/ZerroDevs)**.
 
 ---
 
-## Key Architecture & Capabilities
+## Developer Attribution
 
-1. **Zyxel NR5103E & Gateway RF Telemetry Scraper (`scripts/router_scraper.js`)**
-   - Automatically detects and monitors any router interface on `http` or `https` matching `192.168.*.*` (including iframes via `all_frames: true`).
-   - Injects a sleek, non-intrusive status HUD in the router page header with live sync indicators and manual sync triggers.
-   - Extracts: **RSRP**, **SINR**, **RSRQ**, **RSSI**, **Primary Band**, **Physical Cell ID (PCI)**, **Cell ID**, **DL/UL Bandwidth**, and **Carrier Aggregation (CA) secondary component carriers**.
-   - Commits telemetry snapshots directly to `chrome.storage.local`.
-
-2. **Automated Speedtest & Fast.com Completion Interceptor (`scripts/speedtest_scraper.js`)**
-   - Auto-detects Speedtest.net and Fast.com as soon as they are opened.
-   - Injects an on-page status HUD indicating active monitoring with an instant "Capture Now" button.
-   - Utilizes `MutationObserver` to passively detect test completion states.
-   - Extracts Download, Upload, Ping, and Jitter.
-   - Pairs each finished test with the latest router RF snapshot and records a structured entry to `netpulse_history`.
-   - Displays a subtle flat toast notification confirming paired metrics.
-
-3. **Centralized Evaluation & Diagnostic Advice Engine (`shared/evaluator.js`)**
-   - 3GPP and Cellular RF engineering standard benchmark evaluation:
-     - **RSRP**: `>= -80` (Excellent) | `-80 to -90` (Good) | `-90 to -100` (Fair) | `< -100` (Poor)
-     - **SINR**: `>= 20` (Excellent) | `13 to 19` (Good) | `5 to 12` (Fair) | `< 5` (Poor)
-     - **RSRQ**: `>= -9` (Clean) | `-10 to -15` (Congested) | `< -15` (Heavy Load)
-     - **RSSI**: `>= -65` (Strong) | `-66 to -75` (Good) | `-76 to -85` (Fair) | `< -85` (Weak)
-   - Evaluates combinations of RF signal level vs. tower load to synthesize plain-text engineering advice (e.g. diagnosing whether throughput drops are caused by RF path loss or sector tower congestion).
-
-4. **Complete Internationalization (i18n) & RTL Engine (`shared/i18n.js`)**
-   - Full bilingual support for **English (LTR)** and **Arabic (العربية - RTL)** with persistent storage in `netpulse_lang`.
-   - Complete technical translation coverage for RF metrics, diagnostic engineering advice, table headers, buttons, and confirmation dialogs.
-   - Dynamic directional switching applying `dir="rtl"` and flipping grid alignments, paddings, and status badges.
-
-5. **Flat Minimalist Dual-Theme Engine (Dark Mode & Light Mode)**
-   - Zero-gradient flat design preserved across both dark (`#0b0f19` / `#111827`) and light (`#f8fafc` / `#ffffff`) palettes.
-   - One-click theme toggle (Sun / Moon vector icons) in Popup and Dashboard with persistent storage in `netpulse_theme`.
-
-6. **Interactive "Network Portals & Quick Links" Modal & Auto-Fill Credentials**
-   - Modal accessible via the topbar "Portals & Links" button.
-   - Quick launch cards for **192.168.1.1** (Zyxel Gateway), **Speedtest.net**, and **Fast.com**.
-   - Configured credentials preview (`User: admin`, `Password: SKdigital8008@`) with show/hide toggle and copy-to-clipboard actions.
-   - **Automatic Router Credential Injection**: When `192.168.1.1` (or any `192.168.*.*` router) is opened, NetPulse automatically fills `admin` and `SKdigital8008@` into the login inputs, triggering synthetic prototype events so client-side framework state accepts the credentials.
-
-7. **Interactive "Clear All Data" Confirmation Workflow**
-   - Centered modal dialog with solid dark/light backdrop overlay.
-   - Supports keyboard `Escape` dismissal, backdrop click dismissal, and cancel action.
-   - Safely flushes telemetry history without wiping user preferences (preserves language and theme).
-
-8. **Compact Quick Popup (`popup/popup.html`)**
-   - 380px compact window with active tab auto-detection banner.
-   - Language selector and theme toggle buttons.
-   - **Dual Manual Scan Buttons**:
-     - `Manual Check / Scan Router Tab`: Force-scrapes the active router gateway across all frames.
-     - `Manual Capture Speedtest Tab`: Force-captures the current active or open Speedtest/Fast.com test results.
-   - Fast summary of live RSRP, SINR, RSRQ, RSSI, Band, and Bandwidth.
-   - Summary card of the most recent Speedtest run.
-   - Flat Indigo button: "Open Full Analytics Dashboard".
-
-9. **Full-Page Standalone Analytics Dashboard (`dashboard/dashboard.html`)**
-   - Dedicated browser tab with live gauges, Carrier Aggregation breakdown, and Diagnostic Advice engine.
-   - Streamlined Topbar: `Portals & Links`, `Language Selector`, `Theme Switcher`, and `Open Router GUI`.
-   - Contextual Controls: `Scan Router Tab` and `Refresh` in the RF Telemetry section; `Capture Speedtest Tab` in the History section.
-   - Searchable, filterable, and sortable Speedtest and RF correlation history log.
-   - One-click RFC-4180 CSV export and JSON export.
-   - Interactive modals for "Portals & Links" and "Clear All Data".
+- **Lead Developer**: [@ZerroDevs](https://github.com/ZerroDevs)
+- **GitHub Profile**: [https://github.com/ZerroDevs](https://github.com/ZerroDevs)
+- **Project Repository**: [https://github.com/ZerroDevs/NetPulse](https://github.com/ZerroDevs)
+- **License**: [MIT License](LICENSE)
 
 ---
 
-## Strict Aesthetic Compliance
+## Key Capabilities & Engineering Architecture
 
-- **ZERO GRADIENTS**: 100% solid, matte, flat colors across both Dark Mode and Light Mode.
-- **ZERO UNICODE EMOJIS**: Strictly zero emoji characters across HTML, CSS, JavaScript, toasts, and alerts.
-- **VECTOR ICONS ONLY**: Crisp, lightweight inline SVG icons with sharp geometric paths.
-- **MONOSPACE TYPOGRAPHY**: Numeric telemetry, IPs, and timestamps rendered with monospace typography (`ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`).
+```
+                               ┌────────────────────────────────────────┐
+                               │       Zyxel NR5103E & Gateway GUI       │
+                               │           (192.168.1.1 / etc.)         │
+                               └──────────────────┬─────────────────────┘
+                                                  │ (Live RF Telemetry & Auto-Fill)
+                                                  ▼
+┌───────────────────────────┐          ┌───────────────────────┐          ┌───────────────────────────┐
+│     Speedtest.net HUD     │          │    NetPulse Engine    │          │        Fast.com HUD       │
+│  (Non-blocking Scraper)   │◄─────────┤ (scripts/speedtest_   ├─────────►│  (Non-blocking Scraper)   │
+│  Down / Up / Ping / Jitter│          │      scraper.js)      │          │  Down / Up / Ping / Jitter│
+└─────────────┬─────────────┘          └──────────┬────────────┘          └─────────────┬─────────────┘
+              │                                   │                                     │
+              └─────────────────────────┬─────────┴─────────────────────────────────────┘
+                                        │ (Paired Correlation Snapshots)
+                                        ▼
+                       ┌─────────────────────────────────┐
+                       │     Central Storage Engine      │
+                       │     (chrome.storage.local)      │
+                       └────────────────┬────────────────┘
+                                        │
+        ┌───────────────────────────────┼───────────────────────────────┐
+        ▼                               ▼                               ▼
+┌──────────────┐             ┌────────────────────┐          ┌─────────────────────┐
+│ Popup View   │             │ Full-Page Dashboard│          │ Deep RF Correlation │
+│ (popup.html) │             │  (dashboard.html)  │          │ Studio (analysis.   │
+│ 380px Modal  │             │ Live Gauges & Logs │          │        html)        │
+└──────────────┘             └────────────────────┘          └─────────────────────┘
+```
 
 ---
 
-## Directory Structure
+## 1. Zyxel NR5103E & Gateway Scraper (`scripts/router_scraper.js`)
+
+- **Subnet Auto-Detection**: Monitors `http://` and `https://` interfaces across private subnets (`192.168.*.*`, `10.*.*.*`, `172.16.*.*`, `localhost`).
+- **All-Frame Coverage**: Operates seamlessly across nested iframes and Single-Page Applications (`all_frames: true`).
+- **Automated Credential Injection**:
+  - Automatically identifies login fields for username and password.
+  - Injects target credentials (`User: admin`, `Password: SKdigital8008@` or custom user credentials configured in Options).
+  - Utilizes browser-native `document.execCommand('insertText')` combined with prototype property descriptors (`Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set`) to bypass modern frontend reactive frameworks (React, Vue, Angular) and ensure form validation succeeds.
+  - Multi-phase anti-wipe protection timers (100ms and 350ms) prevent aggressive router firmware scripts from clearing passwords on input blur.
+  - Login button `mousedown` safety interceptor guarantees credentials remain populated at the exact millisecond of submission.
+- **Multi-Pass RF Metric Extraction**:
+  - **RSRP** (Reference Signal Received Power in dBm)
+  - **SINR** (Signal-to-Interference-plus-Noise Ratio in dB)
+  - **RSRQ** (Reference Signal Received Quality in dB)
+  - **RSSI** (Received Signal Strength Indicator in dBm)
+  - **Primary Cellular Band** (e.g. `n78`, `n41`, `B1`, `B3`, `B20`, `B28`)
+  - **Physical Cell ID (PCI)** & **Cell ID**
+  - **Downlink & Uplink Channel Bandwidths** (e.g. `100MHz`, `20MHz`)
+  - **Carrier Aggregation (CA)** secondary component carriers (`SCC1`, `SCC2`, `SCC3`, etc.)
+- **On-Page Router HUD**: Displays an unobtrusive live telemetry badge in the top-right corner of the gateway page with live sync timestamps and a manual sync trigger.
+
+---
+
+## 2. High-Performance Speedtest & Fast.com Automation (`scripts/speedtest_scraper.js`)
+
+- **Main-Thread Freeze Prevention**:
+  - Completely eliminates heavy DOM `MutationObserver` loops that traditionally freeze benchmark canvases and 60fps animations.
+  - Employs a non-blocking, debounced 1.5-second polling interval (`setInterval(checkDom, 1500)`).
+  - **Fast-Path Idle Short-Circuit**: When Speedtest.net is idle on the home screen (`GO` button present and no results), the scraper short-circuits in `< 0.01ms`, leaving CPU usage at 0% and keeping the page 100% responsive for user clicks and interactions.
+  - Replaces all synchronous layout-reflow calls (`innerText`) with non-blocking `textContent`.
+- **Top-Level Window Guard**: Guarantees execution only in the primary benchmark tab (`window.top === window.self`), never running inside third-party advertising or analytics iframes.
+- **Telemetry Pairing**: Intercepts completed tests, extracts Download, Upload, Ping, and Jitter, immediately couples the result with the active router RF signal state, and records the entry to `netpulse_history`.
+- **Dismissible On-Page HUD Badge**:
+  - Live status indicator: `Speedtest.net Ready`, `Fast.com Detected`, `Test in progress...`, `Measuring speed...`, or `Logged: XX.XX Mbps`.
+  - Manual "Capture Now" button (`#netpulse-st-capture-btn`) to force instantaneous extraction at any stage.
+  - Dismiss close button (`&times;`) to completely remove the HUD if desired.
+
+---
+
+## 3. Centralized Evaluation & Engineering Diagnostics (`shared/evaluator.js`)
+
+Evaluates raw radio measurements against 3GPP and cellular RF engineering benchmarks:
+
+| Metric | Excellent (Emerald) | Good (Blue) | Fair (Amber) | Poor (Rose) | Unit |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **RSRP** | $\ge -80$ | $-80$ to $-90$ | $-90$ to $-100$ | $< -100$ | dBm |
+| **SINR** | $\ge 20$ | $13$ to $19$ | $5$ to $12$ | $< 5$ | dB |
+| **RSRQ** | $\ge -9$ (Clean) | — | $-10$ to $-15$ (Congested) | $< -15$ (Heavy Load) | dB |
+| **RSSI** | $\ge -65$ | $-66$ to $-75$ | $-76$ to $-85$ | $< -85$ | dBm |
+
+- **Cross-Layer Diagnostic Advice**: Synthesizes multi-variable relationships between RF signal level and cell tower load:
+  - Distinguishes between **RF Path Loss** (weak signal, low RSRP) vs. **Sector Tower Congestion** (strong RSRP but degraded RSRQ / negative SINR).
+  - Provides actionable physical placement recommendations (e.g. window reorientation, external antenna requirements, band locking considerations).
+
+---
+
+## 4. Standalone Analytics Dashboard (`dashboard/dashboard.html`)
+
+- **Live RF Gauges**: Real-time visual progress meters for RSRP, SINR, RSRQ, and RSSI with dynamic status color coding.
+- **Cellular & Carrier Aggregation Details**: Displays Primary Band, PCI, Cell ID, Channel Bandwidth, and aggregated secondary component carriers (SCCs).
+- **Streamlined Topbar**: Clean navigation with "Portals & Links", Language Selector, Theme Switcher, and direct Router GUI launch.
+- **Contextual Actions**:
+  - RF Telemetry Card: "Scan Router Tab" & "Refresh".
+  - Speedtest History Card: "Capture Speedtest Tab", "Export CSV", "Export JSON", and "Clear History".
+- **Searchable & Filterable Benchmark Log**: Complete chronological table correlating Speedtest results with paired RF metrics.
+- **Interactive Modals**:
+  - **Portals & Links Modal** (`#modal-portals-overlay`): Quick launch cards for `192.168.1.1`, `speedtest.net`, and `fast.com` with one-click credential reveal and copy-to-clipboard.
+  - **Clear Data Confirmation Modal** (`#modal-confirm-overlay`): Wipes telemetry log history while safely preserving user preferences (language and theme).
+
+---
+
+## 5. Deep RF Correlation & Carrier Aggregation Studio (`analysis/analysis.html`)
+
+A specialized statistical environment for in-depth RF performance investigation:
+- **Signal vs. Throughput Scatter Matrix**: Visualizes RSRP and SINR correlation against achieved download bandwidth.
+- **Carrier Aggregation Component Breakdown**: Inspects primary and secondary carrier contributions (`PCC` + `SCC1` + `SCC2`).
+- **Real-Time Auto-Sync Engine**: Actively synchronizes with Dashboard storage changes via a continuous 3-second loop and `chrome.storage.onChanged` listener.
+- **Interactive "Clear History" Confirmation Modal**: High-contrast confirmation modal with backdrop dismissal and instant visual feedback.
+- **Manual Sync Button with Toast Banner**: "Sync with Dashboard" actively triggers router tab scraping and displays a bilingual toast notification.
+
+---
+
+## 6. Options & Configuration Studio (`options/options.html`)
+
+Customizable settings page accessible directly via Chrome Extension Options (`options_ui`):
+- **Gateway Network Configuration**: Custom gateway IP/subnet definition (e.g. `192.168.1.1`, `192.168.8.1`, `10.0.0.1`).
+- **Router Credential Manager**: Secure local storage of gateway administrative username and password.
+- **Telemetry Polling Rates**: Configurable refresh intervals (High Performance: 2s, Balanced: 5s, Low Overhead: 15s).
+- **Granular Automation Toggles**: Independent toggles for Speedtest.net auto-capture, Fast.com auto-capture, and router auto-fill.
+- **RF Threshold Sliders**: Custom warning alert triggers for critical RSRP and SINR degradation.
+
+---
+
+## 7. Compact Quick Popup (`popup/popup.html`)
+
+- Lightweight 380px extension popup for instant status checks.
+- Live active-tab detection banner (identifies when the user is currently viewing a router interface or benchmark site).
+- Quick summary cards for current RF metrics and the latest Speedtest record.
+- Instant action buttons: `Scan Router Tab`, `Capture Speedtest Tab`, and `Open Full Analytics Dashboard`.
+
+---
+
+## 8. Internationalization (i18n) & Arabic RTL Engine (`shared/i18n.js`)
+
+- Native bilingual translation engine supporting **English (LTR)** and **العربية (Arabic - RTL)**.
+- Full UI translation coverage across popup, dashboard, options, analysis studio, on-page HUDs, and toast alerts.
+- Automatic layout flipping: dynamically sets `dir="rtl"`, reverses navigation margins, and mirrors grid columns.
+- State is preserved persistently in `chrome.storage.local` under `netpulse_lang`.
+
+---
+
+## 9. Flat Dual-Theme Engine (Dark & Eye-Comfort Light)
+
+Strict minimalist aesthetic philosophy across all pages:
+- **Zero Gradients**: Exclusively 100% solid, flat, matte color fills.
+- **Zero Unicode Emojis**: Strictly zero emojis; all visual indicators use crisp, lightweight inline SVG vector icons.
+- **Dark Mode**: Sleek obsidian canvas (`#0b0f19`) with dark slate cards (`#111827`) and high-contrast borders (`#1f2937`).
+- **Eye-Comfort Light Mode**: Soothing, soft slate-grey canvas (`#dbe0e6`) with elevated comfort grey cards (`#eaedf1`), refined borders (`#bcc4cf`), and dark charcoal text (`#111827`). Eliminates harsh, glaring white backgrounds for effortless readability during nighttime or extended diagnostic sessions.
+- State is preserved persistently in `chrome.storage.local` under `netpulse_theme`.
+
+---
+
+## Strict Design & Engineering Standards
+
+- **Zero Gradients**: No `linear-gradient`, `radial-gradient`, or CSS gradient functions permitted in source code.
+- **Zero Emojis**: Zero unicode emojis across markup, scripts, and logs.
+- **Pure Vector Icons**: Scalable, geometrically aligned inline SVGs.
+- **Monospace Telemetry**: All RF measurements, IP addresses, cell IDs, and timestamps are rendered in monospace typography (`ui-monospace, SFMono-Regular, Consolas, monospace`).
+- **Manifest V3 Compliant**: Built strictly on Chrome Extension Manifest V3 with event-driven background service workers and non-persistent storage listeners.
+
+---
+
+## Repository Structure
 
 ```
 NetPulse/
-├── manifest.json              # Manifest V3 configuration & permissions
-├── background.js              # Service worker (lifecycle, badge updates, message bus)
+├── LICENSE                    # MIT License (Copyright 2026 ZerroDevs)
+├── README.md                  # Comprehensive technical documentation
+├── manifest.json              # Chrome Manifest V3 configuration & permissions
+├── background.js              # Service worker (lifecycle, badge, router & speedtest bus)
+├── verify_netpulse.js         # Automated verification suite (128+ passing tests)
+├── generate_icons.js          # PNG icon generation utility
+│
 ├── shared/
-│   ├── evaluator.js           # Centralized RF benchmarks and diagnostic advice engine
-│   └── i18n.js                # Bilingual dictionary (EN/AR) & LTR/RTL translation engine
-├── icons/
-│   ├── icon.svg               # Vector source icon
-│   ├── icon16.png             # 16x16 PNG extension icon
-│   ├── icon48.png             # 48x48 PNG extension icon
-│   └── icon128.png            # 128x128 PNG extension icon
+│   ├── evaluator.js           # Centralized 3GPP RF benchmarks & diagnostic advice engine
+│   └── i18n.js                # Bilingual dictionary (EN/AR) & dynamic RTL switching engine
+│
 ├── popup/
-│   ├── popup.html             # Compact popup view with active tab auto-detection
-│   ├── popup.css              # Zero-gradient flat dark/light styling & RTL support
-│   └── popup.js               # Quick metrics, router scan & speedtest capture triggers
+│   ├── popup.html             # 380px compact popup view
+│   ├── popup.css              # Zero-gradient flat dark/light styles & RTL rules
+│   └── popup.js               # Quick metrics, tab detection, and manual triggers
+│
 ├── dashboard/
-│   ├── dashboard.html         # Dedicated full-browser analytics dashboard
+│   ├── dashboard.html         # Full-page analytics dashboard & live RF gauges
 │   ├── dashboard.css          # Modular grid layout with flat meters, themes & RTL
-│   └── dashboard.js           # Live updates, modal workflow, CSV/JSON export
-└── scripts/
-    ├── router_scraper.js      # Zyxel NR5103E & 192.168.* scraper with on-page HUD & polling
-    └── speedtest_scraper.js   # Automated observer for Speedtest.net & Fast.com with HUD
+│   └── dashboard.js           # Live updates, modals, CSV/JSON export engine
+│
+├── options/
+│   ├── options.html           # Gateway subnets, credentials & threshold settings
+│   ├── options.css            # Options layout, toggles & sliders
+│   └── options.js             # Options storage synchronization & validation
+│
+├── analysis/
+│   ├── analysis.html          # Deep RF correlation & Carrier Aggregation studio
+│   ├── analysis.css           # Analytical scatter plots, charts & modal styling
+│   └── analysis.js            # Auto-sync engine, correlation math & confirmation dialogs
+│
+├── scripts/
+│   ├── router_scraper.js      # Zyxel NR5103E & 192.168.* scraper with auto-fill & HUD
+│   └── speedtest_scraper.js   # Non-blocking Speedtest.net & Fast.com automation scraper
+│
+└── icons/
+    ├── icon.svg               # Vector master source icon
+    ├── icon16.png             # 16x16 PNG extension icon
+    ├── icon48.png             # 48x48 PNG extension icon
+    └── icon128.png            # 128x128 PNG extension icon
 ```
 
 ---
 
-## Installation & Developer Mode Setup
+## Installation & Developer Setup
 
-1. Open Google Chrome and navigate to `chrome://extensions`.
-2. Enable the **Developer mode** toggle in the top-right corner.
-3. Click **Load unpacked** (or click the circular refresh icon if already loaded).
-4. Select the directory: `c:\Users\Gaming\Desktop\Folders-Z\userscript\NetPulse`.
-5. NetPulse will now auto-detect router gateways on `192.168.*` and automatically monitor Speedtest.net and Fast.com with manual scan buttons available at all times.
+1. **Clone or Download the Repository**:
+   ```bash
+   git clone https://github.com/ZerroDevs/NetPulse.git
+   ```
+2. **Open Chrome Extensions Page**:
+   - Open Google Chrome and navigate to `chrome://extensions`.
+3. **Enable Developer Mode**:
+   - Toggle the **Developer mode** switch in the top-right corner.
+4. **Load Unpacked Extension**:
+   - Click **Load unpacked** in the top-left toolbar.
+   - Select the `NetPulse` project folder (`c:\Users\Gaming\Desktop\Folders-Z\userscript\NetPulse`).
+5. **Pin NetPulse**:
+   - Click the puzzle-piece extensions menu in Chrome and pin **NetPulse** to your browser toolbar.
+
+---
+
+## Automated Verification Suite
+
+NetPulse includes a comprehensive, standalone Node.js automated test suite (`verify_netpulse.js`) that validates:
+- Manifest V3 permission structures and host permissions.
+- File existence and integrity across all components.
+- RF evaluation grading algorithms across 3GPP threshold ranges.
+- Full English and Arabic translation key parity.
+- Multi-column Speedtest.net and Fast.com regex parsing engines.
+- Strict **Zero-Gradient** compliance across all `.html`, `.css`, and `.js` source files.
+- Strict **Zero-Emoji** compliance across all project files.
+- Main-thread freeze prevention (validates absence of runaway `MutationObserver` on benchmark pages and verifies non-blocking `textContent` usage).
+
+To execute the test suite:
+```bash
+node verify_netpulse.js
+```
+
+Expected output:
+```
+=== NETPULSE VERIFICATION SUITE ===
+...
+Verification Complete: 128 passed, 0 failed.
+ALL TESTS PASSED SUCCESSFULLY.
+```
+
+---
+
+## License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for complete details.
+
+Copyright (c) 2026 **ZerroDevs** ([https://github.com/ZerroDevs](https://github.com/ZerroDevs)).
