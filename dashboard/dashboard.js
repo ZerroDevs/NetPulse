@@ -361,6 +361,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const m = data.metrics;
 
+    // Record sample in rolling RF timeline for Deep Analysis Studio
+    if (m && (m.rsrp !== null || m.rssi !== null)) {
+      chrome.storage.local.get(['netpulse_rf_timeline'], (res) => {
+        let timeline = res.netpulse_rf_timeline || [];
+        const last = timeline[timeline.length - 1];
+        if (!last || (Date.now() - (last.timestamp || 0) > 3000) || last.router.rsrp !== m.rsrp) {
+          timeline.push({
+            timestamp: data.timestamp || Date.now(),
+            router: m
+          });
+          if (timeline.length > 100) timeline.shift();
+          chrome.storage.local.set({ netpulse_rf_timeline: timeline });
+        }
+      });
+    }
+
     // Header & Status
     routerConnectionPill.className = 'pill pill-connected';
     routerConnectionLabel.textContent = i18n ? i18n.t('gateway_connected', currentLang, { source: data.source || 'Router' }) : `Connected (${data.source || 'Router'})`;
@@ -869,6 +885,18 @@ document.addEventListener('DOMContentLoaded', () => {
     a.download = `netpulse_telemetry_history_${dateStr}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  });
+
+  // Runtime listener to respond to Deep Analysis Studio sync requests
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'REQUEST_DASHBOARD_SYNC') {
+      sendResponse({
+        status: 'ok',
+        router: currentRouterData,
+        history: allHistory
+      });
+      return true;
+    }
   });
 
   // Initial Load

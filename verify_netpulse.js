@@ -246,6 +246,19 @@ const licenseContent = fs.readFileSync(path.join(ROOT_DIR, 'LICENSE'), 'utf8');
 assert(licenseContent.includes('ZerroDevs'), 'LICENSE includes ZerroDevs copyright holder');
 assert(licenseContent.includes('MIT License'), 'LICENSE is valid MIT License');
 
+// 12. Deep Analysis Telemetry Sync & Multi-Source Ingestion Assertions
+const routerScraperText = fs.readFileSync(path.join(ROOT_DIR, 'scripts/router_scraper.js'), 'utf8');
+assert(routerScraperText.includes('netpulse_rf_timeline'), 'router_scraper.js maintains netpulse_rf_timeline sample buffer');
+
+const dashboardJsText = fs.readFileSync(path.join(ROOT_DIR, 'dashboard/dashboard.js'), 'utf8');
+assert(dashboardJsText.includes('REQUEST_DASHBOARD_SYNC'), 'dashboard.js responds to REQUEST_DASHBOARD_SYNC messages');
+assert(dashboardJsText.includes('netpulse_rf_timeline'), 'dashboard.js updates netpulse_rf_timeline upon telemetry reception');
+
+const analysisJsText = fs.readFileSync(path.join(ROOT_DIR, 'analysis/analysis.js'), 'utf8');
+assert(analysisJsText.includes('getConsolidatedRfPoints'), 'analysis.js includes multi-source getConsolidatedRfPoints engine');
+assert(analysisJsText.includes('netpulse_rf_timeline'), 'analysis.js loads and monitors netpulse_rf_timeline');
+assert(analysisJsText.includes('REQUEST_DASHBOARD_SYNC'), 'analysis.js requests live sync from active Dashboard tabs');
+
 console.log(`\nVerification Complete: ${passes} passed, ${failures} failed.`);
 if (failures > 0) {
   process.exit(1);

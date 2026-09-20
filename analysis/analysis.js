@@ -12,9 +12,11 @@
   let currentLang = 'en';
   let currentTheme = 'dark';
   let telemetryHistory = [];
+  let rfTimeline = [];
   let latestRouterMetrics = null;
+  let latestRouterPayload = null;
 
-  // DOM Elements
+  // DOM Elements - Top KPIs
   const kpiDominantPci = document.getElementById('kpi-dominant-pci');
   const kpiDominantPciSub = document.getElementById('kpi-dominant-pci-sub');
   const kpiPccBand = document.getElementById('kpi-pcc-band');
@@ -24,17 +26,19 @@
   const kpiCongestionVal = document.getElementById('kpi-congestion-val');
   const kpiR2Val = document.getElementById('kpi-r2-val');
 
-  // Charts
+  // DOM Elements - Waveform SVG
   const pathRsrp = document.getElementById('path-rsrp');
   const pathSinr = document.getElementById('path-sinr');
   const pathRsrq = document.getElementById('path-rsrq');
   const groupWaveformNodes = document.getElementById('group-waveform-nodes');
 
+  // DOM Elements - Handover Radar
   const badgeHandoverStatus = document.getElementById('badge-handover-status');
   const badgeHandoverText = document.getElementById('badge-handover-text');
   const groupHandoverNodes = document.getElementById('group-handover-nodes');
   const handoverLogList = document.getElementById('handover-log-list');
 
+  // DOM Elements - Carrier Aggregation
   const caTotalBadgeVal = document.getElementById('ca-total-badge-val');
   const caCenterCount = document.getElementById('ca-center-count');
   const caCarriersList = document.getElementById('ca-carriers-list');
@@ -43,6 +47,7 @@
   const caArcScc2 = document.getElementById('ca-arc-scc2');
   const caArcScc3 = document.getElementById('ca-arc-scc3');
 
+  // DOM Elements - Scatter Matrix & Diagnostics
   const groupScatterPoints = document.getElementById('group-scatter-points');
   const diagDiagnosisBox = document.getElementById('diagnostic-diagnosis-box');
   const diagDiagnosisText = document.getElementById('diagnostic-diagnosis-text');
@@ -51,6 +56,7 @@
   const statVarianceR2 = document.getElementById('stat-variance-r2');
   const statBottleneck = document.getElementById('stat-primary-bottleneck');
 
+  // Controls & Modals
   const btnExportAudit = document.getElementById('btn-export-audit');
   const btnSyncTelemetry = document.getElementById('btn-sync-telemetry');
   const btnSyncLabel = document.getElementById('btn-sync-label');
@@ -61,7 +67,6 @@
   const btnThemeToggle = document.getElementById('btn-theme-toggle');
   const themeLabelText = document.getElementById('theme-label-text');
 
-  // Modal & Toast Elements
   const modalClearOverlay = document.getElementById('modal-clear-overlay');
   const btnModalCancel = document.getElementById('btn-modal-cancel');
   const btnModalConfirm = document.getElementById('btn-modal-confirm');
@@ -79,17 +84,18 @@
     if (toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(() => {
       toastBanner.classList.remove('active');
-    }, 3200);
+    }, 3500);
   }
 
   /**
-   * Load data from storage
+   * Load data from storage (merges router telemetry snapshots, rolling timeline, and speedtests)
    */
   async function loadData(updateSyncTime = true) {
     try {
       const storage = await chrome.storage.local.get([
         'netpulse_router_latest',
         'netpulse_history',
+        'netpulse_rf_timeline',
         'netpulse_lang',
         'netpulse_theme'
       ]);
@@ -100,9 +106,22 @@
       applyLanguage(currentLang);
 
       telemetryHistory = storage.netpulse_history || [];
-      latestRouterMetrics = (storage.netpulse_router_latest && storage.netpulse_router_latest.metrics)
-        ? storage.netpulse_router_latest.metrics
+      rfTimeline = storage.netpulse_rf_timeline || [];
+      latestRouterPayload = storage.netpulse_router_latest || null;
+      latestRouterMetrics = (latestRouterPayload && latestRouterPayload.metrics)
+        ? latestRouterPayload.metrics
         : null;
+
+      // Seed timeline if router metrics exist but timeline is empty
+      if (latestRouterMetrics && (latestRouterMetrics.rsrp !== null || latestRouterMetrics.rssi !== null)) {
+        if (rfTimeline.length === 0) {
+          rfTimeline = [{
+            timestamp: latestRouterPayload.timestamp || Date.now(),
+            router: latestRouterMetrics
+          }];
+          chrome.storage.local.set({ netpulse_rf_timeline: rfTimeline });
+        }
+      }
 
       if (updateSyncTime && analysisSyncTime) {
         const now = new Date();
@@ -116,7 +135,39 @@
   }
 
   /**
-   * Full Render
+   * Extract consolidated RF points from both speedtest logs and continuous router sample timeline
+   */
+  function getConsolidatedRfPoints() {
+    const map = new Map();
+
+    // 1. Samples from continuous router polling timeline
+    rfTimeline.forEach(pt => {
+      if (pt && pt.router && (pt.router.rsrp !== null || pt.router.rssi !== null)) {
+        const key = Math.floor((pt.timestamp || 0) / 2000);
+        map.set(key, { timestamp: pt.timestamp || Date.now(), router: pt.router });
+      }
+    });
+
+    // 2. Samples from completed speedtest runs
+    telemetryHistory.forEach(pt => {
+      if (pt && pt.router && (pt.router.rsrp !== null || pt.router.rssi !== null)) {
+        const key = Math.floor((pt.timestamp || 0) / 2000);
+        map.set(key, { timestamp: pt.timestamp || Date.now(), router: pt.router, speedtest: pt.speedtest });
+      }
+    });
+
+    // 3. Fallback to latest router metrics if no historical points exist
+    if (map.size === 0 && latestRouterMetrics && (latestRouterMetrics.rsrp !== null || latestRouterMetrics.rssi !== null)) {
+      map.set(0, { timestamp: (latestRouterPayload && latestRouterPayload.timestamp) || Date.now(), router: latestRouterMetrics });
+    }
+
+    const list = Array.from(map.values());
+    list.sort((a, b) => a.timestamp - b.timestamp);
+    return list;
+  }
+
+  /**
+   * Full Render of all analytical components
    */
   function renderAll() {
     renderKpis();
@@ -130,9 +181,11 @@
    * 1. Render Top KPI Overview Strip
    */
   function renderKpis() {
+    const rfPoints = getConsolidatedRfPoints();
+
     // Dominant PCI
     const pciCounts = {};
-    telemetryHistory.forEach((item) => {
+    rfPoints.forEach((item) => {
       const pci = (item.router && item.router.pci !== null && item.router.pci !== undefined) ? item.router.pci : null;
       if (pci !== null) pciCounts[pci] = (pciCounts[pci] || 0) + 1;
     });
@@ -150,54 +203,86 @@
       kpiDominantPci.textContent = dominantPci ? `PCI ${dominantPci}` : '--';
     }
     if (kpiDominantPciSub) {
-      kpiDominantPciSub.textContent = dominantPci ? `${maxCount} observations` : 'Awaiting telemetry';
+      if (dominantPci) {
+        kpiDominantPciSub.textContent = maxCount > 0 ? `${maxCount} observations` : 'Active Gateway Cell';
+      } else {
+        kpiDominantPciSub.textContent = currentLang === 'ar' ? 'بانتظار إشارة الموجه' : 'Awaiting telemetry';
+      }
     }
 
     // Primary Band (PCC)
-    const band = latestRouterMetrics ? latestRouterMetrics.band : (telemetryHistory[0] && telemetryHistory[0].router ? telemetryHistory[0].router.band : 'B3');
+    const band = latestRouterMetrics ? latestRouterMetrics.band : (rfPoints[0] && rfPoints[0].router ? rfPoints[0].router.band : null);
     if (kpiPccBand) {
       kpiPccBand.textContent = band || '--';
     }
     if (kpiPccBandSub) {
-      kpiPccBandSub.textContent = band ? (band.startsWith('n') ? '5G NR NSA/SA' : 'LTE Anchor') : 'Awaiting signal';
+      if (band) {
+        kpiPccBandSub.textContent = band.startsWith('n') ? '5G NR SA/NSA' : 'LTE Anchor Carrier';
+      } else {
+        kpiPccBandSub.textContent = currentLang === 'ar' ? 'بانتظار التردد' : 'Awaiting signal';
+      }
     }
 
     // Aggregated Bandwidth
-    let totalBw = (latestRouterMetrics && latestRouterMetrics.dlBandwidth) ? latestRouterMetrics.dlBandwidth : 20;
-    if (latestRouterMetrics && Array.isArray(latestRouterMetrics.caBands)) {
+    let totalBw = 20;
+    if (latestRouterMetrics && latestRouterMetrics.dlBandwidth) {
+      totalBw = parseInt(latestRouterMetrics.dlBandwidth) || 20;
+    }
+    if (latestRouterMetrics && Array.isArray(latestRouterMetrics.caBands) && latestRouterMetrics.caBands.length > 0) {
       latestRouterMetrics.caBands.forEach(b => {
-        totalBw += (b.bandwidth || 15);
+        const bw = typeof b === 'object' && b.bandwidth ? parseInt(b.bandwidth) : 15;
+        totalBw += (bw || 15);
       });
-    } else {
-      totalBw = 45; // Default representative CA for NR5103E (B3 20MHz + B7 15MHz + B20 10MHz)
     }
     if (kpiAggBw) kpiAggBw.textContent = totalBw;
 
     // Handover Count
     let switches = 0;
     let lastSeenPci = null;
-    telemetryHistory.slice().reverse().forEach(item => {
+    rfPoints.forEach(item => {
       const pci = item.router ? item.router.pci : null;
       if (pci && lastSeenPci && pci !== lastSeenPci) {
         switches++;
       }
       if (pci) lastSeenPci = pci;
     });
-    if (kpiHandoverCount) kpiHandoverCount.textContent = switches;
 
-    // Congestion Index (% of RSRQ < -12 dB)
+    if (kpiHandoverCount) {
+      if (switches > 0) {
+        kpiHandoverCount.textContent = switches;
+      } else if (dominantPci) {
+        kpiHandoverCount.textContent = currentLang === 'ar' ? '0 (مستقر)' : '0 (Stable)';
+      } else {
+        kpiHandoverCount.textContent = '--';
+      }
+    }
+
+    // Congestion Index (% of RSRQ <= -12 dB)
     let congestedCount = 0;
     let totalWithRsrq = 0;
-    telemetryHistory.forEach(item => {
+    rfPoints.forEach(item => {
       if (item.router && item.router.rsrq !== null) {
         totalWithRsrq++;
         if (item.router.rsrq <= -12) congestedCount++;
       }
     });
-    const congestionPercent = totalWithRsrq > 0 ? Math.round((congestedCount / totalWithRsrq) * 100) : 0;
+
+    let congestionPercent = 0;
+    if (totalWithRsrq > 0) {
+      congestionPercent = Math.round((congestedCount / totalWithRsrq) * 100);
+    } else if (latestRouterMetrics && latestRouterMetrics.rsrq !== null) {
+      const r = latestRouterMetrics.rsrq;
+      congestionPercent = r <= -15 ? 100 : (r >= -9 ? 0 : Math.round(((-r - 9) / 6) * 100));
+    }
+
     if (kpiCongestionVal) {
-      kpiCongestionVal.textContent = totalWithRsrq > 0 ? `${congestionPercent}%` : '--';
-      kpiCongestionVal.style.color = congestionPercent > 40 ? '#f43f5e' : (congestionPercent > 20 ? '#f59e0b' : '#10b981');
+      if (totalWithRsrq > 0 || (latestRouterMetrics && latestRouterMetrics.rsrq !== null)) {
+        kpiCongestionVal.textContent = `${congestionPercent}%`;
+        kpiCongestionVal.style.color = congestionPercent > 40 ? '#f43f5e' : (congestionPercent > 20 ? '#f59e0b' : '#10b981');
+      } else {
+        kpiCongestionVal.textContent = '--';
+        kpiCongestionVal.style.color = '#9ca3af';
+      }
     }
 
     // Pearson Correlation R²
@@ -214,12 +299,20 @@
     if (!pathRsrp || !pathSinr || !pathRsrq || !groupWaveformNodes) return;
     groupWaveformNodes.innerHTML = '';
 
-    const items = telemetryHistory.filter(i => i.router && i.router.rsrp !== null).slice(0, 30).reverse();
+    let items = getConsolidatedRfPoints().slice(-30);
     if (items.length === 0) {
       pathRsrp.setAttribute('d', '');
       pathSinr.setAttribute('d', '');
       pathRsrq.setAttribute('d', '');
       return;
+    }
+
+    // If only 1 sample exists, project a baseline segment across the time axis
+    if (items.length === 1) {
+      items = [
+        items[0],
+        { ...items[0], timestamp: items[0].timestamp + 1000 }
+      ];
     }
 
     const minX = 60;
@@ -230,20 +323,20 @@
 
     // Normalizers
     const normRsrp = v => {
-      // Range: -125 (weakest, maxY) to -70 (strongest, minY)
-      const clamped = Math.max(-125, Math.min(-70, v));
+      const val = v !== null && v !== undefined ? Number(v) : -95;
+      const clamped = Math.max(-125, Math.min(-70, val));
       return maxY - ((clamped - (-125)) / 55) * (maxY - minY);
     };
 
     const normSinr = v => {
-      // Range: -5 (noisy, maxY) to 25 (pure, minY)
-      const clamped = Math.max(-5, Math.min(25, v));
+      const val = v !== null && v !== undefined ? Number(v) : 10;
+      const clamped = Math.max(-5, Math.min(25, val));
       return maxY - ((clamped - (-5)) / 30) * (maxY - minY);
     };
 
     const normRsrq = v => {
-      // Range: -20 (congested, maxY) to -5 (clean, minY)
-      const clamped = Math.max(-20, Math.min(-5, v));
+      const val = v !== null && v !== undefined ? Number(v) : -11;
+      const clamped = Math.max(-20, Math.min(-5, val));
       return maxY - ((clamped - (-20)) / 15) * (maxY - minY);
     };
 
@@ -253,9 +346,10 @@
 
     items.forEach((item, idx) => {
       const x = Math.round(minX + idx * stepX);
-      const yRsrp = Math.round(normRsrp(item.router.rsrp));
-      const ySinr = Math.round(normSinr(item.router.sinr || 0));
-      const yRsrq = Math.round(normRsrq(item.router.rsrq || -10));
+      const r = item.router || {};
+      const yRsrp = Math.round(normRsrp(r.rsrp));
+      const ySinr = Math.round(normSinr(r.sinr));
+      const yRsrq = Math.round(normRsrq(r.rsrq));
 
       const cmd = idx === 0 ? 'M' : 'L';
       dRsrp += `${cmd} ${x} ${yRsrp} `;
@@ -269,10 +363,11 @@
       circle.setAttribute('r', '4');
       circle.setAttribute('fill', '#111827');
       circle.setAttribute('stroke', '#6366f1');
+      circle.setAttribute('stroke-width', '2');
       circle.setAttribute('class', 'waveform-dot');
 
       const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-      title.textContent = `Time: ${new Date(item.timestamp).toLocaleTimeString()} | RSRP: ${item.router.rsrp} dBm | SINR: ${item.router.sinr} dB | RSRQ: ${item.router.rsrq} dB`;
+      title.textContent = `Time: ${new Date(item.timestamp).toLocaleTimeString()} | RSRP: ${r.rsrp || '--'} dBm | SINR: ${r.sinr || '--'} dB | RSRQ: ${r.rsrq || '--'} dB`;
       circle.appendChild(title);
 
       groupWaveformNodes.appendChild(circle);
@@ -284,18 +379,19 @@
   }
 
   /**
-   * 3. Render Cell Tower Handover & PCI Ping-Pong Radar
+   * 3. Render Cell Tower Handover & PCI Radar
    */
   function renderHandoverRadar() {
     if (!groupHandoverNodes || !handoverLogList) return;
     groupHandoverNodes.innerHTML = '';
     handoverLogList.innerHTML = '';
 
+    const rfPoints = getConsolidatedRfPoints();
     const events = [];
     let lastPci = null;
     let lastBand = null;
 
-    telemetryHistory.slice().reverse().forEach(item => {
+    rfPoints.forEach(item => {
       const r = item.router;
       if (!r || !r.pci) return;
       if (lastPci && r.pci !== lastPci) {
@@ -303,35 +399,57 @@
           timestamp: item.timestamp,
           fromPci: lastPci,
           toPci: r.pci,
-          fromBand: lastBand || 'B3',
-          toBand: r.band || 'B3'
+          fromBand: lastBand || 'N/A',
+          toBand: r.band || 'N/A'
         });
       }
       lastPci = r.pci;
       lastBand = r.band;
     });
 
-    // Detect Ping-Pong oscillation
-    let isPingPong = false;
-    if (events.length >= 3) {
-      const recent = events.slice(-3);
-      if (recent[0].fromPci === recent[1].toPci && recent[1].fromPci === recent[2].toPci) {
-        isPingPong = true;
-      }
-    }
+    const isPingPong = events.length >= 3;
 
     if (badgeHandoverStatus && badgeHandoverText) {
       if (isPingPong) {
         badgeHandoverStatus.className = 'status-badge badge-rose';
-        badgeHandoverText.textContent = currentLang === 'ar' ? 'تم رصد تذبذب وتكرار تبديل البرج' : 'Ping-Pong Oscillation Detected';
-      } else {
+        badgeHandoverText.textContent = currentLang === 'ar' ? 'تذبذب مستمر للأبراج' : 'Ping-Pong Detected';
+      } else if (events.length > 0) {
+        badgeHandoverStatus.className = 'status-badge badge-amber';
+        badgeHandoverText.textContent = currentLang === 'ar' ? `${events.length} عمليات تبديل` : `${events.length} Handovers`;
+      } else if (latestRouterMetrics && latestRouterMetrics.pci) {
         badgeHandoverStatus.className = 'status-badge badge-emerald';
-        badgeHandoverText.textContent = currentLang === 'ar' ? 'اتصال البرج مستقر' : 'Cell Link Stable';
+        badgeHandoverText.textContent = currentLang === 'ar' ? 'إشارة مستقرة ومثبتة' : 'Signal Stable & Locked';
+      } else {
+        badgeHandoverStatus.className = 'status-badge badge-muted';
+        badgeHandoverText.textContent = currentLang === 'ar' ? 'بانتظار الاتصال' : 'Awaiting Gateway';
       }
     }
 
     if (events.length === 0) {
-      handoverLogList.innerHTML = `<div class="log-empty-sub mono">${currentLang === 'ar' ? 'لا توجد عمليات تبديل للأبراج مسجلة حالياً.' : 'No cell tower handovers recorded in current session.'}</div>`;
+      if (latestRouterMetrics && latestRouterMetrics.pci) {
+        // Render current active tower on radar
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', '230');
+        circle.setAttribute('cy', '90');
+        circle.setAttribute('r', '8');
+        circle.setAttribute('fill', '#10b981');
+        circle.setAttribute('stroke', '#111827');
+        circle.setAttribute('stroke-width', '2');
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = `Active Anchor: PCI ${latestRouterMetrics.pci} (${latestRouterMetrics.band || 'LTE/5G'})`;
+        circle.appendChild(title);
+        groupHandoverNodes.appendChild(circle);
+
+        handoverLogList.innerHTML = `
+          <div class="handover-log-item" style="display: flex; align-items: center; justify-content: space-between;">
+            <span class="mono" style="color: #9ca3af;">${new Date().toLocaleTimeString()}</span>
+            <span class="mono" style="font-weight: 700; color: #f3f4f6;">PCI ${latestRouterMetrics.pci} (${latestRouterMetrics.band || 'Serving Cell'})</span>
+            <span class="status-badge badge-emerald" style="font-size: 10px; padding: 2px 6px;">Connected &amp; Stable</span>
+          </div>
+        `;
+      } else {
+        handoverLogList.innerHTML = `<div class="log-empty-sub mono">${currentLang === 'ar' ? 'لا توجد عمليات تبديل للأبراج مسجلة حالياً.' : 'No cell tower handovers recorded in current session.'}</div>`;
+      }
       return;
     }
 
@@ -357,7 +475,6 @@
       circle.appendChild(title);
       groupHandoverNodes.appendChild(circle);
 
-      // Add log row
       const row = document.createElement('div');
       row.className = 'handover-log-item';
       row.innerHTML = `
@@ -376,18 +493,26 @@
     if (!caCarriersList) return;
     caCarriersList.innerHTML = '';
 
-    // Mock/Real CA bands
     const pccBand = (latestRouterMetrics && latestRouterMetrics.band) ? latestRouterMetrics.band : 'B3';
-    const pccBw = (latestRouterMetrics && latestRouterMetrics.dlBandwidth) ? latestRouterMetrics.dlBandwidth : 20;
+    const pccBw = (latestRouterMetrics && latestRouterMetrics.dlBandwidth) ? parseInt(latestRouterMetrics.dlBandwidth) || 20 : 20;
 
     const carriers = [
-      { type: 'PCC', band: pccBand, freq: '1800 MHz', bw: pccBw, tagClass: 'tag-pcc' },
-      { type: 'SCC1', band: 'B7', freq: '2600 MHz', bw: 15, tagClass: 'tag-scc1' },
-      { type: 'SCC2', band: 'B20', freq: '800 MHz', bw: 10, tagClass: 'tag-scc2' }
+      { type: 'PCC', band: pccBand, freq: pccBand.startsWith('n') ? '5G NR' : 'LTE Primary', bw: pccBw, tagClass: 'tag-pcc' }
     ];
 
-    if (pccBand.includes('n') || (latestRouterMetrics && latestRouterMetrics.is5G)) {
-      carriers.push({ type: 'SCC3', band: 'n78', freq: '3500 MHz', bw: 40, tagClass: 'tag-scc3' });
+    if (latestRouterMetrics && Array.isArray(latestRouterMetrics.caBands) && latestRouterMetrics.caBands.length > 0) {
+      latestRouterMetrics.caBands.forEach((b, idx) => {
+        const bName = typeof b === 'object' ? (b.band || `SCC${idx + 1}`) : String(b);
+        const bw = typeof b === 'object' && b.bandwidth ? parseInt(b.bandwidth) : 15;
+        const tag = idx === 0 ? 'tag-scc1' : (idx === 1 ? 'tag-scc2' : 'tag-scc3');
+        carriers.push({
+          type: `SCC${idx + 1}`,
+          band: bName,
+          freq: bName.startsWith('n') ? '5G Sub-6' : 'LTE Secondary',
+          bw: bw || 15,
+          tagClass: tag
+        });
+      });
     }
 
     let totalBw = 0;
@@ -396,7 +521,6 @@
     if (caTotalBadgeVal) caTotalBadgeVal.textContent = totalBw;
     if (caCenterCount) caCenterCount.textContent = `${carriers.length}CA`;
 
-    // Calculate arc dash arrays (circumference = 2 * PI * 58 ~= 364.4)
     const circ = 364.4;
     let accumulatedAngle = 0;
 
@@ -412,7 +536,6 @@
       }
       accumulatedAngle += sliceLen;
 
-      // Populate list row
       const row = document.createElement('div');
       row.className = 'carrier-row';
       row.innerHTML = `
@@ -437,11 +560,12 @@
       return item.speedtest && item.speedtest.downloadMbps > 0 && item.router && item.router.rsrp !== null;
     });
 
-    if (statSampleCount) statSampleCount.textContent = validTests.length;
+    if (statSampleCount) {
+      statSampleCount.textContent = validTests.length > 0
+        ? validTests.length
+        : (latestRouterMetrics ? '0 (Live RF Ready)' : '0');
+    }
 
-    // Scatter Canvas Mappings
-    // X: RSRP from -125 (left 60px) to -70 (right 930px)
-    // Center divider at -95 dBm -> X = 490px
     const minX = 60;
     const maxX = 930;
     const mapX = rsrp => {
@@ -449,8 +573,6 @@
       return minX + ((clamped - (-125)) / 55) * (maxX - minX);
     };
 
-    // Y: Download speed from 0 Mbps (bottom 310px) to 150 Mbps (top 30px)
-    // Center divider at 35 Mbps -> Y = 170px
     const minY = 30;
     const maxY = 310;
     const mapY = speed => {
@@ -470,19 +592,18 @@
       const cx = Math.round(mapX(rsrp));
       const cy = Math.round(mapY(dl));
 
-      // Determine quadrant
       let dotColor = '#10b981';
       if (rsrp >= -95 && dl >= 35) {
-        dotColor = '#10b981'; // Optimal
+        dotColor = '#10b981';
         countOptimal++;
       } else if (rsrp >= -95 && dl < 35) {
-        dotColor = '#f59e0b'; // Congestion
+        dotColor = '#f59e0b';
         countCongestion++;
       } else if (rsrp < -95 && dl < 35) {
-        dotColor = '#f43f5e'; // Obstruction
+        dotColor = '#f43f5e';
         countObstruction++;
       } else {
-        dotColor = '#3b82f6'; // High efficiency
+        dotColor = '#3b82f6';
         countEfficient++;
       }
 
@@ -492,6 +613,7 @@
       circle.setAttribute('r', '5');
       circle.setAttribute('fill', dotColor);
       circle.setAttribute('stroke', '#111827');
+      circle.setAttribute('stroke-width', '2');
       circle.setAttribute('class', 'scatter-dot');
 
       const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
@@ -501,30 +623,76 @@
       groupScatterPoints.appendChild(circle);
     });
 
+    // Plot Live RF Operating Point Beacon
+    if (latestRouterMetrics && latestRouterMetrics.rsrp !== null) {
+      const liveX = Math.round(mapX(latestRouterMetrics.rsrp));
+      const liveY = validTests.length > 0 ? Math.round(mapY(validTests[0].speedtest.downloadMbps)) : 170;
+
+      // Beacon Ring
+      const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      ring.setAttribute('cx', liveX);
+      ring.setAttribute('cy', liveY);
+      ring.setAttribute('r', '10');
+      ring.setAttribute('fill', 'none');
+      ring.setAttribute('stroke', '#6366f1');
+      ring.setAttribute('stroke-width', '2');
+      ring.setAttribute('stroke-dasharray', '3 3');
+      groupScatterPoints.appendChild(ring);
+
+      // Beacon Dot
+      const beacon = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      beacon.setAttribute('cx', liveX);
+      beacon.setAttribute('cy', liveY);
+      beacon.setAttribute('r', '6');
+      beacon.setAttribute('fill', '#6366f1');
+      beacon.setAttribute('stroke', '#ffffff');
+      beacon.setAttribute('stroke-width', '2');
+
+      const bTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      bTitle.textContent = `Live RF Operating Point: RSRP ${latestRouterMetrics.rsrp} dBm | SINR ${latestRouterMetrics.sinr || '--'} dB | Band ${latestRouterMetrics.band || '--'}`;
+      beacon.appendChild(bTitle);
+      groupScatterPoints.appendChild(beacon);
+    }
+
     // Update Diagnostic Diagnosis Banner
     if (diagDiagnosisBox && diagDiagnosisText) {
-      if (countObstruction > countCongestion && countObstruction > countOptimal) {
-        diagDiagnosisBox.className = 'diagnostic-banner banner-rose';
-        diagDiagnosisText.textContent = currentLang === 'ar'
-          ? 'رصد عائق في الإشارة: يُنصح بتغيير موضع الموجه أو توجيه الهوائي لرفع قدرة استقبال RSRP.'
-          : 'Signal Obstruction Detected: Reposition router or aim external antenna to increase RSRP signal power.';
-        if (statBottleneck) statBottleneck.textContent = 'RF Signal Obstruction';
-      } else if (countCongestion > countOptimal && countCongestion > countObstruction) {
-        diagDiagnosisBox.className = 'diagnostic-banner banner-amber';
-        diagDiagnosisText.textContent = currentLang === 'ar'
-          ? 'رصد ازدحام على البرج: الإشارة قوية ومستقرة، ولكن سعة شبكة البرج ممتلئة في ساعات الذروة.'
-          : 'Tower Backhaul Congestion Detected: Signal is strong, but cell tower backhaul is congested.';
-        if (statBottleneck) statBottleneck.textContent = 'ISP Tower Backhaul Congestion';
+      if (validTests.length > 0) {
+        if (countObstruction > countCongestion && countObstruction > countOptimal) {
+          diagDiagnosisBox.className = 'diagnostic-banner banner-rose';
+          diagDiagnosisText.textContent = currentLang === 'ar'
+            ? 'رصد عائق في الإشارة: يُنصح بتغيير موضع الموجه أو توجيه الهوائي لرفع قدرة استقبال RSRP.'
+            : 'Signal Obstruction Detected: Reposition router or aim external antenna to increase RSRP signal power.';
+          if (statBottleneck) statBottleneck.textContent = 'RF Signal Obstruction';
+        } else if (countCongestion > countOptimal && countCongestion > countObstruction) {
+          diagDiagnosisBox.className = 'diagnostic-banner banner-amber';
+          diagDiagnosisText.textContent = currentLang === 'ar'
+            ? 'رصد ازدحام على البرج: الإشارة قوية ومستقرة، ولكن سعة شبكة البرج ممتلئة في ساعات الذروة.'
+            : 'Tower Backhaul Congestion Detected: Signal is strong, but cell tower backhaul is congested.';
+          if (statBottleneck) statBottleneck.textContent = 'ISP Tower Backhaul Congestion';
+        } else {
+          diagDiagnosisBox.className = 'diagnostic-banner banner-emerald';
+          diagDiagnosisText.textContent = currentLang === 'ar'
+            ? 'النظام متوازن: استقبال الإشارة وسرعة برج المزود يعملان بأعلى كفاءة.'
+            : 'System Balanced: Both RF reception and ISP tower backhaul throughput are operating at peak efficiency.';
+          if (statBottleneck) statBottleneck.textContent = 'None (Optimal)';
+        }
+      } else if (latestRouterMetrics) {
+        const advice = window.NetPulseEvaluator ? window.NetPulseEvaluator.generateDiagnosticAdvice(latestRouterMetrics) : '';
+        diagDiagnosisBox.className = 'diagnostic-banner banner-indigo';
+        diagDiagnosisText.textContent = advice || (currentLang === 'ar'
+          ? 'تم استلام بيانات التردد اللاسلكي الحية من الموجه. قم بتشغيل اختبار Speedtest لربط السرعة بقوة الإشارة.'
+          : 'Live RF telemetry loaded from router. Run a Speedtest to correlate bandwidth throughput with physical RF levels.');
+        if (statBottleneck) statBottleneck.textContent = latestRouterMetrics.sinr >= 13 ? 'Clean RF Channel' : 'RF Path Loss / Noise';
       } else {
-        diagDiagnosisBox.className = 'diagnostic-banner banner-emerald';
+        diagDiagnosisBox.className = 'diagnostic-banner banner-indigo';
         diagDiagnosisText.textContent = currentLang === 'ar'
-          ? 'النظام متوازن: استقبال الإشارة وسرعة برج المزود يعملان بأعلى كفاءة.'
-          : 'System Balanced: Both RF reception and ISP tower backhaul throughput are operating at peak efficiency.';
-        if (statBottleneck) statBottleneck.textContent = 'None (Optimal)';
+          ? 'بانتظار اتصال الموجه أو فتح صفحة 192.168.1.1 للمزامنة التلقائية.'
+          : 'Awaiting router connection or open 192.168.1.1 tab to sync telemetry.';
+        if (statBottleneck) statBottleneck.textContent = 'Awaiting Telemetry';
       }
     }
 
-    // Pearson Correlation
+    // Pearson Correlation R²
     const r2 = calculateCorrelationR2();
     if (statPearsonR) statPearsonR.textContent = r2 !== null ? Math.sqrt(r2).toFixed(3) : '--';
     if (statVarianceR2) statVarianceR2.textContent = r2 !== null ? r2.toFixed(3) : '--';
@@ -566,8 +734,9 @@
    * Export Analytical Audit CSV
    */
   function exportAuditCsv() {
-    if (telemetryHistory.length === 0) {
-      alert('No telemetry data available to export.');
+    const rfPoints = getConsolidatedRfPoints();
+    if (rfPoints.length === 0) {
+      alert(currentLang === 'ar' ? 'لا توجد بيانات متاحة للتصدير.' : 'No telemetry data available to export.');
       return;
     }
 
@@ -585,17 +754,16 @@
       'RSSI_dBm',
       'Band',
       'PCI',
-      'DL_Bandwidth_MHz',
-      'CA_Bands'
+      'DL_Bandwidth_MHz'
     ];
 
-    const rows = telemetryHistory.map(item => {
+    const rows = rfPoints.map(item => {
       const st = item.speedtest || {};
       const rt = item.router || {};
       return [
         item.timestamp,
-        item.dateIso,
-        `"${item.source || 'Speedtest'}"`,
+        new Date(item.timestamp).toISOString(),
+        `"${item.source || (st.downloadMbps ? 'Speedtest' : 'Router')}"`,
         st.downloadMbps || '',
         st.uploadMbps || '',
         st.pingMs || '',
@@ -606,8 +774,7 @@
         rt.rssi !== null && rt.rssi !== undefined ? rt.rssi : '',
         `"${rt.band || ''}"`,
         rt.pci || '',
-        rt.dlBandwidth || '',
-        `"${(rt.caBands || []).join(';')}"`
+        rt.dlBandwidth || ''
       ].join(',');
     });
 
@@ -621,7 +788,7 @@
   }
 
   /**
-   * Sync / Get Info from Dashboard and Active Router Sessions
+   * Sync / Get Info from Dashboard, Active Router Tabs, and Open Speedtests
    */
   async function syncWithDashboard() {
     if (btnSyncLabel) {
@@ -629,31 +796,90 @@
     }
 
     try {
-      // 1. Check if router tab is open to trigger a live metric extraction
-      const settingsStorage = await chrome.storage.local.get(['netpulse_settings']);
+      // 1. Read latest storage first
+      const settingsStorage = await chrome.storage.local.get(['netpulse_settings', 'netpulse_router_latest', 'netpulse_history', 'netpulse_rf_timeline']);
       const configuredIp = (settingsStorage.netpulse_settings && settingsStorage.netpulse_settings.gatewayIp) || '192.168.1.1';
 
+      // 2. Query open browser tabs
       if (chrome.tabs && chrome.tabs.query) {
         const tabs = await chrome.tabs.query({});
-        const routerTabs = tabs.filter(t => t.url && (t.url.includes(configuredIp) || t.url.includes('192.168.') || t.url.includes('10.')));
+
+        // 2a. Query Dashboard tabs to request active sync
+        const dashTabs = tabs.filter(t => t.url && t.url.includes('dashboard/dashboard.html'));
+        for (const dTab of dashTabs) {
+          try {
+            chrome.tabs.sendMessage(dTab.id, { type: 'REQUEST_DASHBOARD_SYNC' }, (res) => {
+              if (res && res.router && res.router.metrics) {
+                chrome.storage.local.set({ netpulse_router_latest: res.router });
+              }
+            });
+          } catch (e) {}
+        }
+
+        // 2b. Query Router tabs and execute live scraper
+        const routerTabs = tabs.filter(t => {
+          if (!t.url) return false;
+          try {
+            const u = new URL(t.url);
+            return u.hostname.startsWith('192.168.') || u.hostname.includes('router') || u.hostname === '10.0.0.1' || u.hostname.includes(configuredIp);
+          } catch (e) {
+            return false;
+          }
+        });
+
         for (const tab of routerTabs) {
           try {
-            await chrome.tabs.sendMessage(tab.id, { action: 'TRIGGER_ROUTER_SCRAPE' });
-          } catch (e) {
-            // content script not mounted or tab busy
-          }
+            if (chrome.scripting && chrome.scripting.executeScript) {
+              await chrome.scripting.executeScript({
+                target: { tabId: tab.id, allFrames: true },
+                files: ['shared/evaluator.js', 'scripts/router_scraper.js']
+              });
+              await chrome.scripting.executeScript({
+                target: { tabId: tab.id, allFrames: true },
+                func: () => {
+                  if (typeof window.__netpulse_manual_scrape === 'function') return window.__netpulse_manual_scrape();
+                  if (typeof window.__netpulse_extract_now === 'function') return window.__netpulse_extract_now();
+                  return null;
+                }
+              });
+            }
+            chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_ROUTER_SCRAPE' }, () => {});
+          } catch (e) {}
+        }
+
+        // 2c. Query Speedtest tabs
+        const stTabs = tabs.filter(t => t.url && (t.url.includes('speedtest.net') || t.url.includes('fast.com')));
+        for (const stTab of stTabs) {
+          try {
+            chrome.tabs.sendMessage(stTab.id, { type: 'TRIGGER_SPEEDTEST_SCRAPE' }, () => {});
+          } catch (e) {}
         }
       }
 
-      // 2. Refresh local data immediately from storage
+      // 3. Settle asynchronous commits
+      await new Promise(resolve => setTimeout(resolve, 350));
+
+      // 4. Reload all data
       await loadData(true);
 
-      // 3. Display Toast Notification Feedback
-      showToast(window.NetPulseI18n
-        ? window.NetPulseI18n.t('toast_telemetry_synced', currentLang)
-        : 'Telemetry successfully synced with Dashboard.');
+      // 5. Build dynamic informative toast
+      let toastMsg = currentLang === 'ar' ? 'تمت المزامنة مع لوحة التحكم بنجاح.' : 'Telemetry successfully synced with Dashboard.';
+      if (latestRouterMetrics && latestRouterMetrics.rsrp !== null) {
+        toastMsg = currentLang === 'ar'
+          ? `تمت المزامنة: إشارة ${latestRouterMetrics.rsrp} dBm | جودة ${latestRouterMetrics.sinr || '--'} dB | تردد ${latestRouterMetrics.band || '--'}`
+          : `Synced: RSRP ${latestRouterMetrics.rsrp} dBm | SINR ${latestRouterMetrics.sinr || '--'} dB | Band ${latestRouterMetrics.band || '--'}`;
+      } else if (telemetryHistory.length > 0) {
+        toastMsg = currentLang === 'ar'
+          ? `تمت المزامنة: تم تحميل ${telemetryHistory.length} سجل قياس من لوحة التحكم.`
+          : `Synced: Loaded ${telemetryHistory.length} records from Dashboard.`;
+      } else {
+        toastMsg = currentLang === 'ar'
+          ? 'تمت المزامنة. بانتظار اتصال الموجه أو فتح صفحة 192.168.1.1'
+          : 'Synced with Dashboard. Awaiting router telemetry or open 192.168.1.1 tab.';
+      }
+      showToast(toastMsg);
     } catch (err) {
-      console.error('[NetPulse Analysis] Manual sync failed:', err);
+      console.error('[NetPulse Analysis] Manual sync error:', err);
       await loadData(true);
       showToast(currentLang === 'ar' ? 'اكتملت المزامنة.' : 'Sync completed.');
     } finally {
@@ -697,6 +923,7 @@
     try {
       await chrome.storage.local.set({
         netpulse_history: [],
+        netpulse_rf_timeline: [],
         netpulse_router_latest: {
           timestamp: Date.now(),
           status: 'waiting',
@@ -706,7 +933,9 @@
       });
 
       telemetryHistory = [];
+      rfTimeline = [];
       latestRouterMetrics = null;
+      latestRouterPayload = null;
       renderAll();
 
       if (analysisSyncTime) {
@@ -773,7 +1002,7 @@
   // Live Storage Event Listener (instant sync upon new telemetry or speedtest)
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
-      if (changes.netpulse_history || changes.netpulse_router_latest) {
+      if (changes.netpulse_history || changes.netpulse_router_latest || changes.netpulse_rf_timeline) {
         loadData(true);
       }
     }

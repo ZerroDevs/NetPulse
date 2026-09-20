@@ -550,7 +550,22 @@
     lastCommittedData = payload;
 
     try {
-      await chrome.storage.local.set({ netpulse_router_latest: payload });
+      const storage = await chrome.storage.local.get(['netpulse_rf_timeline']);
+      let timeline = storage.netpulse_rf_timeline || [];
+      if (metrics && (metrics.rsrp !== null || metrics.rssi !== null)) {
+        const last = timeline[timeline.length - 1];
+        if (!last || (Date.now() - last.timestamp > 3000) || last.router.rsrp !== metrics.rsrp) {
+          timeline.push({
+            timestamp: Date.now(),
+            router: metrics
+          });
+          if (timeline.length > 100) timeline.shift();
+        }
+      }
+      await chrome.storage.local.set({
+        netpulse_router_latest: payload,
+        netpulse_rf_timeline: timeline
+      });
       chrome.runtime.sendMessage({ type: 'ROUTER_TELEMETRY_COMMITTED', data: payload });
       updateHud(payload);
     } catch (err) {
