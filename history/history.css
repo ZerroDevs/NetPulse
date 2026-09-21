@@ -79,35 +79,42 @@ body {
 }
 
 .app-layout {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 16px 24px 60px 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 /* ==========================================================================
-   TOPBAR
+   TOP NAVIGATION BAR
    ========================================================================== */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px;
+  padding: 12px 24px;
   background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .topbar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.brand-svg {
+  flex-shrink: 0;
 }
 
 .brand-text {
@@ -118,31 +125,76 @@ body {
 .brand-title {
   font-size: 15px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
   line-height: 1.2;
 }
 
 .brand-sub {
   font-size: 11px;
+  color: var(--text-muted);
+}
+
+.connection-status-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-subcard);
   color: var(--text-secondary);
+}
+
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+}
+
+.pill-connected .pill-dot {
+  background-color: var(--accent-emerald);
+}
+
+.pill-unknown .pill-dot {
+  background-color: var(--accent-amber);
+}
+
+.pill-disconnected .pill-dot {
+  background-color: var(--accent-rose);
+}
+
+.sync-timestamp {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .topbar-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .nav-link {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 11px;
   border-radius: 6px;
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   border: 1px solid transparent;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -154,9 +206,12 @@ body {
 
 .nav-link-active {
   background-color: var(--bg-subcard);
-  color: var(--text-primary);
+  color: var(--accent-indigo);
   border-color: var(--border-color);
-  font-weight: 600;
+}
+
+.nav-link-icon-only {
+  padding: 6px 8px;
 }
 
 .topbar-actions {
@@ -177,7 +232,7 @@ body {
   font-family: inherit;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   user-select: none;
 }
 
@@ -221,19 +276,35 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 9px;
-  background-color: var(--bg-subcard);
-  border: 1px solid var(--border-color);
+  padding: 6px 10px;
   border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-subcard);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .btn-toggle-switch:hover {
+  background-color: var(--border-color);
   color: var(--text-primary);
-  border-color: var(--border-subtle);
+}
+
+.btn-toggle-switch.privacy-active {
+  background-color: var(--accent-emerald-bg);
+  border-color: var(--accent-emerald);
+  color: var(--accent-emerald);
+}
+
+/* History Content Container */
+.history-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 16px 24px 60px 24px;
 }
 
 /* ==========================================================================
@@ -671,6 +742,11 @@ body {
 
 .badge-source-fast {
   background-color: #e50914;
+  color: #ffffff;
+}
+
+.badge-source-netpulse {
+  background-color: #10b981;
   color: #ffffff;
 }
 

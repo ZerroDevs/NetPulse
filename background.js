@@ -192,6 +192,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'OPEN_SPEEDTEST') {
+    const speedtestUrl = chrome.runtime.getURL('speedtest/speedtest.html');
+    chrome.tabs.query({ url: speedtestUrl }, (tabs) => {
+      if (tabs && tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { active: true });
+        if (tabs[0].windowId) {
+          chrome.windows.update(tabs[0].windowId, { focused: true });
+        }
+      } else {
+        chrome.tabs.create({ url: speedtestUrl });
+      }
+    });
+    sendResponse({ status: 'ok' });
+    return true;
+  }
+
   if (message.type === 'CAPTURE_ACTIVE_TAB') {
     chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
       if (chrome.runtime.lastError) {

@@ -10,39 +10,42 @@
   <div class="popup-container">
     <!-- Header -->
     <header class="header">
-      <div class="brand">
-        <svg class="brand-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
-          <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
-          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-          <line x1="12" y1="20" x2="12.01" y2="20"></line>
-        </svg>
-        <span class="brand-name" data-i18n="brand_name">NetPulse</span>
+      <div class="header-left">
+        <div class="brand">
+          <svg class="brand-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+          </svg>
+          <span class="brand-name" data-i18n="brand_name">NetPulse</span>
+        </div>
+
+        <span id="connection-pill" class="status-pill status-unknown" title="Router Gateway Status">
+          <span class="status-dot"></span>
+          <span id="connection-label" data-i18n="awaiting_router">Awaiting Router</span>
+        </span>
       </div>
 
-      <div class="header-right">
-        <!-- Router Gateway & Autofill Quick Icon -->
-        <button id="btn-popup-router-launch" class="btn-icon-toggle" type="button" title="Open Router & Auto-Fill Login (192.168.1.1)" data-i18n-title="open_router_login">
+      <div class="header-actions">
+        <!-- Mini Speedtest Quick Icon -->
+        <button id="btn-popup-speedtest" class="btn-icon-toggle" type="button" title="NetPulse Mini Speedtest" data-i18n-title="nav_speedtest">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="2" width="20" height="8" rx="2"></rect>
-            <rect x="2" y="14" width="20" height="8" rx="2"></rect>
-            <line x1="6" y1="6" x2="6.01" y2="6"></line>
-            <line x1="6" y1="18" x2="6.01" y2="18"></line>
-            <path d="M15 6l3 0"></path>
-            <path d="M15 18l3 0"></path>
+            <path d="M12 14l3-3"></path>
+            <path d="M3.34 17a10 10 0 1 1 17.32 0"></path>
           </svg>
         </button>
 
         <!-- Privacy & Sharing Mode Toggle -->
-        <button id="btn-popup-privacy" class="btn-icon-toggle" type="button" title="Toggle Privacy & Sharing Mode" data-i18n-title="privacy_mode_tooltip">
+        <button id="btn-popup-privacy" class="btn-icon-toggle" type="button" title="Toggle Privacy &amp; Sharing Mode" data-i18n-title="privacy_mode_tooltip">
           <svg id="popup-privacy-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
           </svg>
         </button>
 
         <!-- Language Switcher -->
-        <button id="btn-popup-lang" class="btn-icon-toggle" type="button" title="Switch Language / تبديل اللغة">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button id="btn-popup-lang" class="btn-icon-toggle btn-lang-toggle" type="button" title="Switch Language / تبديل اللغة">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="2" y1="12" x2="22" y2="12"></line>
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
@@ -66,11 +69,6 @@
             </svg>
           </span>
         </button>
-
-        <span id="connection-pill" class="status-pill status-unknown">
-          <span class="status-dot"></span>
-          <span id="connection-label" data-i18n="awaiting_router">Awaiting Router</span>
-        </span>
       </div>
     </header>
 

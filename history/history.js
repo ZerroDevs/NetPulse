@@ -43,6 +43,40 @@
   const btnPrivacyToggle = document.getElementById('btn-privacy-toggle');
   const privacyToggleText = document.getElementById('privacy-toggle-text');
 
+  // Topbar Router Connection & Live Sync
+  const routerPill = document.getElementById('router-connection-pill');
+  const routerPillLabel = document.getElementById('router-connection-label');
+  const liveSyncIndicator = document.getElementById('live-sync-indicator');
+
+  function updateRouterConnectionStatus(payload) {
+    if (!routerPill) return;
+    const isAr = currentLang === 'ar';
+
+    if (!payload || !payload.metrics) {
+      routerPill.className = 'pill pill-unknown';
+      if (routerPillLabel) {
+        routerPillLabel.textContent = isAr ? 'البوابة: 192.168.* (قيد الاستماع)' : 'Gateway: 192.168.* (Listening)';
+      }
+      if (liveSyncIndicator) {
+        liveSyncIndicator.textContent = isAr ? 'آخر مزامنة: --:--:--' : 'Last Sync: --:--:--';
+      }
+      return;
+    }
+
+    routerPill.className = 'pill pill-connected';
+    const model = payload.model || (payload.metrics && payload.metrics.model) || '192.168.1.1';
+    if (routerPillLabel) {
+      routerPillLabel.textContent = isAr ? `الموجه متصل (${model})` : `Connected (${model})`;
+    }
+
+    if (liveSyncIndicator) {
+      const ts = payload.timestamp || Date.now();
+      const d = new Date(ts);
+      const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+      liveSyncIndicator.textContent = `${isAr ? 'آخر مزامنة: ' : 'Last Sync: '}${timeStr}`;
+    }
+  }
+
   // Screenshot Modal
   const modalScreenshot = document.getElementById('modal-screenshot-overlay');
   const imgScreenshot = document.getElementById('screenshot-img');
@@ -172,6 +206,7 @@
       rawSpeedtestHistory = Array.isArray(data.netpulse_history) ? data.netpulse_history : [];
       rawRfTimeline = Array.isArray(data.netpulse_rf_timeline) ? data.netpulse_rf_timeline : [];
       latestRouterPayload = data.netpulse_router_latest || null;
+      updateRouterConnectionStatus(latestRouterPayload);
 
       buildHourlyBuckets();
       applyFilters();
@@ -656,6 +691,25 @@
   }
 
   /* ==========================================================================
+     BANDWIDTH FORMATTING HELPER
+     ========================================================================== */
+  function formatCleanBandwidth(rawBw, isAr = false) {
+    if (!rawBw || rawBw === '--') return '--';
+    const str = String(rawBw).trim();
+    const nums = str.match(/\d+(?:\.\d+)?/g);
+    if (!nums || nums.length === 0) {
+      const cleaned = str.replace(/mhz|m/gi, '').trim();
+      return cleaned ? `${cleaned} MHz` : '--';
+    }
+    if (nums.length === 1) {
+      return `${nums[0]} MHz`;
+    }
+    const sum = nums.reduce((acc, n) => acc + parseFloat(n), 0);
+    const totalLabel = isAr ? `إجمالي ${sum} MHz` : `${sum} MHz Total`;
+    return `${nums.join('+')} MHz (${totalLabel})`;
+  }
+
+  /* ==========================================================================
      MARKDOWN GENERATOR FOR AI ANALYSIS (EXACT REQUIRED FORMAT)
      ========================================================================== */
   function generateAiReportMarkdown(bucket, lang) {
@@ -669,8 +723,6 @@
     let rsrq = '--';
     let rssi = '--';
     let bands = '--';
-    let ul = '--';
-    let dl = '--';
     let cellId = '--';
 
     if (m) {
@@ -687,14 +739,15 @@
         bands = sBands.join(' + ');
       }
 
-      if (m.ulBandwidth) ul = String(m.ulBandwidth).replace(/mhz|m/i, '');
-      if (m.dlBandwidth) dl = String(m.dlBandwidth).replace(/mhz|m/i, '');
       if (m.cellId) {
         cellId = (privacyMode && window.NetPulseEvaluator)
           ? window.NetPulseEvaluator.redactSensitiveData(m.cellId, 'cell_id')
           : String(m.cellId);
       }
     }
+
+    const ulBandwidthFormatted = formatCleanBandwidth(m ? m.ulBandwidth : null, isAr);
+    const dlBandwidthFormatted = formatCleanBandwidth(m ? m.dlBandwidth : null, isAr);
 
     // 2. Speedtest Runs Within This Hour
     let speedtestLines = '';
@@ -752,17 +805,32 @@
     const avgDl = bucket.avgDownload !== undefined ? bucket.avgDownload : '--';
     const avgUl = bucket.avgUpload !== undefined ? bucket.avgUpload : '--';
 
-    // 3. Link Spectral Efficiency Calculation
+    // Link Spectral Efficiency Calculation
     let effArLines = '';
     let effEnLines = '';
-    if (m && window.NetPulseEvaluator && window.NetPulseEvaluator.computeSpectralEfficiency) {
+    if (m && window.NetPulseEvaluator && typeof window.NetPulseEvaluator.computeSpectralEfficiency === 'function') {
       const topSpeed = bucket.speedtests.length > 0 ? (bucket.speedtests[0].speedtest || bucket.speedtests[0]) : null;
       const eff = window.NetPulseEvaluator.computeSpectralEfficiency(m, topSpeed);
-      effArLines = `\n- السعة الترددية القصوى (Theoretical Peak): ${eff.theoreticalPeakMbps} Mbps (${eff.totalBandwidthMhz} MHz @ ${eff.bpsPerHz} bps/Hz 256-QAM)\n- كفاءة استغلال التردد (Link Efficiency): ${eff.efficiencyPct !== null ? eff.efficiencyPct + '%' : '--'} (${eff.statusText})`;
-      effEnLines = `\n- Theoretical Peak DL Capacity: ${eff.theoreticalPeakMbps} Mbps (${eff.totalBandwidthMhz} MHz @ ${eff.bpsPerHz} bps/Hz 256-QAM)\n- Link Spectral Efficiency: ${eff.efficiencyPct !== null ? eff.efficiencyPct + '%' : '--'} (${eff.statusText})`;
+      if (eff) {
+        const theoPeak = eff.theoreticalPeakMbps !== undefined ? eff.theoreticalPeakMbps : '--';
+        const totalBw = eff.totalBandwidthMhz || eff.totalDlBw || 20;
+        const bps = eff.bpsPerHz || 7.8;
+        const effPct = (eff.efficiencyPercent !== null && eff.efficiencyPercent !== undefined)
+          ? `${eff.efficiencyPercent}%`
+          : ((eff.efficiencyPct !== null && eff.efficiencyPct !== undefined) ? `${eff.efficiencyPct}%` : '--');
+        const statusEn = eff.tierGrade || eff.statusText || 'Awaiting Speedtest';
+        const statusAr = eff.tierKey && window.NetPulseI18n
+          ? window.NetPulseI18n.t(eff.tierKey, 'ar')
+          : (eff.tierGrade || 'بانتظار الاختبار');
+
+        effArLines = `\n- السعة الترددية القصوى (Theoretical Peak): ${theoPeak} Mbps (${totalBw} MHz @ ${bps} bps/Hz 256-QAM)\n- كفاءة استغلال التردد (Link Efficiency): ${effPct} (${statusAr})`;
+        effEnLines = `\n- Theoretical Peak DL Capacity: ${theoPeak} Mbps (${totalBw} MHz @ ${bps} bps/Hz 256-QAM)\n- Link Spectral Efficiency: ${effPct} (${statusEn})`;
+      }
     }
 
-    // 4. ISP Peak vs. Off-Peak Discrepancy Matrix Context
+    let nextSectionIndex = 3;
+
+    // ISP Peak vs. Off-Peak Discrepancy Matrix Context
     const matrix = computePeakOffPeakMatrix(allHourlyBuckets);
     let peakMatrixArSection = '';
     let peakMatrixEnSection = '';
@@ -780,17 +848,60 @@
           ? `Moderate ISP Load (-${matrix.dropPct}% throughput drop)`
           : `Consistent Tier-1 Stability (-${matrix.dropPct}% throughput variation)`);
 
-      peakMatrixArSection = `\n\n### 3. مصفوفة مقارنة أوقات الذروة مقابل الخمول (ISP Benchmark):
+      peakMatrixArSection = `\n\n### ${nextSectionIndex}. مصفوفة مقارنة أوقات الذروة مقابل الخمول (ISP Benchmark):
 - متوسط الخمول (02:00 - 08:00): ${opDl} Mbps (${matrix.offPeak.count} اختبارات)
 - متوسط الذروة (19:00 - 01:00): ${pkDl} Mbps (${matrix.peak.count} اختبارات)
 - نسبة انخفاض السرعة بالذروة: ${matrix.dropPct}%
 - تقييم أداء البرج: ${verdictAr}`;
 
-      peakMatrixEnSection = `\n\n### 3. ISP Peak vs. Off-Peak Discrepancy Matrix:
+      peakMatrixEnSection = `\n\n### ${nextSectionIndex}. ISP Peak vs. Off-Peak Discrepancy Matrix:
 - Off-Peak Avg DL (02:00 - 08:00): ${opDl} Mbps (${matrix.offPeak.count} tests)
 - Peak Avg DL (19:00 - 01:00): ${pkDl} Mbps (${matrix.peak.count} tests)
 - Throughput Drop during Peak: ${matrix.dropPct}%
 - Cell Tower Benchmark Verdict: ${verdictEn}`;
+
+      nextSectionIndex++;
+    }
+
+    // Bufferbloat & Loaded Latency Analysis
+    let bbArSection = '';
+    let bbEnSection = '';
+    if (window.NetPulseEvaluator && typeof window.NetPulseEvaluator.evaluateBufferbloat === 'function') {
+      const topSt = bucket.speedtests.length > 0 ? (bucket.speedtests[0].speedtest || bucket.speedtests[0]) : null;
+      if (topSt) {
+        const bb = window.NetPulseEvaluator.evaluateBufferbloat(topSt);
+        const idleStr = (bb.idlePing !== null && bb.idlePing !== undefined) ? `${bb.idlePing} ms` : '--';
+        const dlLoadedVal = bb.dlLoaded !== undefined ? bb.dlLoaded : bb.downloadLoadedPing;
+        const dlDeltaVal = bb.dlDelta !== undefined ? bb.dlDelta : bb.deltaDownload;
+        const dlLoadedStr = (dlLoadedVal !== null && dlLoadedVal !== undefined)
+          ? `${dlLoadedVal} ms (+${dlDeltaVal || 0} ms)`
+          : '--';
+
+        const ulLoadedVal = bb.ulLoaded !== undefined ? bb.ulLoaded : bb.uploadLoadedPing;
+        const ulDeltaVal = bb.ulDelta !== undefined ? bb.ulDelta : bb.deltaUpload;
+        const ulLoadedStr = (ulLoadedVal !== null && ulLoadedVal !== undefined)
+          ? `${ulLoadedVal} ms (+${ulDeltaVal || 0} ms)`
+          : '--';
+
+        const worstDeltaVal = bb.worstDelta !== undefined && bb.worstDelta !== null ? bb.worstDelta : 0;
+        const gradeVal = bb.grade || 'A+';
+
+        bbArSection = `\n\n### ${nextSectionIndex}. تقييم امتلاء الذاكرة المؤقتة (Bufferbloat & Loaded Latency):
+- استجابة الخمول (Idle Ping): ${idleStr}
+- الاستجابة تحت ضغط التنزيل (DL Loaded): ${dlLoadedStr}
+- الاستجابة تحت ضغط الرفع (UL Loaded): ${ulLoadedStr}
+- أقصى تأخير تراكمي (Worst Queue Delta): +${worstDeltaVal} ms
+- تصنيف الذاكرة المؤقتة (Bufferbloat Grade): ${gradeVal}`;
+
+        bbEnSection = `\n\n### ${nextSectionIndex}. Bufferbloat & Loaded Latency Diagnostics:
+- Idle Latency (Baseline Ping): ${idleStr}
+- Download Loaded Latency: ${dlLoadedStr}
+- Upload Loaded Latency: ${ulLoadedStr}
+- Worst Queue Delta: +${worstDeltaVal} ms
+- Bufferbloat Grade: Grade ${gradeVal}`;
+
+        nextSectionIndex++;
+      }
     }
 
     if (isAr) {
@@ -803,14 +914,14 @@
 - جودة واستقرار البرج (RSRQ): ${rsrq} dB
 - طاقة الإشارة الكلية (RSSI): ${rssi} dBm
 - الترددات المدمجة (Bands): ${bands}
-- نطاق الرفع / التنزيل: UL ${ul}M / DL ${dl}M
+- نطاق الرفع / التنزيل: UL ${ulBandwidthFormatted} / DL ${dlBandwidthFormatted}
 - معرّف الخلية (Cell ID): ${cellId}${effArLines}
 
 ### 2. نتائج اختبارات السرعة خلال هذه الساعة:
 ${speedtestLines}
-- متوسط السرعة المسجل: تنزيل ${avgDl} Mbps | رفع ${avgUl} Mbps${peakMatrixArSection}
+- متوسط السرعة المسجل: تنزيل ${avgDl} Mbps | رفع ${avgUl} Mbps${peakMatrixArSection}${bbArSection}
 
-المطلوب من الذكاء الاصطناعي: قم بتحليل هذه القراءات، وتقييم أداء البرج والشبكة خلال هذه الساعة، وتحديد هل السرعة المسجلة متوافقة مع جودة الإشارة وكفاءة الطيف الترددي أم يوجد عنق زجاجة أو ازدحام.`;
+المطلوب من الذكاء الاصطناعي: قم بتحليل هذه القراءات، وتقييم أداء البرج والشبكة خلال هذه الساعة، وتحديد هل السرعة المسجلة متوافقة مع جودة الإشارة وكفاءة الطيف الترددي وأداء Bufferbloat أم يوجد عنق زجاجة أو ازدحام.`;
     } else {
       return `# Network Diagnostic Report - NetPulse ${privacyMode ? '(Privacy Redacted Mode)' : ''}
 **Time Window:** ${timeWindow}
@@ -821,14 +932,14 @@ ${speedtestLines}
 - RSRQ: ${rsrq} dB
 - RSSI: ${rssi} dBm
 - Carrier Aggregation: ${bands}
-- Bandwidth: UL ${ul}M / DL ${dl}M
+- Bandwidth: UL ${ulBandwidthFormatted} / DL ${dlBandwidthFormatted}
 - Cell ID: ${cellId}${effEnLines}
 
 ### 2. Speedtest Runs Within This Hour:
 ${speedtestLines}
-- Hourly Average: Download ${avgDl} Mbps | Upload ${avgUl} Mbps${peakMatrixEnSection}
+- Hourly Average: Download ${avgDl} Mbps | Upload ${avgUl} Mbps${peakMatrixEnSection}${bbEnSection}
 
-AI Prompt: Analyze these network metrics and speedtest results for this hour. Evaluate RF link quality, spectral efficiency utilization, detect potential tower congestion, and verify if throughput matches channel capacity.`;
+AI Prompt: Analyze these network metrics, speedtest results, and bufferbloat queue performance for this hour. Evaluate RF link quality, spectral efficiency utilization, detect potential tower congestion, and verify if throughput and loaded latency match channel capacity.`;
     }
   }
 
@@ -1131,7 +1242,7 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
         }
 
         const bwStr = (m.dlBandwidth || m.ulBandwidth)
-          ? `UL ${m.ulBandwidth || '--'}M / DL ${m.dlBandwidth || '--'}M`
+          ? `UL ${formatCleanBandwidth(m.ulBandwidth, isAr)} / DL ${formatCleanBandwidth(m.dlBandwidth, isAr)}`
           : '--';
         const cellStr = (privacyMode && window.NetPulseEvaluator)
           ? window.NetPulseEvaluator.redactSensitiveData(m.cellId, 'cell_id')
@@ -1258,10 +1369,11 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
 
           // Source: top-level .source, or from .speedtest.source
           const entrySource = st.source || (st.speedtest && st.speedtest.source) || '';
-          const isFast = entrySource.toLowerCase().includes('fast');
-          const isSpeedtestDotNet = !isFast && /speedtest/i.test(entrySource);
-          const sourceBadgeClass = isFast ? 'badge-source-fast' : 'badge-source-speedtest';
-          const sourceLabel = isFast ? 'Fast.com' : 'Speedtest.net';
+          const isNetPulse = entrySource.toLowerCase().includes('netpulse');
+          const isFast = !isNetPulse && entrySource.toLowerCase().includes('fast');
+          const isSpeedtestDotNet = !isNetPulse && !isFast && /speedtest/i.test(entrySource);
+          const sourceBadgeClass = isNetPulse ? 'badge-source-netpulse' : (isFast ? 'badge-source-fast' : 'badge-source-speedtest');
+          const sourceLabel = isNetPulse ? 'NetPulse Test' : (isFast ? 'Fast.com' : 'Speedtest.net');
 
           const numJitter = (jitter !== undefined && jitter !== null && !isNaN(jitter)) ? Number(jitter) : null;
           const showJitter = !isSpeedtestDotNet && numJitter !== null && numJitter > 0;
@@ -1283,10 +1395,19 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
             `;
           }
 
+          let bbBadgeHtml = '';
+          if (window.NetPulseEvaluator && window.NetPulseEvaluator.evaluateBufferbloat) {
+            const bb = window.NetPulseEvaluator.evaluateBufferbloat(stData);
+            if (bb && bb.grade && bb.grade !== 'Unknown') {
+              bbBadgeHtml = `<span class="mono" style="display:inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; border: 1px solid ${bb.color}; color: ${bb.color}; margin-right: 4px; margin-left: 4px;">BB: ${bb.grade}</span>`;
+            }
+          }
+
           runRow.innerHTML = `
             <div class="run-time-source">
               <span class="run-timestamp mono">${timeStr}</span>
               <span class="badge-source ${sourceBadgeClass}">${sourceLabel}</span>
+              ${bbBadgeHtml}
             </div>
             <div class="run-speeds">
               <span class="run-metric"><strong class="mono text-cyan">${dlDisp}</strong> <small>DL</small></span>
@@ -1626,6 +1747,7 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
     if (langToggleText) {
       langToggleText.textContent = lang === 'ar' ? 'English' : 'العربية';
     }
+    updateRouterConnectionStatus(latestRouterPayload);
   }
 
   if (btnThemeToggle) {

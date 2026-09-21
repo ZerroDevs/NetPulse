@@ -347,15 +347,17 @@ assert(analysisHtml.includes('history/history.html'), 'analysis.html links to hi
 
 const bgJsContent = fs.readFileSync(path.join(ROOT_DIR, 'background.js'), 'utf8');
 assert(bgJsContent.includes('OPEN_HISTORY'), 'background.js handles OPEN_HISTORY message');
-assert(popupHtmlContent.includes('id="btn-popup-router-launch"'), 'popup.html contains btn-popup-router-launch in header');
 assert(popupHtmlContent.includes('id="btn-open-router-login"'), 'popup.html contains btn-open-router-login in manual scan box');
+assert(popupHtmlContent.includes('class="header-left"') && popupHtmlContent.includes('class="header-actions"'), 'popup.html contains organized header-left and header-actions layout');
 assert(popupJsContent.includes('openAndAutofillRouter'), 'popup.js contains openAndAutofillRouter handler');
-assert(popupJsContent.includes('btnPopupRouterLaunch'), 'popup.js binds btnPopupRouterLaunch');
 assert(popupJsContent.includes('btnOpenRouterLogin'), 'popup.js binds btnOpenRouterLogin');
 assert(I18n.t('open_router_login', 'en').includes('Open Router'), 'EN translation for open_router_login exists');
 assert(I18n.t('open_router_login', 'ar').includes('فتح صفحة الموجه'), 'AR translation for open_router_login exists');
 assert(I18n.t('open_and_autofill_router', 'en').includes('Open Router'), 'EN translation for open_and_autofill_router exists');
 assert(I18n.t('open_and_autofill_router', 'ar').includes('فتح الموجه'), 'AR translation for open_and_autofill_router exists');
+assert(historyHtmlContent.includes('id="router-connection-pill"'), 'history.html contains router-connection-pill');
+assert(historyHtmlContent.includes('id="live-sync-indicator"'), 'history.html contains live-sync-indicator');
+assert(historyHtmlContent.includes('class="history-container"'), 'history.html contains history-container layout');
 
 // 9. Feature 1: Dynamic Multi-Band CA Parsing Verification
 const caParsed = Evaluator.parseCarrierAggregation({
@@ -506,6 +508,195 @@ assert(I18n.t('hud_status_tournament', 'en').includes('Tournament Grade (< 55ms)
 assert(I18n.t('hud_status_competitive', 'en').includes('Competitive Grade (55-85ms)'), 'EN translation for hud_status_competitive');
 assert(I18n.t('grade_tournament', 'ar').includes('احترافي بطولات'), 'AR translation for grade_tournament');
 assert(I18n.t('grade_competitive', 'ar').includes('تنافسي'), 'AR translation for grade_competitive');
+
+// 17. Feature 1: Bufferbloat & Loaded Latency Scoring Engine Verification
+assert(typeof Evaluator.evaluateBufferbloat === 'function', 'Evaluator exports evaluateBufferbloat');
+const bbGradeAPlus = Evaluator.evaluateBufferbloat({ idlePing: 15, downloadLoadedPing: 18, uploadLoadedPing: 17 });
+assert(bbGradeAPlus.grade === 'A+' && bbGradeAPlus.worstDelta === 3 && bbGradeAPlus.color === '#10b981', 'Bufferbloat Grade A+ (< 5ms)');
+
+const bbGradeA = Evaluator.evaluateBufferbloat({ idlePing: 15, downloadLoadedPing: 27, uploadLoadedPing: 20 });
+assert(bbGradeA.grade === 'A' && bbGradeA.worstDelta === 12 && bbGradeA.color === '#3b82f6', 'Bufferbloat Grade A (6-15ms)');
+
+const bbGradeB = Evaluator.evaluateBufferbloat({ idlePing: 15, downloadLoadedPing: 40, uploadLoadedPing: 20 });
+assert(bbGradeB.grade === 'B' && bbGradeB.worstDelta === 25 && bbGradeB.color === '#f59e0b', 'Bufferbloat Grade B (16-35ms)');
+
+const bbGradeC = Evaluator.evaluateBufferbloat({ idlePing: 15, downloadLoadedPing: 65, uploadLoadedPing: 20 });
+assert(bbGradeC.grade === 'C' && bbGradeC.worstDelta === 50, 'Bufferbloat Grade C (36-60ms)');
+
+const bbGradeD = Evaluator.evaluateBufferbloat({ idlePing: 15, downloadLoadedPing: 90, uploadLoadedPing: 20 });
+assert(bbGradeD.grade === 'D' && bbGradeD.worstDelta === 75, 'Bufferbloat Grade D (61-80ms)');
+
+const bbGradeF = Evaluator.evaluateBufferbloat({ idlePing: 15, downloadLoadedPing: 135, uploadLoadedPing: 20 });
+assert(bbGradeF.grade === 'F' && bbGradeF.worstDelta === 120 && bbGradeF.color === '#f43f5e', 'Bufferbloat Grade F (> 80ms)');
+
+assert(dashHtml.includes('id="bufferbloat-card"'), 'dashboard.html contains bufferbloat-card');
+assert(dashHtml.includes('id="badge-bufferbloat-grade"'), 'dashboard.html contains badge-bufferbloat-grade');
+assert(dashHtml.includes('id="bb-idle-val"'), 'dashboard.html contains bb-idle-val');
+assert(dashHtml.includes('id="bb-dl-val"'), 'dashboard.html contains bb-dl-val');
+assert(dashHtml.includes('id="bb-ul-val"'), 'dashboard.html contains bb-ul-val');
+assert(dashHtml.includes('id="bb-worst-delta-val"'), 'dashboard.html contains bb-worst-delta-val');
+assert(dashJsRaw.includes('renderBufferbloatAndHeadroom'), 'dashboard.js implements renderBufferbloatAndHeadroom');
+
+// 18. Feature 2: Competitive Gaming Stability Index (CSI) Verification
+assert(typeof Evaluator.calculateCSI === 'function', 'Evaluator exports calculateCSI');
+const csiPerfect = Evaluator.calculateCSI({ jitter: 1, packetLoss: 0, ping: 20, worstDelta: 2 });
+assert(csiPerfect.score >= 95 && csiPerfect.tier === 'Tournament Ready' && csiPerfect.color === '#10b981', 'CSI Tournament Ready tier (>= 90%)');
+
+const csiComp = Evaluator.calculateCSI({ jitter: 5, packetLoss: 0.5, ping: 40, worstDelta: 15 });
+assert(csiComp.score >= 75 && csiComp.score < 90 && csiComp.tier === 'Competitive Tier' && csiComp.color === '#3b82f6', 'CSI Competitive Tier (75-89%)');
+
+const csiCasual = Evaluator.calculateCSI({ jitter: 6, packetLoss: 0.5, ping: 45, worstDelta: 15 });
+assert(csiCasual.score >= 60 && csiCasual.score < 75 && csiCasual.tier === 'Casual Playable' && csiCasual.color === '#f59e0b', 'CSI Casual Playable tier (60-74%)');
+
+const csiRisk = Evaluator.calculateCSI({ jitter: 20, packetLoss: 4, ping: 90, worstDelta: 70 });
+assert(csiRisk.score < 60 && csiRisk.tier === 'High Lag / Spike Risk' && csiRisk.color === '#f43f5e', 'CSI High Lag / Spike Risk tier (< 60%)');
+
+assert(dashHtml.includes('id="card-csi-gauge"'), 'dashboard.html contains card-csi-gauge');
+assert(dashHtml.includes('id="gaming-csi-val"'), 'dashboard.html contains gaming-csi-val');
+assert(dashHtml.includes('id="gaming-csi-bar"'), 'dashboard.html contains gaming-csi-bar');
+assert(dashHtml.includes('id="gaming-csi-grade"'), 'dashboard.html contains gaming-csi-grade');
+
+// 19. Feature 3: Real-Time Latency Spike & Route Deviation Radar Verification
+assert(dashHtml.includes('id="badge-route-radar"'), 'dashboard.html contains badge-route-radar');
+assert(dashHtml.includes('id="route-radar-text"'), 'dashboard.html contains route-radar-text');
+assert(dashHtml.includes('id="gaming-spikes-val"'), 'dashboard.html contains gaming-spikes-val');
+assert(dashJsRaw.includes('triggerRouteDeviationAlert'), 'dashboard.js implements triggerRouteDeviationAlert');
+assert(dashJsRaw.includes('radar_cause_saturation'), 'dashboard.js implements saturation root cause');
+assert(dashJsRaw.includes('radar_cause_rf_contention'), 'dashboard.js implements RF contention root cause');
+assert(dashJsRaw.includes('radar_cause_isp_peering'), 'dashboard.js implements ISP peering root cause');
+
+// 20. Feature 4: Pre-Match 15s Connection Flight Check Verification
+assert(dashHtml.includes('id="btn-flight-check"'), 'dashboard.html contains btn-flight-check');
+assert(dashHtml.includes('id="gaming-flight-check-banner"'), 'dashboard.html contains gaming-flight-check-banner');
+assert(dashHtml.includes('id="flight-verdict-pill"'), 'dashboard.html contains flight-verdict-pill');
+assert(dashHtml.includes('id="flight-stats-line"'), 'dashboard.html contains flight-stats-line');
+assert(dashJsRaw.includes('run15sFlightCheck'), 'dashboard.js implements run15sFlightCheck');
+assert(dashJsRaw.includes('finalizeFlightCheck'), 'dashboard.js implements finalizeFlightCheck');
+
+// 21. Feature 5: Household Network Capacity & Headroom Estimator Verification
+assert(typeof Evaluator.calculateHouseholdHeadroom === 'function', 'Evaluator exports calculateHouseholdHeadroom');
+const hrHigh = Evaluator.calculateHouseholdHeadroom({ downloadMbps: 200, uploadMbps: 40, worstDelta: 4 });
+assert(hrHigh.streams4k === 8 && hrHigh.calls1080p === 16 && hrHigh.tier === 'High Headroom', 'High Headroom concurrency calculated');
+
+const hrConstrained = Evaluator.calculateHouseholdHeadroom({ downloadMbps: 15, uploadMbps: 2, worstDelta: 40 });
+assert(hrConstrained.tier === 'Constrained', 'Constrained Headroom concurrency calculated');
+
+assert(dashHtml.includes('id="headroom-card"'), 'dashboard.html contains headroom-card');
+assert(dashHtml.includes('id="badge-headroom-tier"'), 'dashboard.html contains badge-headroom-tier');
+assert(dashHtml.includes('id="headroom-4k-val"'), 'dashboard.html contains headroom-4k-val');
+assert(dashHtml.includes('id="headroom-calls-val"'), 'dashboard.html contains headroom-calls-val');
+assert(dashHtml.includes('id="headroom-gaming-val"'), 'dashboard.html contains headroom-gaming-val');
+assert(dashHtml.includes('id="headroom-verdict-text"'), 'dashboard.html contains headroom-verdict-text');
+
+// 22. History AI Report & Bufferbloat Integration
+const historyJsRaw = fs.readFileSync(path.join(ROOT_DIR, 'history/history.js'), 'utf8');
+assert(historyJsRaw.includes('Bufferbloat & Loaded Latency'), 'history.js includes Bufferbloat in AI Report');
+assert(historyJsRaw.includes('evaluateBufferbloat'), 'history.js calls evaluateBufferbloat');
+
+// 23. i18n Dictionary Coverage for 5 Features
+const requiredI18nKeys = [
+  'bufferbloat_title', 'idle_latency', 'dl_loaded_latency', 'ul_loaded_latency', 'worst_delta_latency',
+  'bb_grade_aplus', 'bb_grade_a', 'bb_grade_b', 'bb_grade_c', 'bb_grade_d', 'bb_grade_f',
+  'csi_title', 'csi_tournament', 'csi_competitive', 'csi_casual', 'csi_high_risk',
+  'radar_title', 'radar_normal', 'radar_spike_detected', 'radar_cause_saturation', 'radar_cause_rf_contention', 'radar_cause_isp_peering',
+  'btn_flight_check', 'flight_check_running', 'flight_verdict_green', 'flight_verdict_yellow', 'flight_verdict_red', 'flight_stats_summary',
+  'headroom_title', 'headroom_4k_label', 'headroom_calls_label', 'headroom_gaming_label', 'headroom_tier_high', 'headroom_verdict_high'
+];
+
+requiredI18nKeys.forEach((k) => {
+  assert(I18n.t(k, 'en') !== k, `EN translation exists for ${k}`);
+  assert(I18n.t(k, 'ar') !== k, `AR translation exists for ${k}`);
+});
+
+// 24. AI Report & Bandwidth Formatting Validation (Zero Undefineds)
+assert(historyJsRaw.includes('formatCleanBandwidth'), 'history.js implements formatCleanBandwidth');
+const testEff = Evaluator.computeSpectralEfficiency({
+  dlBandwidth: '10,10M,20M,10M MHz',
+  sinr: 27
+}, { downloadMbps: 278.11 });
+assert(testEff.totalBandwidthMhz === 50, 'Spectral engine totalBandwidthMhz is 50');
+assert(testEff.efficiencyPct === 71, 'Spectral engine efficiencyPct is 71%');
+assert(testEff.statusText === 'Near Physical Saturation', 'Spectral engine statusText is Near Physical Saturation');
+
+const testBB = Evaluator.evaluateBufferbloat({
+  idlePing: 17,
+  downloadLoadedPing: 22,
+  uploadLoadedPing: 20
+});
+assert(testBB.downloadLoadedPing === 22, 'Bufferbloat downloadLoadedPing alias is present');
+assert(testBB.uploadLoadedPing === 20, 'Bufferbloat uploadLoadedPing alias is present');
+assert(testBB.deltaDownload === 5, 'Bufferbloat deltaDownload alias is present');
+assert(testBB.deltaUpload === 3, 'Bufferbloat deltaUpload alias is present');
+
+// 25. Mini Speedtest Suite & Icon Navigation Verification
+const speedtestHtmlPath = path.join(ROOT_DIR, 'speedtest/speedtest.html');
+const speedtestCssPath = path.join(ROOT_DIR, 'speedtest/speedtest.css');
+const speedtestJsPath = path.join(ROOT_DIR, 'speedtest/speedtest.js');
+const speedtestWorkerPath = path.join(ROOT_DIR, 'speedtest/speedtest_worker.js');
+
+assert(fs.existsSync(speedtestHtmlPath), 'speedtest/speedtest.html exists');
+assert(fs.existsSync(speedtestCssPath), 'speedtest/speedtest.css exists');
+assert(fs.existsSync(speedtestJsPath), 'speedtest/speedtest.js exists');
+assert(fs.existsSync(speedtestWorkerPath), 'speedtest/speedtest_worker.js exists');
+
+const speedtestHtml = fs.readFileSync(speedtestHtmlPath, 'utf8');
+const speedtestCss = fs.readFileSync(speedtestCssPath, 'utf8');
+const speedtestJs = fs.readFileSync(speedtestJsPath, 'utf8');
+const speedtestWorker = fs.readFileSync(speedtestWorkerPath, 'utf8');
+
+assert(!speedtestCss.includes('gradient'), 'speedtest.css adheres strictly to ZERO GRADIENTS');
+assert(speedtestHtml.includes('id="btn-start-speedtest"'), 'speedtest.html contains btn-start-speedtest');
+assert(speedtestHtml.includes('id="btn-abort-speedtest"'), 'speedtest.html contains btn-abort-speedtest');
+assert(speedtestHtml.includes('id="stat-dl-val"'), 'speedtest.html contains stat-dl-val');
+assert(speedtestHtml.includes('id="stat-ul-val"'), 'speedtest.html contains stat-ul-val');
+assert(speedtestHtml.includes('id="stat-ping-val"'), 'speedtest.html contains stat-ping-val');
+assert(speedtestHtml.includes('id="stat-jitter-val"'), 'speedtest.html contains stat-jitter-val');
+assert(speedtestHtml.includes('id="rf-rsrp-val"'), 'speedtest.html contains rf-rsrp-val');
+
+assert(speedtestWorker.includes('SpeedtestRunner'), 'speedtest_worker.js defines SpeedtestRunner');
+assert(speedtestWorker.includes('measurePing'), 'speedtest_worker.js implements measurePing');
+assert(speedtestWorker.includes('measureDownload'), 'speedtest_worker.js implements measureDownload');
+assert(speedtestWorker.includes('measureUpload'), 'speedtest_worker.js implements measureUpload');
+
+assert(speedtestJs.includes('NetPulse Test'), 'speedtest.js persists under source "NetPulse Test"');
+assert(speedtestJs.includes('netpulse_history'), 'speedtest.js saves to netpulse_history');
+
+// Check Icon-Only Navigation Buttons across all headers
+const popupHtmlFresh = fs.readFileSync(path.join(ROOT_DIR, 'popup/popup.html'), 'utf8');
+assert(popupHtmlFresh.includes('id="btn-popup-speedtest"'), 'popup.html contains icon-only speedtest button');
+const popupJsFresh = fs.readFileSync(path.join(ROOT_DIR, 'popup/popup.js'), 'utf8');
+assert(popupJsFresh.includes('btnPopupSpeedtest'), 'popup.js binds btnPopupSpeedtest click listener');
+
+const dashHtmlFresh = fs.readFileSync(path.join(ROOT_DIR, 'dashboard/dashboard.html'), 'utf8');
+assert(dashHtmlFresh.includes('speedtest.html') && dashHtmlFresh.includes('nav-link-icon-only'), 'dashboard.html contains icon-only speedtest link');
+
+const analysisHtmlFresh = fs.readFileSync(path.join(ROOT_DIR, 'analysis/analysis.html'), 'utf8');
+assert(analysisHtmlFresh.includes('speedtest.html') && analysisHtmlFresh.includes('nav-link-icon-only'), 'analysis.html contains icon-only speedtest link');
+
+const historyHtmlFresh = fs.readFileSync(path.join(ROOT_DIR, 'history/history.html'), 'utf8');
+assert(historyHtmlFresh.includes('speedtest.html') && historyHtmlFresh.includes('nav-link-icon-only'), 'history.html contains icon-only speedtest link');
+
+const optionsHtmlFresh = fs.readFileSync(path.join(ROOT_DIR, 'options/options.html'), 'utf8');
+assert(optionsHtmlFresh.includes('speedtest.html') && optionsHtmlFresh.includes('nav-link-icon-only'), 'options.html contains icon-only speedtest link');
+
+const aboutHtmlFresh = fs.readFileSync(path.join(ROOT_DIR, 'about/about.html'), 'utf8');
+assert(aboutHtmlFresh.includes('speedtest.html') && aboutHtmlFresh.includes('nav-link-icon-only'), 'about.html contains icon-only speedtest link');
+
+// Check background message handler
+const bgJsFresh = fs.readFileSync(path.join(ROOT_DIR, 'background.js'), 'utf8');
+assert(bgJsFresh.includes('OPEN_SPEEDTEST'), 'background.js handles OPEN_SPEEDTEST');
+
+// Check Speedtest i18n Keys
+const speedtestI18nKeys = [
+  'nav_speedtest', 'speedtest_title', 'speedtest_sub', 'test_state_ready',
+  'test_state_ping', 'test_state_download', 'test_state_upload', 'test_state_completed',
+  'btn_start_speedtest', 'btn_stop_speedtest', 'speedtest_rf_paired', 'speedtest_saved_notice'
+];
+
+speedtestI18nKeys.forEach((k) => {
+  assert(I18n.t(k, 'en') !== k, `EN translation exists for ${k}`);
+  assert(I18n.t(k, 'ar') !== k, `AR translation exists for ${k}`);
+});
 
 console.log(`\nVerification Complete: ${passes} passed, ${failures} failed.`);
 if (failures > 0) {

@@ -23,6 +23,14 @@
             <span class="brand-sub" data-i18n="hourly_audit_title">Hourly Historical Audit &amp; Diagnostic Studio</span>
           </div>
         </div>
+
+        <div class="connection-status-block">
+          <span id="router-connection-pill" class="pill pill-unknown">
+            <span class="pill-dot"></span>
+            <span id="router-connection-label" data-i18n="gateway_listening">Gateway: 192.168.* (Listening)</span>
+          </span>
+          <span id="live-sync-indicator" class="sync-timestamp mono">Last Sync: --:--:--</span>
+        </div>
       </div>
 
       <!-- Navigation Links -->
@@ -54,7 +62,13 @@
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          <span data-i18n="nav_options">Settings</span>
+          <span data-i18n="nav_options">Settings &amp; Gateway</span>
+        </a>
+        <a href="../speedtest/speedtest.html" class="nav-link nav-link-icon-only" title="NetPulse Mini Speedtest" data-i18n-title="nav_speedtest">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 14l3-3"></path>
+            <path d="M3.34 17a10 10 0 1 1 17.32 0"></path>
+          </svg>
         </a>
         <a href="../about/about.html" class="nav-link nav-link-icon-only" title="About &amp; Developer Info" data-i18n-title="nav_about">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -118,7 +132,7 @@
         <!-- Theme Toggle -->
         <button id="btn-theme-toggle" class="btn-toggle-switch" type="button" title="Toggle Dark/Light Mode">
           <span id="theme-icon-container">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <svg id="theme-icon-sun" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="5"></circle>
               <line x1="12" y1="1" x2="12" y2="3"></line>
               <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -135,7 +149,8 @@
       </div>
     </header>
 
-    <!-- Subheader Filter & Search Toolbar -->
+    <div class="history-container">
+      <!-- Subheader Filter & Search Toolbar -->
     <section class="toolbar-section">
       <div class="toolbar-card">
         <div class="toolbar-left">
@@ -160,6 +175,7 @@
             <label for="select-provider" class="filter-label mono" data-i18n="source_label">Source:</label>
             <select id="select-provider" class="select-filter mono">
               <option value="ALL" data-i18n="source_all">All Sources</option>
+              <option value="NetPulse Test">NetPulse Test</option>
               <option value="Speedtest.net">Speedtest.net</option>
               <option value="Fast.com">Fast.com</option>
               <option value="Router">Router Telemetry</option>
@@ -344,6 +360,7 @@
         <p class="empty-desc" data-i18n="hourly_empty_desc">Run speedtests or connect your cellular router to automatically populate hourly audit blocks.</p>
       </div>
     </main>
+    </div>
   </div>
 
   <!-- Screenshot Preview Modal -->

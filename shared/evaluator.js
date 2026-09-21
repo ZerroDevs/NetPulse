@@ -349,10 +349,16 @@
       });
     }
 
+    const pcc = carriers.length > 0 ? carriers[0] : null;
+    const caBadge = carriers.length > 1 ? `${carriers.length}x CA (${carriers.map(c => c.band).join('+')})` : '1x Component Carrier';
+
     return {
       carriersCount: carriers.length,
       totalDlBw,
-      carriers
+      totalBandwidthMhz: totalDlBw,
+      carriers,
+      pcc,
+      caBadge
     };
   }
 
@@ -382,9 +388,9 @@
     const theoreticalPeakMbps = Math.round(totalDlBw * bpsPerHz);
 
     let dlSpeed = null;
-    if (speedtest && speedtest.downloadMbps) {
+    if (speedtest && speedtest.downloadMbps !== undefined && speedtest.downloadMbps !== null) {
       dlSpeed = Number(speedtest.downloadMbps);
-    } else if (speedtest && speedtest.download) {
+    } else if (speedtest && speedtest.download !== undefined && speedtest.download !== null) {
       dlSpeed = Number(speedtest.download);
     }
 
@@ -416,12 +422,15 @@
 
     return {
       totalDlBw,
+      totalBandwidthMhz: totalDlBw,
       bpsPerHz,
       theoreticalPeakMbps,
       latestDlMbps: dlSpeed,
       efficiencyPercent,
+      efficiencyPct: efficiencyPercent,
       tierKey,
       tierGrade,
+      statusText: tierGrade,
       tierColor
     };
   }
@@ -466,6 +475,203 @@
       return str.slice(0, half) + '*'.repeat(str.length - half);
     }
     return '****';
+  }
+
+  /**
+   * Feature: Bufferbloat & Loaded Latency Scoring Engine
+   * Evaluates Idle Ping vs. Download & Upload Loaded Latency and grades queue management.
+   */
+  function evaluateBufferbloat(st = {}) {
+    const idlePing = Math.max(0, Number(st.idlePing || st.pingMs || st.ping || 0));
+    
+    // Download loaded ping estimation / extraction
+    let dlLoaded = idlePing;
+    if (st.downloadLoadedPing !== undefined && st.downloadLoadedPing !== null) {
+      dlLoaded = Number(st.downloadLoadedPing);
+    } else if (st.dlLoadedPing !== undefined && st.dlLoadedPing !== null) {
+      dlLoaded = Number(st.dlLoadedPing);
+    } else if (st.source === 'Fast.com' && st.jitterMs && st.jitterMs > idlePing) {
+      dlLoaded = Number(st.jitterMs);
+    } else if (st.jitterMs && st.jitterMs > 0) {
+      dlLoaded = idlePing + Number(st.jitterMs);
+    }
+
+    // Upload loaded ping estimation / extraction
+    let ulLoaded = idlePing;
+    if (st.uploadLoadedPing !== undefined && st.uploadLoadedPing !== null) {
+      ulLoaded = Number(st.uploadLoadedPing);
+    } else if (st.ulLoadedPing !== undefined && st.ulLoadedPing !== null) {
+      ulLoaded = Number(st.ulLoadedPing);
+    } else {
+      ulLoaded = dlLoaded > idlePing ? Math.round(idlePing + (dlLoaded - idlePing) * 0.85) : idlePing;
+    }
+
+    const dlDelta = Math.max(0, dlLoaded - idlePing);
+    const ulDelta = Math.max(0, ulLoaded - idlePing);
+    const worstDelta = Math.max(0, dlDelta, ulDelta);
+
+    let grade = 'A';
+    let color = '#3b82f6';
+    let descKey = 'bb_grade_a_desc';
+    let summaryEn = 'Good traffic shaping. Minimal latency penalty during heavy traffic.';
+    let summaryAr = 'تحكم جيد في حركة المرور. تأثير طفيف على الألعاب أثناء التحميل.';
+
+    if (worstDelta <= 5) {
+      grade = 'A+';
+      color = '#10b981';
+      descKey = 'bb_grade_aplus_desc';
+      summaryEn = 'Exceptional buffer management. Real-time gaming unaffected by household traffic.';
+      summaryAr = 'إدارة مثالية لطوابير البيانات. ألعاب خالية تماماً من التقطيع.';
+    } else if (worstDelta <= 15) {
+      grade = 'A';
+      color = '#3b82f6';
+      descKey = 'bb_grade_a_desc';
+      summaryEn = 'Good traffic shaping. Minimal latency penalty during heavy traffic.';
+      summaryAr = 'تحكم جيد في حركة المرور. تأثير طفيف على الألعاب أثناء التحميل.';
+    } else if (worstDelta <= 35) {
+      grade = 'B';
+      color = '#f59e0b';
+      descKey = 'bb_grade_b_desc';
+      summaryEn = 'Minor latency inflation. Noticeable lag if simultaneous large downloads occur.';
+      summaryAr = 'زيادة طفيفة في زمن التأخير. قد يحدث بطء طفيف عند التحميل المتزامن.';
+    } else if (worstDelta <= 60) {
+      grade = 'C';
+      color = '#f43f5e';
+      descKey = 'bb_grade_c_desc';
+      summaryEn = 'Noticeable queue buildup. Packet queue delay causes gameplay stutter.';
+      summaryAr = 'تراكم ملحوظ في طوابير الحزم. يتسبب في تقطيع أثناء اللعب.';
+    } else if (worstDelta <= 80) {
+      grade = 'D';
+      color = '#f43f5e';
+      descKey = 'bb_grade_d_desc';
+      summaryEn = 'High queue buildup. Significant latency spikes when others stream.';
+      summaryAr = 'تأخير مرتفع في طابور الحزم. قفزات مفاجئة في البينج عند المشاهدة المتزامنة.';
+    } else {
+      grade = 'F';
+      color = '#f43f5e';
+      descKey = 'bb_grade_f_desc';
+      summaryEn = 'Severe bufferbloat. Router buffer saturation causes critical gaming freezes.';
+      summaryAr = 'امتلاء حرج للمخزن المؤقت. تشبع طوابير الموجه يؤدي لتجميد الألعاب تماماً.';
+    }
+
+    return {
+      idlePing,
+      dlLoaded,
+      downloadLoadedPing: dlLoaded,
+      ulLoaded,
+      uploadLoadedPing: ulLoaded,
+      dlDelta,
+      deltaDownload: dlDelta,
+      ulDelta,
+      deltaUpload: ulDelta,
+      worstDelta,
+      grade,
+      color,
+      descKey,
+      summaryEn,
+      summaryAr
+    };
+  }
+
+  /**
+   * Feature: Competitive Gaming Stability Index (CSI 0 - 100%)
+   * Composite mathematical formula factoring Jitter, Packet Loss, Baseline Ping, and Bufferbloat.
+   */
+  function calculateCSI(params = {}) {
+    const p = Math.max(0, Number(params.ping || 0));
+    const j = Math.max(0, Number(params.jitter || 0));
+    const loss = Math.max(0, Number(params.packetLossPct || 0));
+    const delta = Math.max(0, Number(params.worstDelta || 0));
+
+    const jitterPenalty = parseFloat((j * 2.0).toFixed(1));
+    const lossPenalty = parseFloat((loss * 12.0).toFixed(1));
+    const pingPenalty = parseFloat((Math.max(0, p - 30) * 0.5).toFixed(1));
+    const bufferbloatPenalty = parseFloat((delta * 0.2).toFixed(1));
+
+    const score = Math.max(0, Math.min(100, Math.round(100 - jitterPenalty - lossPenalty - pingPenalty - bufferbloatPenalty)));
+
+    let tier = 'Competitive Tier';
+    let tierKey = 'csi_competitive';
+    let color = '#3b82f6';
+
+    if (score >= 90) {
+      tier = 'Tournament Ready';
+      tierKey = 'csi_tournament';
+      color = '#10b981';
+    } else if (score >= 75) {
+      tier = 'Competitive Tier';
+      tierKey = 'csi_competitive';
+      color = '#3b82f6';
+    } else if (score >= 60) {
+      tier = 'Casual Playable';
+      tierKey = 'csi_casual';
+      color = '#f59e0b';
+    } else {
+      tier = 'High Lag / Spike Risk';
+      tierKey = 'csi_lag_risk';
+      color = '#f43f5e';
+    }
+
+    return {
+      score,
+      tier,
+      tierKey,
+      color,
+      deductions: {
+        jitterPenalty,
+        lossPenalty,
+        pingPenalty,
+        bufferbloatPenalty
+      }
+    };
+  }
+
+  /**
+   * Feature: Household Network Capacity & Concurrency Headroom Estimator
+   */
+  function calculateHouseholdHeadroom(params = {}) {
+    const dl = Math.max(0, Number(params.downloadMbps || 0));
+    const ul = Math.max(0, Number(params.uploadMbps || 0));
+    const grade = params.bufferbloatGrade || 'A';
+
+    const streams4k = Math.max(0, Math.floor(dl / 25));
+    const calls1080p = Math.max(0, Math.min(Math.floor(dl / 5), Math.floor(ul > 0 ? ul / 3 : 5)));
+
+    let gamingCapability = 'Optimal / Zero Congestion';
+    let gamingColor = '#10b981';
+    let verdictEn = `Supports ${Math.max(1, streams4k)}x Simultaneous 4K Streams + Low-Latency Competitive Gaming`;
+    let verdictAr = `يدعم تشغيل ${Math.max(1, streams4k)}x بث بدقة 4K بالتزامن مع ألعاب تنافسية خالية من التقطيع`;
+
+    if (dl >= 150 && (grade === 'A+' || grade === 'A')) {
+      gamingCapability = 'Tournament Uncongested';
+      gamingColor = '#10b981';
+      verdictEn = `Supports ${streams4k}x Simultaneous 4K Streams + Low-Latency Competitive Gaming`;
+      verdictAr = `يدعم تشغيل ${streams4k}x بث بدقة 4K بالتزامن مع ألعاب تنافسية خالية من التقطيع`;
+    } else if (dl >= 50 && (grade === 'A' || grade === 'B')) {
+      gamingCapability = 'Good / Minor Jitter Risk';
+      gamingColor = '#3b82f6';
+      verdictEn = `Supports ${Math.max(1, streams4k)}x 4K Streams & ${calls1080p}x HD Video Calls; Traffic shaping recommended during heavy downloads.`;
+      verdictAr = `يدعم ${Math.max(1, streams4k)}x بث 4K و ${calls1080p}x مكالمات عالية الدقة؛ يُنصح بجدولة التنزيلات الكبيرة.`;
+    } else if (dl >= 25) {
+      gamingCapability = 'Playable / Queue Warning';
+      gamingColor = '#f59e0b';
+      verdictEn = `Moderate headroom. Heavy household streaming will induce queue delay on gaming packets.`;
+      verdictAr = `سعة متوسطة. تشغيل البث الكثيف بالمنزل سيؤدي لزيادة طوابير الحزم ورفع زمن استجابة الألعاب.`;
+    } else {
+      gamingCapability = 'High Contention Risk';
+      gamingColor = '#f43f5e';
+      verdictEn = `Heavy household traffic will inflate gaming ping; traffic shaping / QoS priority recommended.`;
+      verdictAr = `حركة البيانات المنزلية الكثيفة ستؤدي لارتفاع البينج؛ يُوصى بتفعيل أولويات QoS للألعاب.`;
+    }
+
+    return {
+      streams4k,
+      calls1080p,
+      gamingCapability,
+      gamingColor,
+      verdictEn,
+      verdictAr
+    };
   }
 
   /**
@@ -729,10 +935,211 @@
   }
 
   /**
+   * Evaluate Bufferbloat & Loaded Latency Engine
+   * Grades latency inflation under download/upload traffic relative to idle baseline.
+   */
+  function evaluateBufferbloat(speedtest = {}) {
+    const st = speedtest || {};
+    const idlePing = st.idlePing !== undefined ? st.idlePing : (st.pingMs !== undefined ? st.pingMs : (st.ping !== undefined ? st.ping : null));
+    const dlLoaded = st.downloadLoadedPing !== undefined ? st.downloadLoadedPing : (st.dlLoadedPing !== undefined ? st.dlLoadedPing : (st.downloadPing !== undefined ? st.downloadPing : null));
+    const ulLoaded = st.uploadLoadedPing !== undefined ? st.uploadLoadedPing : (st.ulLoadedPing !== undefined ? st.ulLoadedPing : (st.uploadPing !== undefined ? st.uploadPing : null));
+
+    const numIdle = (idlePing !== null && !isNaN(idlePing)) ? Number(idlePing) : null;
+    const numDl = (dlLoaded !== null && !isNaN(dlLoaded)) ? Number(dlLoaded) : null;
+    const numUl = (ulLoaded !== null && !isNaN(ulLoaded)) ? Number(ulLoaded) : null;
+
+    const hasLoadedData = (numDl !== null || numUl !== null);
+
+    if (numIdle === null) {
+      return {
+        grade: 'Unknown',
+        gradeKey: 'bb_grade_unknown',
+        idlePing: null,
+        downloadLoadedPing: null,
+        uploadLoadedPing: null,
+        deltaDownload: 0,
+        deltaUpload: 0,
+        worstDelta: 0,
+        color: '#9ca3af',
+        diagnosisKey: 'bb_grade_unknown_desc',
+        hasLoadedData: false
+      };
+    }
+
+    const effectiveDl = numDl !== null ? numDl : numIdle;
+    const effectiveUl = numUl !== null ? numUl : numIdle;
+
+    const deltaDownload = Math.max(0, Math.round(effectiveDl - numIdle));
+    const deltaUpload = Math.max(0, Math.round(effectiveUl - numIdle));
+    const worstDelta = Math.max(deltaDownload, deltaUpload);
+
+    let grade = 'A+';
+    let gradeKey = 'bb_grade_aplus';
+    let color = '#10b981';
+    let diagnosisKey = 'bb_grade_aplus_desc';
+
+    if (!hasLoadedData) {
+      grade = 'A+';
+      gradeKey = 'bb_grade_aplus';
+      color = '#10b981';
+      diagnosisKey = 'bb_grade_aplus_desc';
+    } else if (worstDelta <= 5) {
+      grade = 'A+';
+      gradeKey = 'bb_grade_aplus';
+      color = '#10b981';
+      diagnosisKey = 'bb_grade_aplus_desc';
+    } else if (worstDelta <= 15) {
+      grade = 'A';
+      gradeKey = 'bb_grade_a';
+      color = '#3b82f6';
+      diagnosisKey = 'bb_grade_a_desc';
+    } else if (worstDelta <= 35) {
+      grade = 'B';
+      gradeKey = 'bb_grade_b';
+      color = '#f59e0b';
+      diagnosisKey = 'bb_grade_b_desc';
+    } else if (worstDelta <= 60) {
+      grade = 'C';
+      gradeKey = 'bb_grade_c';
+      color = '#f59e0b';
+      diagnosisKey = 'bb_grade_c_desc';
+    } else if (worstDelta <= 80) {
+      grade = 'D';
+      gradeKey = 'bb_grade_d';
+      color = '#f43f5e';
+      diagnosisKey = 'bb_grade_d_desc';
+    } else {
+      grade = 'F';
+      gradeKey = 'bb_grade_f';
+      color = '#f43f5e';
+      diagnosisKey = 'bb_grade_f_desc';
+    }
+
+    return {
+      grade,
+      gradeKey,
+      idlePing: numIdle,
+      downloadLoadedPing: numDl,
+      uploadLoadedPing: numUl,
+      deltaDownload,
+      deltaUpload,
+      worstDelta,
+      color,
+      diagnosisKey,
+      hasLoadedData
+    };
+  }
+
+  /**
+   * Competitive Gaming Stability Index (CSI: 0 - 100%)
+   * Formula: max(0, min(100, 100 - (Jitter * 2.0) - (Loss% * 12) - max(0, Ping - 30) * 0.5 - (WorstDelta * 0.2)))
+   */
+  function calculateCSI(params = {}) {
+    const jitter = Number(params.jitter || 0);
+    const packetLoss = Number(params.packetLoss || 0);
+    const ping = Number(params.ping !== undefined ? params.ping : 20);
+    const worstDelta = Number(params.worstDelta || 0);
+
+    const jitterDeduction = Number((jitter * 2.0).toFixed(1));
+    const lossDeduction = Number((packetLoss * 12.0).toFixed(1));
+    const pingDeduction = Number((Math.max(0, ping - 30) * 0.5).toFixed(1));
+    const bbDeduction = Number((worstDelta * 0.2).toFixed(1));
+
+    const rawScore = 100 - jitterDeduction - lossDeduction - pingDeduction - bbDeduction;
+    const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+
+    let tier = 'Tournament Ready';
+    let tierKey = 'csi_tournament';
+    let color = '#10b981';
+
+    if (score >= 90) {
+      tier = 'Tournament Ready';
+      tierKey = 'csi_tournament';
+      color = '#10b981';
+    } else if (score >= 75) {
+      tier = 'Competitive Tier';
+      tierKey = 'csi_competitive';
+      color = '#3b82f6';
+    } else if (score >= 60) {
+      tier = 'Casual Playable';
+      tierKey = 'csi_casual';
+      color = '#f59e0b';
+    } else {
+      tier = 'High Lag / Spike Risk';
+      tierKey = 'csi_high_risk';
+      color = '#f43f5e';
+    }
+
+    return {
+      score,
+      tier,
+      tierKey,
+      color,
+      deductions: {
+        jitter: jitterDeduction,
+        loss: lossDeduction,
+        ping: pingDeduction,
+        bufferbloat: bbDeduction
+      }
+    };
+  }
+
+  /**
+   * Household Network Capacity & Headroom Estimator
+   * Computes concurrency for 4K streaming, 1080p calls, and competitive gaming.
+   */
+  function calculateHouseholdHeadroom(params = {}) {
+    const dl = Number(params.downloadMbps || params.download || 0);
+    const ul = Number(params.uploadMbps || params.upload || 0);
+    const worstDelta = Number(params.worstDelta || 0);
+
+    const streams4k = Math.max(0, Math.floor(dl / 25));
+    const effectiveUlCap = ul > 0 ? ul * 2 : dl;
+    const calls1080p = Math.max(0, Math.floor(Math.min(dl, effectiveUlCap) / 5));
+
+    let tier = 'High Headroom';
+    let tierKey = 'headroom_tier_high';
+    let color = '#10b981';
+    let verdictKey = 'headroom_verdict_high';
+
+    if (dl >= 50 && worstDelta <= 15) {
+      tier = 'High Headroom';
+      tierKey = 'headroom_tier_high';
+      color = '#10b981';
+      verdictKey = 'headroom_verdict_high';
+    } else if (dl >= 25 && worstDelta <= 35) {
+      tier = 'Moderate Headroom';
+      tierKey = 'headroom_tier_moderate';
+      color = '#3b82f6';
+      verdictKey = 'headroom_verdict_moderate';
+    } else if (dl >= 10 || worstDelta <= 80) {
+      tier = 'Constrained';
+      tierKey = 'headroom_tier_constrained';
+      color = '#f59e0b';
+      verdictKey = 'headroom_verdict_constrained';
+    } else {
+      tier = 'Critical Saturation';
+      tierKey = 'headroom_tier_critical';
+      color = '#f43f5e';
+      verdictKey = 'headroom_verdict_critical';
+    }
+
+    return {
+      streams4k,
+      calls1080p,
+      tier,
+      tierKey,
+      color,
+      verdictKey
+    };
+  }
+
+  /**
    * Helper to trigger immediate browser download of the diagnostic card canvas
    */
   function downloadDiagnosticCardPng(options = {}) {
     const canvas = generateDiagnosticCardCanvas(options);
+    if (!canvas || !canvas.toDataURL) return false;
     const dataUrl = canvas.toDataURL('image/png');
     const a = document.createElement('a');
     const ts = Date.now();
@@ -757,7 +1164,10 @@
     computeSpectralEfficiency,
     redactSensitiveData,
     generateDiagnosticCardCanvas,
-    downloadDiagnosticCardPng
+    downloadDiagnosticCardPng,
+    evaluateBufferbloat,
+    calculateCSI,
+    calculateHouseholdHeadroom
   };
 });
 

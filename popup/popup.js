@@ -662,6 +662,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const btnPopupSpeedtest = document.getElementById('btn-popup-speedtest');
+  if (btnPopupSpeedtest) {
+    btnPopupSpeedtest.addEventListener('click', () => {
+      const speedtestUrl = chrome.runtime.getURL('speedtest/speedtest.html');
+      chrome.tabs.create({ url: speedtestUrl });
+    });
+  }
+
   const btnOpenAbout = document.getElementById('btn-open-about');
   if (btnOpenAbout) {
     btnOpenAbout.addEventListener('click', () => {

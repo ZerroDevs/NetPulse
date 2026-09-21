@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPulse - Mini Speedtest &amp; Latency Engine</title>
+  <link rel="stylesheet" href="speedtest.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Navigation Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-brand">
+          <svg class="brand-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+          </svg>
+          <div class="brand-text">
+            <span class="brand-title" data-i18n="brand_name">NetPulse</span>
+            <span class="brand-sub" data-i18n="speedtest_sub">Client-side latency &amp; throughput diagnostic engine</span>
+          </div>
+        </div>
+
+        <div class="connection-status-block">
+          <span id="router-connection-pill" class="pill pill-unknown">
+            <span class="pill-dot"></span>
+            <span id="router-connection-label" data-i18n="gateway_listening">Gateway: 192.168.* (Listening)</span>
+          </span>
+          <span id="live-sync-indicator" class="sync-timestamp mono">Last Sync: --:--:--</span>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="topbar-nav">
+        <a href="../dashboard/dashboard.html" class="nav-link">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span data-i18n="nav_dashboard">Telemetry Dashboard</span>
+        </a>
+        <a href="../analysis/analysis.html" class="nav-link">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <span data-i18n="nav_analysis">Deep RF Analysis</span>
+        </a>
+        <a href="../history/history.html" class="nav-link">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span data-i18n="nav_history">Hourly Audit</span>
+        </a>
+        <a href="../options/options.html" class="nav-link">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span data-i18n="nav_options">Settings &amp; Gateway</span>
+        </a>
+        <a href="speedtest.html" class="nav-link nav-link-icon-only nav-link-active" title="NetPulse Mini Speedtest" data-i18n-title="nav_speedtest">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 14l3-3"></path>
+            <path d="M3.34 17a10 10 0 1 1 17.32 0"></path>
+          </svg>
+        </a>
+        <a href="../about/about.html" class="nav-link nav-link-icon-only" title="About &amp; Developer Info" data-i18n-title="nav_about">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </a>
+      </nav>
+
+      <div class="topbar-actions">
+        <!-- Privacy & Sharing Mode Toggle -->
+        <button id="btn-privacy-toggle" class="btn-toggle-switch" type="button" title="Toggle Privacy &amp; Sharing Mode" data-i18n-title="privacy_mode_toggle">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+          </svg>
+          <span id="privacy-toggle-text">Privacy: OFF</span>
+        </button>
+
+        <!-- Language Switcher (EN / AR) -->
+        <button id="btn-lang-toggle" class="btn-toggle-switch" type="button" title="Switch Language / تبديل اللغة">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span id="lang-toggle-text">العربية</span>
+        </button>
+
+        <!-- Theme Toggle (Dark / Light) -->
+        <button id="btn-theme-toggle" class="btn-toggle-switch" type="button" title="Toggle Dark/Light Mode">
+          <span id="theme-icon-container">
+            <svg id="theme-icon-sun" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          </span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Speedtest View Area -->
+    <main class="speedtest-main-container">
+      <div class="speedtest-grid">
+        
+        <!-- Center Arena: Speedtest Console -->
+        <section class="card speedtest-arena-card">
+          <!-- Arena Header & Phase Badge -->
+          <div class="arena-top-row">
+            <div class="arena-heading-wrap">
+              <h1 class="arena-title" data-i18n="speedtest_title">NetPulse Internal Speedtest</h1>
+              <p class="arena-sub" data-i18n="speedtest_server_endpoint">Testing Endpoint: Cloudflare Anycast Speed Node</p>
+            </div>
+            
+            <div id="speedtest-phase-badge" class="phase-badge phase-ready">
+              <span class="phase-dot"></span>
+              <span id="speedtest-phase-text" data-i18n="test_state_ready">Ready to Test</span>
+            </div>
+          </div>
+
+          <!-- Main Live Focus Dial / Meter -->
+          <div class="speedtest-focus-panel">
+            <div class="focus-metric-wrap">
+              <span id="focus-metric-label" class="focus-label" data-i18n="speedtest_dl_throughput">DOWNLOAD SPEED</span>
+              <div class="focus-number-row">
+                <span id="focus-metric-value" class="focus-value mono">0.0</span>
+                <span id="focus-metric-unit" class="focus-unit mono">Mbps</span>
+              </div>
+            </div>
+
+            <!-- Flat Progress Line -->
+            <div class="arena-progress-track">
+              <div id="arena-progress-fill" class="arena-progress-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- 4 Core Performance KPI Cards -->
+          <div class="speedtest-kpis-grid">
+            <!-- Ping KPI -->
+            <div class="speedtest-kpi-card" id="card-kpi-ping">
+              <div class="kpi-card-header">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v4M4.93 4.93l2.83 2.83M2 12h4M4.93 19.07l2.83-2.83M19.07 4.93l-2.83 2.83M22 12h-4M19.07 19.07l-2.83-2.83"></path>
+                </svg>
+                <span data-i18n="speedtest_idle_latency">PING / RTT</span>
+              </div>
+              <div class="kpi-card-body">
+                <span id="stat-ping-val" class="kpi-val mono">--</span>
+                <span class="kpi-unit mono">ms</span>
+              </div>
+            </div>
+
+            <!-- Jitter KPI -->
+            <div class="speedtest-kpi-card" id="card-kpi-jitter">
+              <div class="kpi-card-header">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                <span data-i18n="speedtest_jitter_metric">JITTER VARIANCE</span>
+              </div>
+              <div class="kpi-card-body">
+                <span id="stat-jitter-val" class="kpi-val mono">--</span>
+                <span class="kpi-unit mono">ms</span>
+              </div>
+            </div>
+
+            <!-- Download KPI -->
+            <div class="speedtest-kpi-card kpi-active-dl" id="card-kpi-dl">
+              <div class="kpi-card-header">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <polyline points="19 12 12 19 5 12"></polyline>
+                </svg>
+                <span data-i18n="speedtest_dl_throughput">DOWNLOAD SPEED</span>
+              </div>
+              <div class="kpi-card-body">
+                <span id="stat-dl-val" class="kpi-val mono text-cyan">--</span>
+                <span class="kpi-unit mono">Mbps</span>
+              </div>
+            </div>
+
+            <!-- Upload KPI -->
+            <div class="speedtest-kpi-card" id="card-kpi-ul">
+              <div class="kpi-card-header">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="19" x2="12" y2="5"></line>
+                  <polyline points="5 12 12 5 19 12"></polyline>
+                </svg>
+                <span data-i18n="speedtest_ul_throughput">UPLOAD SPEED</span>
+              </div>
+              <div class="kpi-card-body">
+                <span id="stat-ul-val" class="kpi-val mono text-purple">--</span>
+                <span class="kpi-unit mono">Mbps</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons Bar -->
+          <div class="arena-action-bar">
+            <button id="btn-start-speedtest" class="btn btn-emerald btn-lg" type="button">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span id="btn-start-label" data-i18n="btn_start_speedtest">Start Speedtest</span>
+            </button>
+
+            <button id="btn-abort-speedtest" class="btn btn-danger btn-lg" type="button" style="display: none;">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="6" width="12" height="12"></rect>
+              </svg>
+              <span data-i18n="btn_stop_speedtest">Abort Test</span>
+            </button>
+
+            <a id="btn-view-history" href="../history/history.html" class="btn btn-secondary" style="display: none;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span data-i18n="speedtest_view_history">View in History Audit</span>
+            </a>
+          </div>
+
+          <!-- Success Save Toast / Notice Banner -->
+          <div id="speedtest-save-notice" class="save-notice-banner" style="display: none;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#10b981" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span data-i18n="speedtest_saved_notice">Result logged to history as "NetPulse Test"</span>
+          </div>
+        </section>
+
+        <!-- Right Column: Live RF Telemetry & Evaluation Preview -->
+        <aside class="speedtest-side-column">
+          
+          <!-- Paired Cellular Telemetry Card -->
+          <section class="card side-rf-card">
+            <div class="card-header">
+              <div class="card-title-wrap">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                  <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                  <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                </svg>
+                <h2 class="card-title" data-i18n="speedtest_rf_paired">Paired Cellular RF Snapshot</h2>
+              </div>
+              <span id="rf-health-badge" class="badge-status badge-neutral">--</span>
+            </div>
+
+            <div class="rf-snapshot-grid">
+              <div class="rf-metric-item">
+                <span class="rf-metric-label">RSRP</span>
+                <span id="rf-rsrp-val" class="rf-metric-val mono text-cyan">--</span>
+              </div>
+              <div class="rf-metric-item">
+                <span class="rf-metric-label">SINR</span>
+                <span id="rf-sinr-val" class="rf-metric-val mono text-emerald">--</span>
+              </div>
+              <div class="rf-metric-item">
+                <span class="rf-metric-label">RSRQ</span>
+                <span id="rf-rsrq-val" class="rf-metric-val mono text-purple">--</span>
+              </div>
+              <div class="rf-metric-item">
+                <span class="rf-metric-label">RSSI</span>
+                <span id="rf-rssi-val" class="rf-metric-val mono">--</span>
+              </div>
+              <div class="rf-metric-item rf-item-full">
+                <span class="rf-metric-label" data-i18n="ca_primary_band">Serving Band</span>
+                <span id="rf-band-val" class="rf-metric-val mono text-amber">--</span>
+              </div>
+              <div class="rf-metric-item">
+                <span class="rf-metric-label">PCI</span>
+                <span id="rf-pci-val" class="rf-metric-val mono text-rose">--</span>
+              </div>
+              <div class="rf-metric-item">
+                <span class="rf-metric-label">Cell ID</span>
+                <span id="rf-cell-val" class="rf-metric-val mono">--</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Bufferbloat & CSI Instant Evaluation Preview -->
+          <section class="card side-eval-card">
+            <div class="card-header">
+              <div class="card-title-wrap">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                </svg>
+                <h2 class="card-title" data-i18n="speedtest_bufferbloat_preview">Bufferbloat &amp; CSI Preview</h2>
+              </div>
+            </div>
+
+            <div class="eval-preview-body">
+              <div class="eval-row">
+                <span class="eval-label" data-i18n="bufferbloat_title">Bufferbloat Grade</span>
+                <span id="preview-bb-grade" class="badge-grade mono">--</span>
+              </div>
+              <div class="eval-row">
+                <span class="eval-label" data-i18n="csi_title">Gaming Index (CSI)</span>
+                <span id="preview-csi-score" class="mono text-emerald" style="font-weight: 700; font-size: 15px;">--</span>
+              </div>
+              <div class="eval-row">
+                <span class="eval-label" data-i18n="dl_loaded_latency">DL Loaded Latency</span>
+                <span id="preview-dl-loaded" class="mono text-muted">--</span>
+              </div>
+            </div>
+          </section>
+
+        </aside>
+      </div>
+    </main>
+
+    <!-- Global Toast Container -->
+    <div id="toast-banner" class="toast-banner" style="display: none;"></div>
+  </div>
+
+  <script src="../shared/i18n.js"></script>
+  <script src="../shared/evaluator.js"></script>
+  <script src="speedtest_worker.js"></script>
+  <script src="speedtest.js"></script>
+</body>
+</html>

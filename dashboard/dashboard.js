@@ -61,6 +61,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const dashEffMeterLabel = document.getElementById('dash-eff-meter-label');
   const dashEffMeterFill = document.getElementById('dash-eff-meter-fill');
 
+  // DOM Elements - Bufferbloat Engine & Household Headroom (Feature 1 & 5)
+  const badgeBufferbloatGrade = document.getElementById('badge-bufferbloat-grade');
+  const bbIdleVal = document.getElementById('bb-idle-val');
+  const bbDlVal = document.getElementById('bb-dl-val');
+  const bbDlDelta = document.getElementById('bb-dl-delta');
+  const bbUlVal = document.getElementById('bb-ul-val');
+  const bbUlDelta = document.getElementById('bb-ul-delta');
+  const bbWorstDeltaVal = document.getElementById('bb-worst-delta-val');
+  const bbIndicatorLine = document.getElementById('bb-indicator-line');
+  const bbDiagnosisText = document.getElementById('bb-diagnosis-text');
+
+  const badgeHeadroomTier = document.getElementById('badge-headroom-tier');
+  const headroom4kVal = document.getElementById('headroom-4k-val');
+  const headroomCallsVal = document.getElementById('headroom-calls-val');
+  const headroomGamingVal = document.getElementById('headroom-gaming-val');
+  const headroomIndicatorLine = document.getElementById('headroom-indicator-line');
+  const headroomVerdictText = document.getElementById('headroom-verdict-text');
+
   // DOM Elements - Carrier Aggregation
   const caServingBand = document.getElementById('ca-serving-band');
   const caDlBw = document.getElementById('ca-dl-bw');
@@ -500,6 +518,123 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  let latestBufferbloatData = null;
+
+  /**
+   * Render Bufferbloat & Household Concurrency Headroom (Feature 1 & 5)
+   */
+  function renderBufferbloatAndHeadroom() {
+    const latestSpeedtest = allHistory.length > 0 && allHistory[0].speedtest
+      ? allHistory[0].speedtest
+      : null;
+
+    const bb = evaluator
+      ? evaluator.evaluateBufferbloat(latestSpeedtest)
+      : {
+          grade: 'A+',
+          gradeKey: 'bb_grade_aplus',
+          idlePing: null,
+          downloadLoadedPing: null,
+          uploadLoadedPing: null,
+          deltaDownload: 0,
+          deltaUpload: 0,
+          worstDelta: 0,
+          color: '#10b981',
+          diagnosisKey: 'bb_grade_aplus_desc',
+          hasLoadedData: false
+        };
+
+    latestBufferbloatData = bb;
+
+    if (badgeBufferbloatGrade) {
+      const gradeText = i18n ? i18n.t(bb.gradeKey, currentLang) : `Grade ${bb.grade}`;
+      badgeBufferbloatGrade.textContent = gradeText;
+      badgeBufferbloatGrade.style.color = bb.color;
+      badgeBufferbloatGrade.style.borderColor = bb.color;
+    }
+
+    if (bbIdleVal) {
+      bbIdleVal.textContent = bb.idlePing !== null ? `${bb.idlePing} ms` : '-- ms';
+    }
+    if (bbDlVal) {
+      bbDlVal.textContent = bb.downloadLoadedPing !== null ? `${bb.downloadLoadedPing} ms` : (bb.idlePing !== null ? `${bb.idlePing} ms` : '-- ms');
+    }
+    if (bbDlDelta) {
+      bbDlDelta.textContent = `+${bb.deltaDownload} ms delta`;
+    }
+    if (bbUlVal) {
+      bbUlVal.textContent = bb.uploadLoadedPing !== null ? `${bb.uploadLoadedPing} ms` : (bb.idlePing !== null ? `${bb.idlePing} ms` : '-- ms');
+    }
+    if (bbUlDelta) {
+      bbUlDelta.textContent = `+${bb.deltaUpload} ms delta`;
+    }
+    if (bbWorstDeltaVal) {
+      bbWorstDeltaVal.textContent = `+${bb.worstDelta} ms`;
+      bbWorstDeltaVal.style.color = bb.color;
+    }
+    if (bbIndicatorLine) {
+      bbIndicatorLine.style.backgroundColor = bb.color;
+    }
+    if (bbDiagnosisText) {
+      bbDiagnosisText.textContent = i18n ? i18n.t(bb.diagnosisKey, currentLang) : `Worst Delta: +${bb.worstDelta}ms`;
+    }
+
+    // Household Concurrency Headroom
+    const dlSpeed = latestSpeedtest ? (latestSpeedtest.downloadMbps || latestSpeedtest.download || 0) : 0;
+    const ulSpeed = latestSpeedtest ? (latestSpeedtest.uploadMbps || latestSpeedtest.upload || 0) : 0;
+    const headroom = evaluator
+      ? evaluator.calculateHouseholdHeadroom({ downloadMbps: dlSpeed, uploadMbps: ulSpeed, worstDelta: bb.worstDelta })
+      : {
+          streams4k: Math.floor(dlSpeed / 25),
+          calls1080p: Math.floor(dlSpeed / 5),
+          tier: 'High Headroom',
+          tierKey: 'headroom_tier_high',
+          color: '#10b981',
+          verdictKey: 'headroom_verdict_high'
+        };
+
+    if (badgeHeadroomTier) {
+      badgeHeadroomTier.textContent = i18n ? i18n.t(headroom.tierKey, currentLang) : headroom.tier;
+      badgeHeadroomTier.style.color = headroom.color;
+      badgeHeadroomTier.style.borderColor = headroom.color;
+    }
+    if (headroom4kVal) {
+      headroom4kVal.textContent = dlSpeed > 0 ? `${headroom.streams4k}x` : '--';
+    }
+    if (headroomCallsVal) {
+      headroomCallsVal.textContent = dlSpeed > 0 ? `${headroom.calls1080p}x` : '--';
+    }
+    if (headroomGamingVal) {
+      if (bb.worstDelta <= 15 && dlSpeed >= 50) {
+        headroomGamingVal.textContent = currentLang === 'ar' ? 'مثالي' : 'Optimal';
+        headroomGamingVal.className = 'kpi-val mono text-emerald';
+      } else if (bb.worstDelta <= 35 && dlSpeed >= 25) {
+        headroomGamingVal.textContent = currentLang === 'ar' ? 'مستقر' : 'Stable';
+        headroomGamingVal.className = 'kpi-val mono text-blue';
+      } else if (bb.worstDelta <= 80 || dlSpeed >= 10) {
+        headroomGamingVal.textContent = currentLang === 'ar' ? 'معرض للتأخير' : 'Lag Risk';
+        headroomGamingVal.className = 'kpi-val mono text-amber';
+      } else {
+        headroomGamingVal.textContent = currentLang === 'ar' ? 'حرج' : 'Critical';
+        headroomGamingVal.className = 'kpi-val mono text-rose';
+      }
+    }
+    if (headroomIndicatorLine) {
+      headroomIndicatorLine.style.backgroundColor = headroom.color;
+    }
+    if (headroomVerdictText) {
+      if (latestSpeedtest && dlSpeed > 0) {
+        headroomVerdictText.textContent = i18n
+          ? i18n.t(headroom.verdictKey, currentLang, { streams4k: headroom.streams4k })
+          : `Supports ${headroom.streams4k}x 4K Streams`;
+      } else {
+        headroomVerdictText.textContent = currentLang === 'ar'
+          ? 'بانتظار سجل اختبار السرعة لحساب سعة النطاق الترددي والتزامن المنزلي.'
+          : 'Awaiting speedtest record to compute household concurrent bandwidth and queue capacity.';
+      }
+    }
+  }
+
   function renderLiveTelemetry(data) {
     currentRouterData = data;
 
@@ -525,6 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
       caTagsList.innerHTML = `<span class="tag-empty mono">${i18n ? i18n.t('ca_no_secondary', currentLang) : 'No secondary carriers currently aggregated'}</span>`;
       diagnosticText.textContent = i18n ? i18n.t('diagnostic_awaiting', currentLang) : 'Awaiting cellular telemetry snapshot from router interface (e.g. 192.168.*). Click "Scan Router Tab" or "Open Router GUI" to capture live metrics.';
       renderSpectralEfficiency();
+      renderBufferbloatAndHeadroom();
       return;
     }
 
@@ -603,8 +739,9 @@ document.addEventListener('DOMContentLoaded', () => {
       diagnosticText.textContent = evaluator.generateDiagnosticAdvice(m);
     }
 
-    // Render Spectral Efficiency
+    // Render Spectral Efficiency & Bufferbloat/Headroom
     renderSpectralEfficiency();
+    renderBufferbloatAndHeadroom();
   }
 
   /* ==========================================================================
@@ -1396,6 +1533,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectGameServer = document.getElementById('select-game-server');
   const badgeGamingStatus = document.getElementById('badge-gaming-status');
   const gamingStatusText = document.getElementById('gaming-status-text');
+  const badgeRouteRadar = document.getElementById('badge-route-radar');
+  const routeRadarText = document.getElementById('route-radar-text');
+  const btnFlightCheck = document.getElementById('btn-flight-check');
+  const flightCheckLabel = document.getElementById('flight-check-label');
+  const gamingFlightCheckBanner = document.getElementById('gaming-flight-check-banner');
+  const btnCloseFlightCheck = document.getElementById('btn-close-flight-check');
+  const flightVerdictPill = document.getElementById('flight-verdict-pill');
+  const flightStatsLine = document.getElementById('flight-stats-line');
+  const flightCheckStatusTitle = document.getElementById('flight-check-status-title');
+
   const btnToggleGamingHud = document.getElementById('btn-toggle-gaming-hud');
   const gamingToggleIcon = document.getElementById('gaming-toggle-icon');
   const gamingToggleLabel = document.getElementById('gaming-toggle-label');
@@ -1405,6 +1552,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const gamingJitterSub = document.getElementById('gaming-jitter-sub');
   const gamingLossVal = document.getElementById('gaming-loss-val');
   const gamingLossSub = document.getElementById('gaming-loss-sub');
+  const gamingSpikesVal = document.getElementById('gaming-spikes-val');
+  const gamingSpikesSub = document.getElementById('gaming-spikes-sub');
+  const cardCsiGauge = document.getElementById('card-csi-gauge');
+  const gamingCsiVal = document.getElementById('gaming-csi-val');
+  const gamingCsiBar = document.getElementById('gaming-csi-bar');
+  const gamingCsiGrade = document.getElementById('gaming-csi-grade');
   const gamingMinmaxVal = document.getElementById('gaming-minmax-val');
   const gamingAvgSub = document.getElementById('gaming-avg-sub');
   const canvasGamingHud = document.getElementById('canvas-gaming-hud');
@@ -1415,6 +1568,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let gamingProbeHistory = []; // max 60 probe data points (representing last 60 seconds)
   let lastProbeRtt = null;
   let isProbing = false;
+  let radarResetTimer = null;
 
   function resetGamingStats() {
     gamingProbeHistory = [];
@@ -1434,6 +1588,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  /**
+   * Feature 3: Route Deviation Radar Alert Trigger
+   */
+  function triggerRouteDeviationAlert(spikeDelta, causeKey) {
+    if (!badgeRouteRadar || !routeRadarText) return;
+    if (radarResetTimer) clearTimeout(radarResetTimer);
+
+    badgeRouteRadar.className = 'status-badge badge-rose mono';
+    const causeText = i18n ? i18n.t(causeKey, currentLang) : 'Route Spike';
+    routeRadarText.textContent = i18n ? i18n.t('radar_spike_detected', currentLang, { delta: spikeDelta }) : `Route Deviation Spike (+${spikeDelta}ms)`;
+    badgeRouteRadar.setAttribute('title', `${causeText} (+${spikeDelta}ms)`);
+
+    radarResetTimer = setTimeout(() => {
+      badgeRouteRadar.className = 'status-badge badge-neutral mono';
+      routeRadarText.textContent = i18n ? i18n.t('radar_normal', currentLang) : 'Route Radar: Normal';
+      badgeRouteRadar.setAttribute('title', 'Real-Time Route Deviation & Spike Radar');
+    }, 8000);
+  }
+
   function recordProbeSuccess(rtt) {
     let jitter = 0;
     if (lastProbeRtt !== null) {
@@ -1441,12 +1614,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     lastProbeRtt = rtt;
 
+    // Feature 3: Real-Time Latency Spike & Route Deviation Radar (Rolling Avg + 35ms)
+    const recentValid = gamingProbeHistory.filter(p => !p.lost && p.rtt !== null).slice(-10);
+    const rollingAvg = recentValid.length > 0 ? (recentValid.reduce((a, b) => a + b.rtt, 0) / recentValid.length) : rtt;
+    const isSpike = recentValid.length >= 3 && (rtt > rollingAvg + 35);
+    let spikeDelta = 0;
+    let spikeCause = null;
+
+    if (isSpike) {
+      spikeDelta = Math.round(rtt - rollingAvg);
+      const worstDelta = latestBufferbloatData ? latestBufferbloatData.worstDelta : 0;
+      const rsrq = (currentRouterData && currentRouterData.metrics && currentRouterData.metrics.rsrq !== null) ? Number(currentRouterData.metrics.rsrq) : 0;
+
+      if (worstDelta > 30) {
+        spikeCause = 'radar_cause_saturation';
+      } else if (rsrq < -13) {
+        spikeCause = 'radar_cause_rf_contention';
+      } else {
+        spikeCause = 'radar_cause_isp_peering';
+      }
+
+      triggerRouteDeviationAlert(spikeDelta, spikeCause);
+    }
+
     const probePoint = {
       timestamp: Date.now(),
       target: selectedGameServerKey,
       rtt,
       jitter,
-      lost: false
+      lost: false,
+      isSpike,
+      spikeDelta,
+      spikeCause
     };
 
     gamingProbeHistory.push(probePoint);
@@ -1465,7 +1664,10 @@ document.addEventListener('DOMContentLoaded', () => {
       target: selectedGameServerKey,
       rtt: null,
       jitter: null,
-      lost: true
+      lost: true,
+      isSpike: false,
+      spikeDelta: 0,
+      spikeCause: null
     };
 
     gamingProbeHistory.push(probePoint);
@@ -1598,7 +1800,59 @@ document.addEventListener('DOMContentLoaded', () => {
         : `${lostCount} / ${totalProbes} probes dropped`;
     }
 
-    // 4. Min / Max / Avg Ping
+    // 4. Micro-Spikes (Last 60s) (Feature 3)
+    const spikeCount = gamingProbeHistory.filter(p => p.isSpike).length;
+    if (gamingSpikesVal) {
+      gamingSpikesVal.textContent = spikeCount;
+      if (spikeCount === 0) {
+        gamingSpikesVal.className = 'kpi-val mono text-emerald';
+      } else if (spikeCount <= 2) {
+        gamingSpikesVal.className = 'kpi-val mono text-amber';
+      } else {
+        gamingSpikesVal.className = 'kpi-val mono text-rose';
+      }
+    }
+    if (gamingSpikesSub) {
+      gamingSpikesSub.textContent = i18n
+        ? i18n.t('hud_spikes_sub', currentLang, { count: spikeCount })
+        : `${spikeCount} route spikes detected`;
+    }
+
+    // 5. Feature 2: Competitive Gaming Stability Index (CSI 0-100%)
+    const latestPingNum = (latest && !latest.lost && latest.rtt !== null) ? latest.rtt : (avgRtt !== null ? avgRtt : 20);
+    const latestJitterNum = (latest && !latest.lost && latest.jitter !== null) ? latest.jitter : 0;
+    const worstDeltaNum = latestBufferbloatData ? latestBufferbloatData.worstDelta : 0;
+    const lossPctNum = parseFloat(lossPct) || 0;
+
+    const csi = evaluator
+      ? evaluator.calculateCSI({ jitter: latestJitterNum, packetLoss: lossPctNum, ping: latestPingNum, worstDelta: worstDeltaNum })
+      : { score: 100, tier: 'Tournament Ready', tierKey: 'csi_tournament', color: '#10b981', deductions: { jitter: 0, loss: 0, ping: 0, bufferbloat: 0 } };
+
+    if (gamingCsiVal) {
+      gamingCsiVal.textContent = gamingProbeHistory.length > 0 ? `${csi.score}%` : '100%';
+      gamingCsiVal.style.color = csi.color;
+    }
+    if (gamingCsiBar) {
+      gamingCsiBar.style.width = gamingProbeHistory.length > 0 ? `${csi.score}%` : '100%';
+      gamingCsiBar.style.backgroundColor = csi.color;
+    }
+    if (gamingCsiGrade) {
+      gamingCsiGrade.textContent = i18n ? i18n.t(csi.tierKey, currentLang) : csi.tier;
+      gamingCsiGrade.style.color = csi.color;
+    }
+    if (cardCsiGauge) {
+      const tooltip = i18n
+        ? i18n.t('csi_deduction_tooltip', currentLang, {
+            jitter: csi.deductions.jitter,
+            loss: csi.deductions.loss,
+            ping: csi.deductions.ping,
+            bb: csi.deductions.bufferbloat
+          })
+        : `CSI Deductions: Jitter -${csi.deductions.jitter}%, Loss -${csi.deductions.loss}%, Ping -${csi.deductions.ping}%, Bufferbloat -${csi.deductions.bufferbloat}%`;
+      cardCsiGauge.setAttribute('title', tooltip);
+    }
+
+    // 6. Min / Max / Avg Ping
     if (gamingMinmaxVal) {
       gamingMinmaxVal.textContent = (minRtt !== null && maxRtt !== null)
         ? `${minRtt} / ${maxRtt}`
@@ -1788,7 +2042,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Draw Drop markers & Point dots
+    // Draw Drop markers, Spike markers & Point dots
     points.forEach((pt, i) => {
       if (pt.lost) {
         // Vertical Rose Drop bar for lost probe
@@ -1807,9 +2061,27 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         const rtt = pt.probe.rtt;
         let dotColor = '#10b981';
-        if (rtt > 110) dotColor = '#f43f5e';
+        if (rtt > 110 || pt.probe.isSpike) dotColor = '#f43f5e';
         else if (rtt > 85) dotColor = '#f59e0b';
         else if (rtt >= 55) dotColor = '#3b82f6';
+
+        // Feature 3: Distinct vertical spike marker
+        if (pt.probe.isSpike) {
+          ctx.strokeStyle = '#f43f5e';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([2, 2]);
+          ctx.beginPath();
+          ctx.moveTo(pt.x, padTop);
+          ctx.lineTo(pt.x, pt.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Rose triangle marker above spike
+          ctx.fillStyle = '#f43f5e';
+          ctx.font = 'bold 10px ui-monospace, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('▲', pt.x, Math.max(padTop - 4, pt.y - 7));
+        }
 
         const isLatest = (i === points.length - 1);
         ctx.fillStyle = dotColor;
@@ -1837,6 +2109,145 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.fillText(currentLang === 'ar' ? 'الآن' : 'Now', w - padRight, h - 6);
 
     ctx.restore();
+  }
+
+  /* ==========================================================================
+     FEATURE 4: PRE-MATCH 15s CONNECTION FLIGHT CHECK
+     ========================================================================== */
+  let flightCheckRunning = false;
+  let flightCheckInterval = null;
+  let flightCheckSecondsRemaining = 15;
+  let flightCheckProbes = [];
+
+  async function run15sFlightCheck() {
+    if (flightCheckRunning) return;
+    flightCheckRunning = true;
+    flightCheckSecondsRemaining = 15;
+    flightCheckProbes = [];
+
+    if (btnFlightCheck) {
+      btnFlightCheck.disabled = true;
+      btnFlightCheck.style.opacity = '0.6';
+    }
+    if (flightCheckLabel) {
+      flightCheckLabel.textContent = i18n
+        ? i18n.t('flight_check_running', currentLang, { seconds: flightCheckSecondsRemaining })
+        : `Auditing (${flightCheckSecondsRemaining}s)...`;
+    }
+    if (gamingFlightCheckBanner) {
+      gamingFlightCheckBanner.style.display = 'block';
+    }
+    if (flightVerdictPill) {
+      flightVerdictPill.className = 'status-badge badge-neutral';
+      flightVerdictPill.textContent = currentLang === 'ar' ? 'جاري فحص الاستجابة والتوجيه (15 ثانية)...' : 'Auditing Connection & Routing (15s)...';
+    }
+    if (flightStatsLine) {
+      flightStatsLine.textContent = currentLang === 'ar' ? 'جاري إرسال حزم الفحص السريع...' : 'Dispatching precision probe burst...';
+    }
+
+    // Execute rapid single probe
+    async function executeFlightProbe() {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 950);
+      const targetConfig = GAME_SERVER_ENDPOINTS[selectedGameServerKey] || GAME_SERVER_ENDPOINTS.cf_ultra_fast;
+      const probeUrl = `${targetConfig.url}${targetConfig.url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+      const startTime = performance.now();
+
+      try {
+        await fetch(probeUrl, {
+          method: 'GET',
+          mode: 'no-cors',
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        const rtt = Math.round(performance.now() - startTime);
+        flightCheckProbes.push({ rtt, lost: false });
+      } catch (err) {
+        clearTimeout(timeoutId);
+        flightCheckProbes.push({ rtt: null, lost: true });
+      }
+
+      flightCheckSecondsRemaining--;
+      if (flightCheckLabel) {
+        flightCheckLabel.textContent = i18n
+          ? i18n.t('flight_check_running', currentLang, { seconds: Math.max(0, flightCheckSecondsRemaining) })
+          : `Auditing (${Math.max(0, flightCheckSecondsRemaining)}s)...`;
+      }
+
+      if (flightCheckSecondsRemaining <= 0) {
+        clearInterval(flightCheckInterval);
+        flightCheckInterval = null;
+        finalizeFlightCheck();
+      }
+    }
+
+    await executeFlightProbe();
+    flightCheckInterval = setInterval(executeFlightProbe, 1000);
+  }
+
+  function finalizeFlightCheck() {
+    flightCheckRunning = false;
+    if (btnFlightCheck) {
+      btnFlightCheck.disabled = false;
+      btnFlightCheck.style.opacity = '1';
+    }
+    if (flightCheckLabel) {
+      flightCheckLabel.textContent = i18n ? i18n.t('btn_flight_check', currentLang) : 'Run 15s Match Audit';
+    }
+
+    const valid = flightCheckProbes.filter(p => !p.lost && p.rtt !== null);
+    const drops = flightCheckProbes.filter(p => p.lost).length;
+    const rtts = valid.map(p => p.rtt);
+    const minPing = rtts.length > 0 ? Math.min(...rtts) : 0;
+    const maxPing = rtts.length > 0 ? Math.max(...rtts) : 0;
+    const avgPing = rtts.length > 0 ? Math.round(rtts.reduce((a, b) => a + b, 0) / rtts.length) : 0;
+
+    let jitterSum = 0;
+    for (let i = 1; i < rtts.length; i++) {
+      jitterSum += Math.abs(rtts[i] - rtts[i - 1]);
+    }
+    const avgJitter = rtts.length > 1 ? Math.round(jitterSum / (rtts.length - 1)) : 0;
+    const lossPct = flightCheckProbes.length > 0 ? ((drops / flightCheckProbes.length) * 100) : 0;
+    const worstDelta = latestBufferbloatData ? latestBufferbloatData.worstDelta : 0;
+
+    const csi = evaluator
+      ? evaluator.calculateCSI({ jitter: avgJitter, packetLoss: lossPct, ping: avgPing, worstDelta })
+      : { score: 100 };
+
+    if (flightVerdictPill) {
+      if (drops > 0 || (maxPing - minPing) > 45 || maxPing > 120 || avgJitter > 25 || csi.score < 60) {
+        flightVerdictPill.className = 'status-badge badge-rose';
+        flightVerdictPill.textContent = i18n ? i18n.t('flight_verdict_red', currentLang) : 'Do Not Queue - Packet Loss or Severe Spikes Detected';
+      } else if (avgJitter > 10 || maxPing > 80 || csi.score < 80) {
+        flightVerdictPill.className = 'status-badge badge-amber';
+        flightVerdictPill.textContent = i18n ? i18n.t('flight_verdict_yellow', currentLang) : 'Play with Caution - Moderate Jitter Detected';
+      } else {
+        flightVerdictPill.className = 'status-badge badge-emerald';
+        flightVerdictPill.textContent = i18n ? i18n.t('flight_verdict_green', currentLang) : 'Safe to Queue - Low Jitter & Stable Routing';
+      }
+    }
+
+    if (flightStatsLine) {
+      flightStatsLine.textContent = i18n
+        ? i18n.t('flight_stats_summary', currentLang, {
+            min: minPing,
+            max: maxPing,
+            jitter: avgJitter,
+            drops,
+            csi: csi.score
+          })
+        : `Min: ${minPing}ms | Max: ${maxPing}ms | Jitter: ${avgJitter}ms | Drops: ${drops} | CSI: ${csi.score}%`;
+    }
+  }
+
+  if (btnFlightCheck) {
+    btnFlightCheck.addEventListener('click', run15sFlightCheck);
+  }
+  if (btnCloseFlightCheck && gamingFlightCheckBanner) {
+    btnCloseFlightCheck.addEventListener('click', () => {
+      gamingFlightCheckBanner.style.display = 'none';
+    });
   }
 
   function startGamingHud() {
@@ -1880,6 +2291,9 @@ document.addEventListener('DOMContentLoaded', () => {
     pause: pauseGamingHud,
     toggle: toggleGamingHud,
     runProbe: runSingleGamingProbe,
+    runFlightCheck: run15sFlightCheck,
+    finalizeFlightCheck: finalizeFlightCheck,
+    getBufferbloat: () => latestBufferbloatData,
     resetStats: resetGamingStats,
     getHistory: () => gamingProbeHistory,
     setHistory: (arr) => { gamingProbeHistory = arr; updateGamingHudUi(); drawGamingSparkline(); },

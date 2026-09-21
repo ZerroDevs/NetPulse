@@ -64,6 +64,12 @@
           </svg>
           <span data-i18n="nav_options">Settings &amp; Gateway</span>
         </a>
+        <a href="../speedtest/speedtest.html" class="nav-link nav-link-icon-only" title="NetPulse Mini Speedtest" data-i18n-title="nav_speedtest">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 14l3-3"></path>
+            <path d="M3.34 17a10 10 0 1 1 17.32 0"></path>
+          </svg>
+        </a>
         <a href="../about/about.html" class="nav-link nav-link-icon-only" title="About &amp; Developer Info" data-i18n-title="nav_about">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
@@ -415,7 +421,7 @@
         </div>
       </section>
 
-      <!-- Section: Live Gaming Jitter & Packet Loss HUD (Feature 2) -->
+      <!-- Section: Live Gaming Jitter & Packet Loss HUD (Feature 2 & 3 & 4) -->
       <section class="dashboard-section gaming-hud-section">
         <div class="panel-card gaming-hud-card">
           <div class="panel-header">
@@ -426,7 +432,7 @@
               </svg>
               <div>
                 <h3 class="panel-heading" data-i18n="gaming_hud_title">Live Gaming Jitter &amp; Packet Loss HUD</h3>
-                <span class="panel-sub" data-i18n="gaming_hud_desc" style="font-size: 11px; color: var(--text-muted);">Ultra-low overhead real-time latency probe for measuring gaming ping stability, jitter fluctuations, and packet drop spikes.</span>
+                <span class="panel-sub" data-i18n="gaming_hud_desc" style="font-size: 11px; color: var(--text-muted);">Real-time precision latency probe targeting high-availability Anycast and competitive gaming edge relays.</span>
               </div>
             </div>
             <div class="gaming-header-actions">
@@ -443,10 +449,26 @@
                 </select>
               </div>
 
+              <!-- Route Deviation Radar Badge (Feature 3) -->
+              <div id="badge-route-radar" class="status-badge badge-neutral mono" style="display: inline-flex;" title="Real-Time Route Deviation &amp; Spike Radar" data-i18n-title="radar_title">
+                <span class="badge-dot"></span>
+                <span id="route-radar-text" data-i18n="radar_title">Route Radar: Normal</span>
+              </div>
+
               <div id="badge-gaming-status" class="status-badge badge-neutral">
                 <span class="badge-dot"></span>
                 <span id="gaming-status-text" data-i18n="hud_status_idle">Probe Paused</span>
               </div>
+
+              <!-- 15s Pre-Match Flight Check Button (Feature 4) -->
+              <button id="btn-flight-check" class="btn btn-secondary btn-sm" type="button" title="Run 15s Pre-Match Connection Flight Check" data-i18n-title="btn_flight_check">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 14 14"></polyline>
+                </svg>
+                <span id="flight-check-label" data-i18n="btn_flight_check">Run 15s Match Audit</span>
+              </button>
+
               <button id="btn-toggle-gaming-hud" class="btn btn-secondary btn-sm" type="button" title="Start/Pause Gaming Ping Probe">
                 <svg id="gaming-toggle-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -456,7 +478,27 @@
             </div>
           </div>
 
-          <!-- Live KPI Row -->
+          <!-- Pre-Match Flight Check Executive Banner (Feature 4) -->
+          <div id="gaming-flight-check-banner" class="flight-check-banner" style="display: none;">
+            <div class="flight-check-header">
+              <div class="flight-check-title-wrap">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <span id="flight-check-status-title" class="font-bold">15s Pre-Match Connection Flight Check</span>
+              </div>
+              <button id="btn-close-flight-check" class="modal-close-icon-btn" type="button" aria-label="Close Flight Check">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            <div class="flight-check-body">
+              <span id="flight-verdict-pill" class="status-badge badge-emerald">Safe to Queue - Low Jitter &amp; Stable Routing</span>
+              <span id="flight-stats-line" class="mono text-muted" style="font-size: 11px;">Min: --ms | Max: --ms | Jitter: --ms | Drops: 0 | CSI: --%</span>
+            </div>
+          </div>
+
+          <!-- Live 6-KPI Row (Feature 2 & 3) -->
           <div class="gaming-kpi-grid">
             <div class="gaming-kpi-card">
               <span class="label-tiny" data-i18n="hud_current_ping">CURRENT PING</span>
@@ -485,6 +527,26 @@
             </div>
 
             <div class="gaming-kpi-card">
+              <span class="label-tiny" data-i18n="hud_spikes_label">MICRO-SPIKES (60s)</span>
+              <div class="gaming-kpi-val-row">
+                <span id="gaming-spikes-val" class="kpi-val mono text-emerald">0</span>
+              </div>
+              <span id="gaming-spikes-sub" class="kpi-sub mono text-muted" data-i18n="hud_spikes_sub">0 route spikes detected</span>
+            </div>
+
+            <!-- Feature 2: Competitive Stability Index (CSI) -->
+            <div class="gaming-kpi-card" id="card-csi-gauge" title="Competitive Stability Index (0-100%)">
+              <span class="label-tiny" data-i18n="csi_title">COMPETITIVE STABILITY (CSI)</span>
+              <div class="gaming-kpi-val-row">
+                <span id="gaming-csi-val" class="kpi-val mono text-emerald">100%</span>
+              </div>
+              <div class="csi-bar-track">
+                <div id="gaming-csi-bar" class="csi-bar-fill" style="width: 100%; background-color: #10b981;"></div>
+              </div>
+              <span id="gaming-csi-grade" class="kpi-sub mono text-emerald" data-i18n="csi_tournament">Tournament Ready</span>
+            </div>
+
+            <div class="gaming-kpi-card">
               <span class="label-tiny" data-i18n="hud_min_max_ping">MIN / MAX PING</span>
               <div class="gaming-kpi-val-row">
                 <span id="gaming-minmax-val" class="kpi-val mono" style="font-size: 15px;">-- / --</span>
@@ -501,8 +563,106 @@
               <span class="legend-item"><span class="legend-box" style="background-color: #10b981;"></span> &lt; 55ms <span data-i18n="grade_tournament">Tournament</span></span>
               <span class="legend-item"><span class="legend-box" style="background-color: #3b82f6;"></span> 55 - 85ms <span data-i18n="grade_competitive">Competitive</span></span>
               <span class="legend-item"><span class="legend-box" style="background-color: #f59e0b;"></span> 86 - 110ms <span data-i18n="grade_moderate">Playable</span></span>
-              <span class="legend-item"><span class="legend-box" style="background-color: #f43f5e;"></span> &gt; 110ms <span data-i18n="grade_spike">Spike / Drop</span></span>
+              <span class="legend-item"><span class="legend-box" style="background-color: #f43f5e;"></span> &gt; 110ms / Spike <span data-i18n="grade_spike">Spike / Drop</span></span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Bufferbloat & Household Concurrency Headroom (Feature 1 & 5) -->
+      <section class="dashboard-grid-2col">
+        <!-- Col 1: Bufferbloat & Loaded Latency Scoring Engine (Feature 1) -->
+        <div class="panel-card" id="bufferbloat-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 6v6l4 2"></path>
+              </svg>
+              <div>
+                <h3 class="panel-heading" data-i18n="bufferbloat_title">Bufferbloat &amp; Loaded Latency Engine</h3>
+                <span class="panel-sub" data-i18n="bufferbloat_desc" style="font-size: 11px; color: var(--text-muted);">Measures latency degradation during simultaneous download and upload traffic compared to idle baseline.</span>
+              </div>
+            </div>
+            <span id="badge-bufferbloat-grade" class="badge-solid mono text-emerald" style="border-color: #10b981; background: rgba(16,185,129,0.15);">Grade A+</span>
+          </div>
+
+          <div class="eff-grid" style="margin-bottom: 12px;">
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="idle_latency">IDLE LATENCY</span>
+              <span id="bb-idle-val" class="kpi-val mono" style="font-size: 18px; font-weight: 800; color: #10b981;">-- ms</span>
+              <span class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">Baseline ping</span>
+            </div>
+
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="dl_loaded_latency">DOWNLOAD LOADED</span>
+              <span id="bb-dl-val" class="kpi-val mono" style="font-size: 18px; font-weight: 800; color: #3b82f6;">-- ms</span>
+              <span id="bb-dl-delta" class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">+0 ms delta</span>
+            </div>
+
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="ul_loaded_latency">UPLOAD LOADED</span>
+              <span id="bb-ul-val" class="kpi-val mono" style="font-size: 18px; font-weight: 800; color: #6366f1;">-- ms</span>
+              <span id="bb-ul-delta" class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">+0 ms delta</span>
+            </div>
+
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="worst_delta_latency">WORST QUEUE DELTA</span>
+              <span id="bb-worst-delta-val" class="kpi-val mono text-emerald" style="font-size: 18px; font-weight: 800;">+0 ms</span>
+              <span class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">Max queue inflation</span>
+            </div>
+          </div>
+
+          <div class="diagnostic-box">
+            <div class="diagnostic-indicator-line" id="bb-indicator-line" style="background-color: #10b981;"></div>
+            <p id="bb-diagnosis-text" class="diagnostic-paragraph" data-i18n="bb_grade_aplus_desc">
+              Grade A+: Exceptional buffer management (&lt; 5ms delta). Real-time gaming unaffected by household traffic.
+            </p>
+          </div>
+        </div>
+
+        <!-- Col 2: Household Network Capacity & Concurrency Headroom (Feature 5) -->
+        <div class="panel-card" id="headroom-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+              <div>
+                <h3 class="panel-heading" data-i18n="headroom_title">Household Capacity &amp; Headroom</h3>
+                <span class="panel-sub" data-i18n="headroom_desc" style="font-size: 11px; color: var(--text-muted);">Estimates simultaneous streaming, voice/video calls, and competitive gaming headroom.</span>
+              </div>
+            </div>
+            <span id="badge-headroom-tier" class="badge-solid mono text-emerald" style="border-color: #10b981;">High Headroom</span>
+          </div>
+
+          <div class="eff-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 12px;">
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="headroom_4k_label">4K UHD STREAMS</span>
+              <span id="headroom-4k-val" class="kpi-val mono" style="font-size: 18px; font-weight: 800; color: #10b981;">--</span>
+              <span class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">25 Mbps / stream</span>
+            </div>
+
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="headroom_calls_label">1080P HD CALLS</span>
+              <span id="headroom-calls-val" class="kpi-val mono" style="font-size: 18px; font-weight: 800; color: #3b82f6;">--</span>
+              <span class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">5 Mbps / session</span>
+            </div>
+
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="headroom_gaming_label">GAMING CONCURRENCY</span>
+              <span id="headroom-gaming-val" class="kpi-val mono text-emerald" style="font-size: 15px; font-weight: 800;">Optimal</span>
+              <span class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">Traffic Shaping</span>
+            </div>
+          </div>
+
+          <div class="diagnostic-box">
+            <div class="diagnostic-indicator-line" id="headroom-indicator-line" style="background-color: #10b981;"></div>
+            <p id="headroom-verdict-text" class="diagnostic-paragraph">
+              Awaiting speedtest record to compute household concurrent bandwidth and queue capacity.
+            </p>
           </div>
         </div>
       </section>
