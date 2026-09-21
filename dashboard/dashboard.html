@@ -415,6 +415,98 @@
         </div>
       </section>
 
+      <!-- Section: Live Gaming Jitter & Packet Loss HUD (Feature 2) -->
+      <section class="dashboard-section gaming-hud-section">
+        <div class="panel-card gaming-hud-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="6 3 18 3 15 12 18 21 6 21 9 12 6 3"></polygon>
+                <line x1="9" y1="12" x2="15" y2="12"></line>
+              </svg>
+              <div>
+                <h3 class="panel-heading" data-i18n="gaming_hud_title">Live Gaming Jitter &amp; Packet Loss HUD</h3>
+                <span class="panel-sub" data-i18n="gaming_hud_desc" style="font-size: 11px; color: var(--text-muted);">Ultra-low overhead real-time latency probe for measuring gaming ping stability, jitter fluctuations, and packet drop spikes.</span>
+              </div>
+            </div>
+            <div class="gaming-header-actions">
+              <!-- Game Server Target Selector -->
+              <div class="gaming-server-selector-wrap" title="Select Game Server Target" data-i18n-title="hud_server_select_title">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="server-select-icon">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+                <select id="select-game-server" class="select-game-server mono" aria-label="Select Game Server Target">
+                  <option value="cf_ultra_fast" data-i18n="server_cf_edge">Cloudflare Ultra-Fast Edge (Frankfurt / EU)</option>
+                  <option value="google_cloud_edge" data-i18n="server_google_edge">Google Cloud Global Edge (Zero Overhead)</option>
+                  <option value="aws_gaming_hub" data-i18n="server_aws_hub">AWS European Gaming Hub (Frankfurt)</option>
+                </select>
+              </div>
+
+              <div id="badge-gaming-status" class="status-badge badge-neutral">
+                <span class="badge-dot"></span>
+                <span id="gaming-status-text" data-i18n="hud_status_idle">Probe Paused</span>
+              </div>
+              <button id="btn-toggle-gaming-hud" class="btn btn-secondary btn-sm" type="button" title="Start/Pause Gaming Ping Probe">
+                <svg id="gaming-toggle-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span id="gaming-toggle-label" data-i18n="hud_btn_start">Start Gaming Probe</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Live KPI Row -->
+          <div class="gaming-kpi-grid">
+            <div class="gaming-kpi-card">
+              <span class="label-tiny" data-i18n="hud_current_ping">CURRENT PING</span>
+              <div class="gaming-kpi-val-row">
+                <span id="gaming-ping-val" class="kpi-val mono text-emerald">--</span>
+                <span class="kpi-unit mono">ms</span>
+              </div>
+              <span id="gaming-ping-grade" class="kpi-sub mono text-muted">Awaiting Probe</span>
+            </div>
+
+            <div class="gaming-kpi-card">
+              <span class="label-tiny" data-i18n="hud_realtime_jitter">REAL-TIME JITTER</span>
+              <div class="gaming-kpi-val-row">
+                <span id="gaming-jitter-val" class="kpi-val mono text-blue">--</span>
+                <span class="kpi-unit mono">ms</span>
+              </div>
+              <span id="gaming-jitter-sub" class="kpi-sub mono text-muted">Delta RTT variance</span>
+            </div>
+
+            <div class="gaming-kpi-card">
+              <span class="label-tiny" data-i18n="hud_packet_loss">PACKET LOSS (60s)</span>
+              <div class="gaming-kpi-val-row">
+                <span id="gaming-loss-val" class="kpi-val mono text-emerald">0.0%</span>
+              </div>
+              <span id="gaming-loss-sub" class="kpi-sub mono text-muted">0 / 0 probes dropped</span>
+            </div>
+
+            <div class="gaming-kpi-card">
+              <span class="label-tiny" data-i18n="hud_min_max_ping">MIN / MAX PING</span>
+              <div class="gaming-kpi-val-row">
+                <span id="gaming-minmax-val" class="kpi-val mono" style="font-size: 15px;">-- / --</span>
+                <span class="kpi-unit mono">ms</span>
+              </div>
+              <span id="gaming-avg-sub" class="kpi-sub mono text-muted">Avg: -- ms</span>
+            </div>
+          </div>
+
+          <!-- Interactive 2D HTML5 Sparkline Canvas -->
+          <div class="gaming-canvas-wrapper">
+            <canvas id="canvas-gaming-hud" width="1000" height="150" class="gaming-sparkline-canvas"></canvas>
+            <div class="gaming-canvas-legend">
+              <span class="legend-item"><span class="legend-box" style="background-color: #10b981;"></span> &lt; 55ms <span data-i18n="grade_tournament">Tournament</span></span>
+              <span class="legend-item"><span class="legend-box" style="background-color: #3b82f6;"></span> 55 - 85ms <span data-i18n="grade_competitive">Competitive</span></span>
+              <span class="legend-item"><span class="legend-box" style="background-color: #f59e0b;"></span> 86 - 110ms <span data-i18n="grade_moderate">Playable</span></span>
+              <span class="legend-item"><span class="legend-box" style="background-color: #f43f5e;"></span> &gt; 110ms <span data-i18n="grade_spike">Spike / Drop</span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Section: Speedtest & Network History Log Table -->
       <section class="dashboard-section">
         <div class="section-header">

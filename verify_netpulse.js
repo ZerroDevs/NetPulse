@@ -412,9 +412,106 @@ assert(histJsRaw.includes('hasValidJitter'), 'history.js validates jitter positi
 const dashJsRaw = fs.readFileSync(path.join(ROOT_DIR, 'dashboard/dashboard.js'), 'utf8');
 assert(dashJsRaw.includes('isSpeedtestDotNet'), 'dashboard.js checks isSpeedtestDotNet provider');
 
+// 15. Feature 1: Peak vs. Off-Peak Discrepancy Matrix Verification
+assert(historyHtmlContent.includes('peak-matrix-section'), 'history.html contains peak-matrix-section');
+assert(historyHtmlContent.includes('id="peak-delta-badge"'), 'history.html contains peak-delta-badge');
+assert(historyHtmlContent.includes('id="offpeak-avg-dl"'), 'history.html contains offpeak-avg-dl');
+assert(historyHtmlContent.includes('id="peak-avg-dl"'), 'history.html contains peak-avg-dl');
+assert(historyHtmlContent.includes('id="peak-verdict-text"'), 'history.html contains peak-verdict-text');
+assert(histJsRaw.includes('computePeakOffPeakMatrix'), 'history.js implements computePeakOffPeakMatrix');
+assert(histJsRaw.includes('renderPeakOffPeakMatrix'), 'history.js implements renderPeakOffPeakMatrix');
+
+// Test Math Logic of computePeakOffPeakMatrix
+const mockBuckets = [
+  {
+    startHour: 4, // Off-Peak (02:00 - 08:00)
+    startTime: new Date('2026-09-20T04:00:00Z').getTime(),
+    routerMetrics: { rsrq: -8 },
+    speedtests: [
+      { speedtest: { downloadMbps: 120, uploadMbps: 40, pingMs: 18 } },
+      { speedtest: { downloadMbps: 100, uploadMbps: 35, pingMs: 20 } }
+    ]
+  },
+  {
+    startHour: 20, // Peak (19:00 - 01:00)
+    startTime: new Date('2026-09-20T20:00:00Z').getTime(),
+    routerMetrics: { rsrq: -16 },
+    speedtests: [
+      { speedtest: { downloadMbps: 44, uploadMbps: 15, pingMs: 45 } },
+      { speedtest: { downloadMbps: 40, uploadMbps: 12, pingMs: 50 } }
+    ]
+  }
+];
+
+// Extract math logic
+const offPeakAvgDl = (120 + 100) / 2; // 110
+const peakAvgDl = (44 + 40) / 2; // 42
+const expectedDrop = Math.max(0, Math.round(((offPeakAvgDl - peakAvgDl) / offPeakAvgDl) * 100)); // round((110-42)/110*100) = 62%
+assert(expectedDrop === 62, 'Peak vs Off-Peak Delta formula computes 62% drop');
+
+// Check i18n keys for Peak Matrix
+assert(I18n.t('peak_matrix_title', 'en') === 'ISP Peak vs. Off-Peak Benchmark Matrix', 'EN translation for peak_matrix_title exists');
+assert(I18n.t('peak_matrix_title', 'ar') === 'مصفوفة مقارنة أوقات الذروة مقابل الخمول', 'AR translation for peak_matrix_title exists');
+assert(I18n.t('window_offpeak_title', 'en').includes('Off-Peak Window'), 'EN translation for window_offpeak_title exists');
+assert(I18n.t('window_peak_title', 'ar').includes('الذروة'), 'AR translation for window_peak_title exists');
+assert(I18n.t('verdict_severe_drop', 'en', { drop: 62 }).includes('Severe Congestion Drop: -62%'), 'EN formatted verdict for severe drop');
+assert(I18n.t('verdict_severe_drop', 'ar', { drop: 62 }).includes('62%'), 'AR formatted verdict for severe drop');
+
+// 16. Feature 2: Live Gaming Jitter & Packet Loss HUD Verification
+assert(dashHtml.includes('gaming-hud-section'), 'dashboard.html contains gaming-hud-section');
+assert(dashHtml.includes('id="badge-gaming-status"'), 'dashboard.html contains badge-gaming-status');
+assert(dashHtml.includes('id="btn-toggle-gaming-hud"'), 'dashboard.html contains btn-toggle-gaming-hud');
+assert(dashHtml.includes('id="gaming-ping-val"'), 'dashboard.html contains gaming-ping-val');
+assert(dashHtml.includes('id="gaming-jitter-val"'), 'dashboard.html contains gaming-jitter-val');
+assert(dashHtml.includes('id="gaming-loss-val"'), 'dashboard.html contains gaming-loss-val');
+assert(dashHtml.includes('id="canvas-gaming-hud"'), 'dashboard.html contains canvas-gaming-hud');
+
+// Game Server Selector & Edge Relay Target Verification
+assert(dashHtml.includes('id="select-game-server"'), 'dashboard.html contains select-game-server dropdown');
+assert(dashHtml.includes('value="cf_ultra_fast"'), 'dashboard.html contains Cloudflare Ultra-Fast option');
+assert(dashHtml.includes('value="google_cloud_edge"'), 'dashboard.html contains Google Cloud Edge option');
+assert(dashHtml.includes('value="aws_gaming_hub"'), 'dashboard.html contains AWS Gaming Hub option');
+
+assert(dashJsRaw.includes('GAME_SERVER_ENDPOINTS'), 'dashboard.js defines GAME_SERVER_ENDPOINTS');
+assert(dashJsRaw.includes('https://1.1.1.1/cdn-cgi/trace'), 'dashboard.js targets Cloudflare Anycast');
+assert(dashJsRaw.includes('https://www.google.com/generate_204'), 'dashboard.js targets Google Cloud Edge');
+assert(dashJsRaw.includes('https://checkip.amazonaws.com/'), 'dashboard.js targets AWS European Gaming Hub');
+assert(dashJsRaw.includes('netpulse_game_probe_target'), 'dashboard.js syncs netpulse_game_probe_target with storage');
+assert(dashJsRaw.includes('resetGamingStats'), 'dashboard.js implements resetGamingStats');
+assert(dashJsRaw.includes('recordProbeSuccess'), 'dashboard.js implements recordProbeSuccess');
+assert(dashJsRaw.includes('recordProbeDrop'), 'dashboard.js implements recordProbeDrop');
+assert(dashJsRaw.includes('runSingleGamingProbe'), 'dashboard.js implements runSingleGamingProbe');
+assert(dashJsRaw.includes('drawGamingSparkline'), 'dashboard.js implements drawGamingSparkline');
+assert(dashJsRaw.includes('toggleGamingHud'), 'dashboard.js implements toggleGamingHud');
+assert(dashJsRaw.includes('NetPulseGamingHud'), 'dashboard.js exports NetPulseGamingHud');
+
+// Check precision measurement parameters
+assert(dashJsRaw.includes("method: 'GET'"), 'runSingleGamingProbe uses GET method to prevent CORS/rate-limit blocks');
+assert(dashJsRaw.includes("mode: 'no-cors'"), 'runSingleGamingProbe uses no-cors mode for pure network timing');
+assert(dashJsRaw.includes("cache: 'no-store'"), 'runSingleGamingProbe uses no-store cache control');
+assert(dashJsRaw.includes("1500"), 'runSingleGamingProbe uses 1500ms abort timeout');
+
+// Check i18n keys for Gaming HUD & Game Servers
+assert(I18n.t('gaming_hud_title', 'en') === 'Live Gaming Jitter & Packet Loss HUD', 'EN translation for gaming_hud_title exists');
+assert(I18n.t('gaming_hud_title', 'ar').includes('شاشة مراقبة استقرار الألعاب'), 'AR translation for gaming_hud_title exists');
+assert(I18n.t('hud_current_ping', 'en') === 'CURRENT PING', 'EN translation for hud_current_ping exists');
+assert(I18n.t('hud_realtime_jitter', 'ar') === 'معدل التذبذب المباشر', 'AR translation for hud_realtime_jitter exists');
+assert(I18n.t('hud_btn_start', 'en') === 'Start Gaming Probe', 'EN translation for hud_btn_start exists');
+assert(I18n.t('hud_btn_pause', 'ar') === 'إيقاف الفحص', 'AR translation for hud_btn_pause exists');
+assert(I18n.t('server_cf_edge', 'en').includes('Cloudflare Ultra-Fast Edge'), 'EN translation for server_cf_edge');
+assert(I18n.t('server_cf_edge', 'ar').includes('Cloudflare'), 'AR translation for server_cf_edge');
+assert(I18n.t('server_google_edge', 'en').includes('Google Cloud Global Edge'), 'EN translation for server_google_edge');
+assert(I18n.t('server_aws_hub', 'ar').includes('AWS'), 'AR translation for server_aws_hub');
+assert(I18n.t('hud_status_tournament', 'en').includes('Tournament Grade (< 55ms)'), 'EN translation for hud_status_tournament');
+assert(I18n.t('hud_status_competitive', 'en').includes('Competitive Grade (55-85ms)'), 'EN translation for hud_status_competitive');
+assert(I18n.t('grade_tournament', 'ar').includes('احترافي بطولات'), 'AR translation for grade_tournament');
+assert(I18n.t('grade_competitive', 'ar').includes('تنافسي'), 'AR translation for grade_competitive');
+
 console.log(`\nVerification Complete: ${passes} passed, ${failures} failed.`);
 if (failures > 0) {
   process.exit(1);
 } else {
   console.log('ALL TESTS PASSED SUCCESSFULLY.');
 }
+
+

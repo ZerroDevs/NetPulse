@@ -177,6 +177,157 @@
 
     <!-- Hourly Audit Blocks Container -->
     <main class="main-content">
+      <!-- Feature 1: ISP Peak vs. Off-Peak Benchmark Matrix -->
+      <section class="peak-matrix-section">
+        <div class="peak-matrix-card">
+          <div class="peak-matrix-header">
+            <div class="peak-matrix-title-wrap">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 14 14"></polyline>
+                <path d="M12 2v2M12 20v2M2 12h2M20 12h2"></path>
+              </svg>
+              <div>
+                <h2 class="peak-matrix-title" data-i18n="peak_matrix_title">ISP Peak vs. Off-Peak Benchmark Matrix</h2>
+                <p class="peak-matrix-desc" data-i18n="peak_matrix_desc">Compares broadband throughput and cellular tower load between evening peak congestion (19:00 - 01:00) and early morning off-peak hours (02:00 - 08:00).</p>
+              </div>
+            </div>
+            <!-- Discrepancy Impact Delta Badge -->
+            <div id="peak-delta-badge-container">
+              <span id="peak-delta-badge" class="status-badge badge-neutral mono">
+                <span class="badge-dot"></span>
+                <span id="peak-delta-text">--% Delta</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Matrix Panels Grid -->
+          <div class="peak-panels-grid">
+            <!-- Panel 1: Off-Peak Window (02:00 - 08:00) -->
+            <div class="peak-panel panel-offpeak">
+              <div class="panel-header">
+                <div class="panel-tag-group">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                  </svg>
+                  <span class="panel-tag-title" data-i18n="window_offpeak_title">Off-Peak Window (02:00 - 08:00)</span>
+                </div>
+                <span id="offpeak-tests-count" class="mono text-muted">0 tests</span>
+              </div>
+
+              <div class="panel-stats-grid">
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_avg_download">Avg Download</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="offpeak-avg-dl" class="mono matrix-stat-val text-emerald">--</span>
+                    <span class="matrix-stat-unit mono">Mbps</span>
+                  </div>
+                </div>
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_peak_download">Peak Download</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="offpeak-peak-dl" class="mono matrix-stat-val text-emerald">--</span>
+                    <span class="matrix-stat-unit mono">Mbps</span>
+                  </div>
+                </div>
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_avg_upload">Avg Upload</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="offpeak-avg-ul" class="mono matrix-stat-val text-blue">--</span>
+                    <span class="matrix-stat-unit mono">Mbps</span>
+                  </div>
+                </div>
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_avg_rsrq">Avg Tower Load (RSRQ)</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="offpeak-avg-rsrq" class="mono matrix-stat-val text-primary">--</span>
+                    <span class="matrix-stat-unit mono">dB</span>
+                  </div>
+                </div>
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_avg_ping">Avg Ping</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="offpeak-avg-ping" class="mono matrix-stat-val text-amber">--</span>
+                    <span class="matrix-stat-unit mono">ms</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel 2: Peak Window (19:00 - 01:00) -->
+            <div class="peak-panel panel-peak">
+              <div class="panel-header">
+                <div class="panel-tag-group">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                  </svg>
+                  <span class="panel-tag-title" data-i18n="window_peak_title">Peak Congestion Window (19:00 - 01:00)</span>
+                </div>
+                <span id="peak-tests-count" class="mono text-muted">0 tests</span>
+              </div>
+
+              <div class="panel-stats-grid">
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_avg_download">Avg Download</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="peak-avg-dl" class="mono matrix-stat-val text-rose">--</span>
+                    <span class="matrix-stat-unit mono">Mbps</span>
+                  </div>
+                </div>
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_peak_download">Peak Download</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="peak-peak-dl" class="mono matrix-stat-val text-rose">--</span>
+                    <span class="matrix-stat-unit mono">Mbps</span>
+                  </div>
+                </div>
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_avg_upload">Avg Upload</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="peak-avg-ul" class="mono matrix-stat-val text-blue">--</span>
+                    <span class="matrix-stat-unit mono">Mbps</span>
+                  </div>
+                </div>
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_avg_rsrq">Avg Tower Load (RSRQ)</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="peak-avg-rsrq" class="mono matrix-stat-val text-primary">--</span>
+                    <span class="matrix-stat-unit mono">dB</span>
+                  </div>
+                </div>
+                <div class="matrix-stat-item">
+                  <span class="matrix-stat-lbl" data-i18n="stat_avg_ping">Avg Ping</span>
+                  <div class="matrix-stat-val-row">
+                    <span id="peak-avg-ping" class="mono matrix-stat-val text-amber">--</span>
+                    <span class="matrix-stat-unit mono">ms</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Discrepancy Plain-Text Verdict Strip -->
+          <div class="peak-verdict-banner">
+            <div class="verdict-icon-box">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            </div>
+            <span id="peak-verdict-text" class="verdict-message" data-i18n="verdict_awaiting_data">Awaiting comparative speedtest telemetry across both Peak and Off-Peak windows.</span>
+          </div>
+        </div>
+      </section>
+
       <div id="hourly-blocks-container" class="hourly-container">
         <!-- Dynamically injected hourly blocks will appear here -->
       </div>

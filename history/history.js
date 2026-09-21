@@ -452,6 +452,210 @@
   }
 
   /* ==========================================================================
+     PEAK VS. OFF-PEAK BENCHMARK MATRIX COMPUTATION
+     ========================================================================== */
+  function computePeakOffPeakMatrix(buckets) {
+    const list = Array.isArray(buckets) ? buckets : allHourlyBuckets;
+    
+    // Aggregators for Off-Peak (02:00 to 08:00)
+    let offPeakDlSum = 0, offPeakDlCount = 0, offPeakPeakDl = 0;
+    let offPeakUlSum = 0, offPeakUlCount = 0;
+    let offPeakPingSum = 0, offPeakPingCount = 0;
+    let offPeakRsrqSum = 0, offPeakRsrqCount = 0;
+    let offPeakTotalTests = 0;
+
+    // Aggregators for Peak (19:00 to 01:00)
+    let peakDlSum = 0, peakDlCount = 0, peakPeakDl = 0;
+    let peakUlSum = 0, peakUlCount = 0;
+    let peakPingSum = 0, peakPingCount = 0;
+    let peakRsrqSum = 0, peakRsrqCount = 0;
+    let peakTotalTests = 0;
+
+    for (const b of list) {
+      const hour = b.startHour !== undefined ? b.startHour : (new Date(b.startTime).getHours());
+      const isOffPeak = hour >= 2 && hour < 8;
+      const isPeak = hour >= 19 || hour < 1;
+
+      if (!isOffPeak && !isPeak) continue;
+
+      // Extract router RSRQ if present
+      if (b.routerMetrics && b.routerMetrics.rsrq !== null && b.routerMetrics.rsrq !== undefined) {
+        const rsrq = parseFloat(b.routerMetrics.rsrq);
+        if (!isNaN(rsrq)) {
+          if (isOffPeak) { offPeakRsrqSum += rsrq; offPeakRsrqCount++; }
+          else if (isPeak) { peakRsrqSum += rsrq; peakRsrqCount++; }
+        }
+      }
+
+      // Extract speedtests
+      if (Array.isArray(b.speedtests)) {
+        for (const st of b.speedtests) {
+          const std = st.speedtest || st;
+          const dl = parseFloat(std.downloadMbps !== undefined ? std.downloadMbps : std.download);
+          const ul = parseFloat(std.uploadMbps !== undefined ? std.uploadMbps : std.upload);
+          const ping = parseFloat(std.pingMs !== undefined ? std.pingMs : std.ping);
+
+          if (isOffPeak) {
+            offPeakTotalTests++;
+            if (!isNaN(dl) && dl >= 0) {
+              offPeakDlSum += dl;
+              offPeakDlCount++;
+              if (dl > offPeakPeakDl) offPeakPeakDl = dl;
+            }
+            if (!isNaN(ul) && ul >= 0) {
+              offPeakUlSum += ul;
+              offPeakUlCount++;
+            }
+            if (!isNaN(ping) && ping >= 0) {
+              offPeakPingSum += ping;
+              offPeakPingCount++;
+            }
+          } else if (isPeak) {
+            peakTotalTests++;
+            if (!isNaN(dl) && dl >= 0) {
+              peakDlSum += dl;
+              peakDlCount++;
+              if (dl > peakPeakDl) peakPeakDl = dl;
+            }
+            if (!isNaN(ul) && ul >= 0) {
+              peakUlSum += ul;
+              peakUlCount++;
+            }
+            if (!isNaN(ping) && ping >= 0) {
+              peakPingSum += ping;
+              peakPingCount++;
+            }
+          }
+        }
+      }
+    }
+
+    const offPeakAvgDl = offPeakDlCount > 0 ? (offPeakDlSum / offPeakDlCount) : null;
+    const offPeakAvgUl = offPeakUlCount > 0 ? (offPeakUlSum / offPeakUlCount) : null;
+    const offPeakAvgPing = offPeakPingCount > 0 ? (offPeakPingSum / offPeakPingCount) : null;
+    const offPeakAvgRsrq = offPeakRsrqCount > 0 ? (offPeakRsrqSum / offPeakRsrqCount) : null;
+
+    const peakAvgDl = peakDlCount > 0 ? (peakDlSum / peakDlCount) : null;
+    const peakAvgUl = peakUlCount > 0 ? (peakUlSum / peakUlCount) : null;
+    const peakAvgPing = peakPingCount > 0 ? (peakPingSum / peakPingCount) : null;
+    const peakAvgRsrq = peakRsrqCount > 0 ? (peakRsrqSum / peakRsrqCount) : null;
+
+    let dropPct = null;
+    let verdictTier = 'awaiting';
+
+    if (offPeakAvgDl !== null && peakAvgDl !== null && offPeakAvgDl > 0) {
+      const rawDrop = ((offPeakAvgDl - peakAvgDl) / offPeakAvgDl) * 100;
+      dropPct = Math.max(0, Math.round(rawDrop));
+      if (dropPct >= 50) {
+        verdictTier = 'severe';
+      } else if (dropPct >= 20) {
+        verdictTier = 'moderate';
+      } else {
+        verdictTier = 'stable';
+      }
+    }
+
+    return {
+      offPeak: {
+        avgDl: offPeakAvgDl,
+        peakDl: offPeakDlCount > 0 ? offPeakPeakDl : null,
+        avgUl: offPeakAvgUl,
+        avgRsrq: offPeakAvgRsrq,
+        avgPing: offPeakAvgPing,
+        count: offPeakTotalTests
+      },
+      peak: {
+        avgDl: peakAvgDl,
+        peakDl: peakDlCount > 0 ? peakPeakDl : null,
+        avgUl: peakAvgUl,
+        avgRsrq: peakAvgRsrq,
+        avgPing: peakAvgPing,
+        count: peakTotalTests
+      },
+      dropPct,
+      verdictTier
+    };
+  }
+
+  function renderPeakOffPeakMatrix() {
+    const matrix = computePeakOffPeakMatrix(allHourlyBuckets);
+    const isAr = currentLang === 'ar';
+    const i18n = window.NetPulseI18n;
+
+    // Off-Peak panel elements
+    const elOffpeakTests = document.getElementById('offpeak-tests-count');
+    const elOffpeakAvgDl = document.getElementById('offpeak-avg-dl');
+    const elOffpeakPeakDl = document.getElementById('offpeak-peak-dl');
+    const elOffpeakAvgUl = document.getElementById('offpeak-avg-ul');
+    const elOffpeakAvgRsrq = document.getElementById('offpeak-avg-rsrq');
+    const elOffpeakAvgPing = document.getElementById('offpeak-avg-ping');
+
+    if (elOffpeakTests) elOffpeakTests.textContent = isAr ? `${matrix.offPeak.count} اختبارات` : `${matrix.offPeak.count} tests`;
+    if (elOffpeakAvgDl) elOffpeakAvgDl.textContent = matrix.offPeak.avgDl !== null ? matrix.offPeak.avgDl.toFixed(1) : '--';
+    if (elOffpeakPeakDl) elOffpeakPeakDl.textContent = matrix.offPeak.peakDl !== null ? matrix.offPeak.peakDl.toFixed(1) : '--';
+    if (elOffpeakAvgUl) elOffpeakAvgUl.textContent = matrix.offPeak.avgUl !== null ? matrix.offPeak.avgUl.toFixed(1) : '--';
+    if (elOffpeakAvgRsrq) elOffpeakAvgRsrq.textContent = matrix.offPeak.avgRsrq !== null ? matrix.offPeak.avgRsrq.toFixed(1) : '--';
+    if (elOffpeakAvgPing) elOffpeakAvgPing.textContent = matrix.offPeak.avgPing !== null ? Math.round(matrix.offPeak.avgPing) : '--';
+
+    // Peak panel elements
+    const elPeakTests = document.getElementById('peak-tests-count');
+    const elPeakAvgDl = document.getElementById('peak-avg-dl');
+    const elPeakPeakDl = document.getElementById('peak-peak-dl');
+    const elPeakAvgUl = document.getElementById('peak-avg-ul');
+    const elPeakAvgRsrq = document.getElementById('peak-avg-rsrq');
+    const elPeakAvgPing = document.getElementById('peak-avg-ping');
+
+    if (elPeakTests) elPeakTests.textContent = isAr ? `${matrix.peak.count} اختبارات` : `${matrix.peak.count} tests`;
+    if (elPeakAvgDl) elPeakAvgDl.textContent = matrix.peak.avgDl !== null ? matrix.peak.avgDl.toFixed(1) : '--';
+    if (elPeakPeakDl) elPeakPeakDl.textContent = matrix.peak.peakDl !== null ? matrix.peak.peakDl.toFixed(1) : '--';
+    if (elPeakAvgUl) elPeakAvgUl.textContent = matrix.peak.avgUl !== null ? matrix.peak.avgUl.toFixed(1) : '--';
+    if (elPeakAvgRsrq) elPeakAvgRsrq.textContent = matrix.peak.avgRsrq !== null ? matrix.peak.avgRsrq.toFixed(1) : '--';
+    if (elPeakAvgPing) elPeakAvgPing.textContent = matrix.peak.avgPing !== null ? Math.round(matrix.peak.avgPing) : '--';
+
+    // Discrepancy Impact Delta Badge & Verdict
+    const badgeDelta = document.getElementById('peak-delta-badge');
+    const textDelta = document.getElementById('peak-delta-text');
+    const textVerdict = document.getElementById('peak-verdict-text');
+
+    if (matrix.dropPct !== null) {
+      if (matrix.verdictTier === 'severe') {
+        if (badgeDelta) badgeDelta.className = 'status-badge badge-rose mono';
+        if (textDelta) textDelta.textContent = `-${matrix.dropPct}% ${isAr ? 'انخفاض حاد' : 'Severe Drop'}`;
+        if (textVerdict) {
+          textVerdict.textContent = i18n
+            ? i18n.t('verdict_severe_drop', currentLang, { drop: matrix.dropPct })
+            : (isAr ? `فقدان حاد في السرعة بنسبة ${matrix.dropPct}% خلال أوقات الذروة نتيجة ازدحام برج التغطية` : `Severe Congestion Drop: -${matrix.dropPct}% throughput degradation during peak hours due to cell tower saturation`);
+        }
+      } else if (matrix.verdictTier === 'moderate') {
+        if (badgeDelta) badgeDelta.className = 'status-badge badge-amber mono';
+        if (textDelta) textDelta.textContent = `-${matrix.dropPct}% ${isAr ? 'انخفاض' : 'Drop'}`;
+        if (textVerdict) {
+          textVerdict.textContent = i18n
+            ? i18n.t('verdict_moderate_drop', currentLang, { drop: matrix.dropPct })
+            : (isAr ? `حمولة متوسطة على البرج: انخفاض السرعة بنسبة ${matrix.dropPct}% في أوقات الذروة` : `Moderate ISP Load: -${matrix.dropPct}% throughput drop during peak hours`);
+        }
+      } else {
+        if (badgeDelta) badgeDelta.className = 'status-badge badge-emerald mono';
+        const sign = matrix.dropPct > 0 ? '-' : '';
+        if (textDelta) textDelta.textContent = `${sign}${matrix.dropPct}% ${isAr ? 'مستقر' : 'Tier-1'}`;
+        if (textVerdict) {
+          textVerdict.textContent = i18n
+            ? i18n.t('verdict_tier1_stability', currentLang, { drop: matrix.dropPct })
+            : (isAr ? `استقرار عالي للشبكة: تباين السرعة لا يتجاوز ${matrix.dropPct}% بين أوقات الذروة والخمول` : `Consistent Tier-1 Stability: -${matrix.dropPct}% throughput variation between peak and off-peak`);
+        }
+      }
+    } else {
+      if (badgeDelta) badgeDelta.className = 'status-badge badge-neutral mono';
+      if (textDelta) textDelta.textContent = '--% Delta';
+      if (textVerdict) {
+        textVerdict.textContent = i18n
+          ? i18n.t('verdict_awaiting_data', currentLang)
+          : (isAr ? 'بانتظار تسجيل اختبارات كافية في نافذتي الذروة والخمول لإجراء المقارنة.' : 'Awaiting comparative speedtest telemetry across both Peak and Off-Peak windows.');
+      }
+    }
+  }
+
+  /* ==========================================================================
      MARKDOWN GENERATOR FOR AI ANALYSIS (EXACT REQUIRED FORMAT)
      ========================================================================== */
   function generateAiReportMarkdown(bucket, lang) {
@@ -558,6 +762,37 @@
       effEnLines = `\n- Theoretical Peak DL Capacity: ${eff.theoreticalPeakMbps} Mbps (${eff.totalBandwidthMhz} MHz @ ${eff.bpsPerHz} bps/Hz 256-QAM)\n- Link Spectral Efficiency: ${eff.efficiencyPct !== null ? eff.efficiencyPct + '%' : '--'} (${eff.statusText})`;
     }
 
+    // 4. ISP Peak vs. Off-Peak Discrepancy Matrix Context
+    const matrix = computePeakOffPeakMatrix(allHourlyBuckets);
+    let peakMatrixArSection = '';
+    let peakMatrixEnSection = '';
+    if (matrix.dropPct !== null) {
+      const opDl = matrix.offPeak.avgDl !== null ? matrix.offPeak.avgDl.toFixed(1) : '--';
+      const pkDl = matrix.peak.avgDl !== null ? matrix.peak.avgDl.toFixed(1) : '--';
+      const verdictAr = matrix.verdictTier === 'severe'
+        ? `فقدان حاد في السرعة (-${matrix.dropPct}%) نتيجة ازدحام برج التغطية في أوقات الذروة`
+        : (matrix.verdictTier === 'moderate'
+          ? `حمولة متوسطة على البرج (-${matrix.dropPct}% انخفاض)`
+          : `استقرار عالي وتفاوت طفيف (${matrix.dropPct}%)`);
+      const verdictEn = matrix.verdictTier === 'severe'
+        ? `Severe Congestion Drop (-${matrix.dropPct}%) due to cell tower saturation during peak hours`
+        : (matrix.verdictTier === 'moderate'
+          ? `Moderate ISP Load (-${matrix.dropPct}% throughput drop)`
+          : `Consistent Tier-1 Stability (-${matrix.dropPct}% throughput variation)`);
+
+      peakMatrixArSection = `\n\n### 3. مصفوفة مقارنة أوقات الذروة مقابل الخمول (ISP Benchmark):
+- متوسط الخمول (02:00 - 08:00): ${opDl} Mbps (${matrix.offPeak.count} اختبارات)
+- متوسط الذروة (19:00 - 01:00): ${pkDl} Mbps (${matrix.peak.count} اختبارات)
+- نسبة انخفاض السرعة بالذروة: ${matrix.dropPct}%
+- تقييم أداء البرج: ${verdictAr}`;
+
+      peakMatrixEnSection = `\n\n### 3. ISP Peak vs. Off-Peak Discrepancy Matrix:
+- Off-Peak Avg DL (02:00 - 08:00): ${opDl} Mbps (${matrix.offPeak.count} tests)
+- Peak Avg DL (19:00 - 01:00): ${pkDl} Mbps (${matrix.peak.count} tests)
+- Throughput Drop during Peak: ${matrix.dropPct}%
+- Cell Tower Benchmark Verdict: ${verdictEn}`;
+    }
+
     if (isAr) {
       return `# تقرير فحص الشبكة - NetPulse ${privacyMode ? '(وضع الخصوصية: معرّفات البرج محجوبة)' : ''}
 **الفترة الزمنية:** ${timeWindow}
@@ -573,7 +808,7 @@
 
 ### 2. نتائج اختبارات السرعة خلال هذه الساعة:
 ${speedtestLines}
-- متوسط السرعة المسجل: تنزيل ${avgDl} Mbps | رفع ${avgUl} Mbps
+- متوسط السرعة المسجل: تنزيل ${avgDl} Mbps | رفع ${avgUl} Mbps${peakMatrixArSection}
 
 المطلوب من الذكاء الاصطناعي: قم بتحليل هذه القراءات، وتقييم أداء البرج والشبكة خلال هذه الساعة، وتحديد هل السرعة المسجلة متوافقة مع جودة الإشارة وكفاءة الطيف الترددي أم يوجد عنق زجاجة أو ازدحام.`;
     } else {
@@ -591,7 +826,7 @@ ${speedtestLines}
 
 ### 2. Speedtest Runs Within This Hour:
 ${speedtestLines}
-- Hourly Average: Download ${avgDl} Mbps | Upload ${avgUl} Mbps
+- Hourly Average: Download ${avgDl} Mbps | Upload ${avgUl} Mbps${peakMatrixEnSection}
 
 AI Prompt: Analyze these network metrics and speedtest results for this hour. Evaluate RF link quality, spectral efficiency utilization, detect potential tower congestion, and verify if throughput matches channel capacity.`;
     }
@@ -602,6 +837,9 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
      ========================================================================== */
   function renderHourlyBlocks() {
     if (!hourlyContainer) return;
+
+    // Render Peak vs. Off-Peak Discrepancy Matrix
+    renderPeakOffPeakMatrix();
 
     // Update counter badge
     if (badgeTotalHours) {
@@ -1463,6 +1701,8 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
   if (typeof window !== 'undefined') {
     window.NetPulseHistory = {
       buildHourlyBuckets,
+      computePeakOffPeakMatrix,
+      renderPeakOffPeakMatrix,
       generateAiReportMarkdown,
       getHourKey
     };

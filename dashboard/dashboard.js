@@ -181,6 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
       themeIconContainer.innerHTML = SUN_SVG;
       themeLabelText.textContent = 'Light';
     }
+    if (typeof drawGamingSparkline === 'function') {
+      drawGamingSparkline();
+    }
   }
 
   btnThemeToggle.addEventListener('click', () => {
@@ -204,6 +207,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Refresh dynamically computed labels
     renderLiveTelemetry(currentRouterData);
     applyFiltersAndSort();
+    if (typeof updateGamingHudUi === 'function') {
+      updateGamingHudUi();
+    }
+    if (typeof drawGamingSparkline === 'function') {
+      drawGamingSparkline();
+    }
   }
 
   btnLangToggle.addEventListener('click', () => {
@@ -1017,6 +1026,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // Game Server Probe Target Preference
+      if (res.netpulse_game_probe_target) {
+        selectedGameServerKey = GAME_SERVER_ENDPOINTS[res.netpulse_game_probe_target] ? res.netpulse_game_probe_target : 'cf_ultra_fast';
+        if (selectGameServer) {
+          selectGameServer.value = selectedGameServerKey;
+        }
+      }
+
       renderLiveTelemetry(res.netpulse_router_latest || null);
       allHistory = res.netpulse_history || [];
       applyFiltersAndSort();
@@ -1032,6 +1049,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (changes.netpulse_lang) {
       applyLanguage(changes.netpulse_lang.newValue);
+    }
+    if (changes.netpulse_game_probe_target) {
+      const newTarget = changes.netpulse_game_probe_target.newValue;
+      selectedGameServerKey = GAME_SERVER_ENDPOINTS[newTarget] ? newTarget : 'cf_ultra_fast';
+      if (selectGameServer) {
+        selectGameServer.value = selectedGameServerKey;
+      }
+      resetGamingStats();
+      if (gamingHudRunning) {
+        runSingleGamingProbe();
+      }
     }
     if (changes.netpulse_privacy_mode !== undefined) {
       privacyMode = !!changes.netpulse_privacy_mode.newValue;
@@ -1342,6 +1370,539 @@ document.addEventListener('DOMContentLoaded', () => {
     a.click();
     URL.revokeObjectURL(url);
   });
+
+  /* ==========================================================================
+     FEATURE 2: LIVE GAMING JITTER & PACKET LOSS HUD CONTROLLER
+     (High-Availability Anycast CDN & Cloud Edge Probing - Zero Drop Engine)
+     ========================================================================== */
+  const GAME_SERVER_ENDPOINTS = {
+    cf_ultra_fast: {
+      id: 'cf_ultra_fast',
+      name: 'Cloudflare Ultra-Fast Edge (Frankfurt / EU)',
+      url: 'https://1.1.1.1/cdn-cgi/trace'
+    },
+    google_cloud_edge: {
+      id: 'google_cloud_edge',
+      name: 'Google Cloud Global Edge (Zero Overhead)',
+      url: 'https://www.google.com/generate_204'
+    },
+    aws_gaming_hub: {
+      id: 'aws_gaming_hub',
+      name: 'AWS European Gaming Hub (Frankfurt)',
+      url: 'https://checkip.amazonaws.com/'
+    }
+  };
+
+  const selectGameServer = document.getElementById('select-game-server');
+  const badgeGamingStatus = document.getElementById('badge-gaming-status');
+  const gamingStatusText = document.getElementById('gaming-status-text');
+  const btnToggleGamingHud = document.getElementById('btn-toggle-gaming-hud');
+  const gamingToggleIcon = document.getElementById('gaming-toggle-icon');
+  const gamingToggleLabel = document.getElementById('gaming-toggle-label');
+  const gamingPingVal = document.getElementById('gaming-ping-val');
+  const gamingPingGrade = document.getElementById('gaming-ping-grade');
+  const gamingJitterVal = document.getElementById('gaming-jitter-val');
+  const gamingJitterSub = document.getElementById('gaming-jitter-sub');
+  const gamingLossVal = document.getElementById('gaming-loss-val');
+  const gamingLossSub = document.getElementById('gaming-loss-sub');
+  const gamingMinmaxVal = document.getElementById('gaming-minmax-val');
+  const gamingAvgSub = document.getElementById('gaming-avg-sub');
+  const canvasGamingHud = document.getElementById('canvas-gaming-hud');
+
+  let selectedGameServerKey = 'cf_ultra_fast';
+  let gamingHudRunning = false;
+  let gamingHudInterval = null;
+  let gamingProbeHistory = []; // max 60 probe data points (representing last 60 seconds)
+  let lastProbeRtt = null;
+  let isProbing = false;
+
+  function resetGamingStats() {
+    gamingProbeHistory = [];
+    lastProbeRtt = null;
+    updateGamingHudUi();
+    drawGamingSparkline();
+  }
+
+  if (selectGameServer) {
+    selectGameServer.addEventListener('change', () => {
+      selectedGameServerKey = selectGameServer.value || 'cf_ultra_fast';
+      chrome.storage.local.set({ netpulse_game_probe_target: selectedGameServerKey });
+      resetGamingStats();
+      if (gamingHudRunning) {
+        runSingleGamingProbe();
+      }
+    });
+  }
+
+  function recordProbeSuccess(rtt) {
+    let jitter = 0;
+    if (lastProbeRtt !== null) {
+      jitter = Math.abs(rtt - lastProbeRtt);
+    }
+    lastProbeRtt = rtt;
+
+    const probePoint = {
+      timestamp: Date.now(),
+      target: selectedGameServerKey,
+      rtt,
+      jitter,
+      lost: false
+    };
+
+    gamingProbeHistory.push(probePoint);
+    if (gamingProbeHistory.length > 60) {
+      gamingProbeHistory.shift();
+    }
+
+    updateGamingHudUi();
+    drawGamingSparkline();
+  }
+
+  function recordProbeDrop() {
+    lastProbeRtt = null;
+    const probePoint = {
+      timestamp: Date.now(),
+      target: selectedGameServerKey,
+      rtt: null,
+      jitter: null,
+      lost: true
+    };
+
+    gamingProbeHistory.push(probePoint);
+    if (gamingProbeHistory.length > 60) {
+      gamingProbeHistory.shift();
+    }
+
+    updateGamingHudUi();
+    drawGamingSparkline();
+  }
+
+  async function runSingleGamingProbe() {
+    if (isProbing) return;
+    isProbing = true;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
+    const targetConfig = GAME_SERVER_ENDPOINTS[selectedGameServerKey] || GAME_SERVER_ENDPOINTS.cf_ultra_fast;
+    const probeUrl = `${targetConfig.url}${targetConfig.url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+    const startTime = performance.now();
+
+    try {
+      await fetch(probeUrl, {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      const rtt = Math.round(performance.now() - startTime);
+      recordProbeSuccess(rtt);
+    } catch (err) {
+      clearTimeout(timeoutId);
+      recordProbeDrop();
+    } finally {
+      isProbing = false;
+    }
+  }
+
+  function updateGamingHudUi() {
+    const isAr = currentLang === 'ar';
+    const totalProbes = gamingProbeHistory.length;
+    const lostCount = gamingProbeHistory.filter(p => p.lost).length;
+    const lossPct = totalProbes > 0 ? ((lostCount / totalProbes) * 100).toFixed(1) : '0.0';
+    const validProbes = gamingProbeHistory.filter(p => !p.lost && p.rtt !== null);
+    const validRtts = validProbes.map(p => p.rtt);
+    const minRtt = validRtts.length > 0 ? Math.min(...validRtts) : null;
+    const maxRtt = validRtts.length > 0 ? Math.max(...validRtts) : null;
+    const avgRtt = validRtts.length > 0 ? Math.round(validRtts.reduce((a, b) => a + b, 0) / validRtts.length) : null;
+
+    const latest = gamingProbeHistory.length > 0 ? gamingProbeHistory[gamingProbeHistory.length - 1] : null;
+
+    // 1. Current Ping
+    if (gamingPingVal) {
+      if (latest) {
+        if (latest.lost) {
+          gamingPingVal.textContent = 'DROP';
+          gamingPingVal.className = 'kpi-val mono text-rose';
+        } else if (latest.rtt !== null) {
+          gamingPingVal.textContent = latest.rtt;
+          if (latest.rtt < 55) gamingPingVal.className = 'kpi-val mono text-emerald';
+          else if (latest.rtt <= 85) gamingPingVal.className = 'kpi-val mono text-blue';
+          else if (latest.rtt <= 110) gamingPingVal.className = 'kpi-val mono text-amber';
+          else gamingPingVal.className = 'kpi-val mono text-rose';
+        } else {
+          gamingPingVal.textContent = '--';
+          gamingPingVal.className = 'kpi-val mono text-muted';
+        }
+      } else {
+        gamingPingVal.textContent = '--';
+        gamingPingVal.className = 'kpi-val mono text-muted';
+      }
+    }
+
+    // Ping Grade subtitle
+    if (gamingPingGrade) {
+      if (latest) {
+        if (latest.lost) {
+          gamingPingGrade.textContent = isAr ? 'فقدان حزمة' : 'Packet Dropped';
+          gamingPingGrade.className = 'kpi-sub mono text-rose';
+        } else if (latest.rtt !== null) {
+          if (latest.rtt < 55) {
+            gamingPingGrade.textContent = isAr ? 'أداء بطولات (< 55ms)' : 'Tournament Grade (< 55ms)';
+            gamingPingGrade.className = 'kpi-sub mono text-emerald';
+          } else if (latest.rtt <= 85) {
+            gamingPingGrade.textContent = isAr ? 'أداء تنافسي (55-85ms)' : 'Competitive Grade (55-85ms)';
+            gamingPingGrade.className = 'kpi-sub mono text-blue';
+          } else if (latest.rtt <= 110) {
+            gamingPingGrade.textContent = isAr ? 'أداء لعب مقبول (86-110ms)' : 'Playable Latency (86-110ms)';
+            gamingPingGrade.className = 'kpi-sub mono text-amber';
+          } else {
+            gamingPingGrade.textContent = isAr ? 'تأخير مرتفع وانقطاع (> 110ms)' : 'High Latency Spike (> 110ms)';
+            gamingPingGrade.className = 'kpi-sub mono text-rose';
+          }
+        }
+      } else {
+        gamingPingGrade.textContent = isAr ? 'بانتظار الفحص' : 'Awaiting Probe';
+        gamingPingGrade.className = 'kpi-sub mono text-muted';
+      }
+    }
+
+    // 2. Real-Time Jitter
+    if (gamingJitterVal) {
+      if (latest && latest.jitter !== null && !latest.lost) {
+        gamingJitterVal.textContent = latest.jitter;
+        if (latest.jitter < 8) gamingJitterVal.className = 'kpi-val mono text-emerald';
+        else if (latest.jitter <= 20) gamingJitterVal.className = 'kpi-val mono text-blue';
+        else if (latest.jitter <= 35) gamingJitterVal.className = 'kpi-val mono text-amber';
+        else gamingJitterVal.className = 'kpi-val mono text-rose';
+      } else {
+        gamingJitterVal.textContent = '--';
+        gamingJitterVal.className = 'kpi-val mono text-muted';
+      }
+    }
+
+    // 3. Packet Loss %
+    if (gamingLossVal) {
+      gamingLossVal.textContent = `${lossPct}%`;
+      if (parseFloat(lossPct) === 0) {
+        gamingLossVal.className = 'kpi-val mono text-emerald';
+      } else if (parseFloat(lossPct) < 5) {
+        gamingLossVal.className = 'kpi-val mono text-amber';
+      } else {
+        gamingLossVal.className = 'kpi-val mono text-rose';
+      }
+    }
+    if (gamingLossSub) {
+      gamingLossSub.textContent = isAr
+        ? `${lostCount} / ${totalProbes} حزم مفقودة`
+        : `${lostCount} / ${totalProbes} probes dropped`;
+    }
+
+    // 4. Min / Max / Avg Ping
+    if (gamingMinmaxVal) {
+      gamingMinmaxVal.textContent = (minRtt !== null && maxRtt !== null)
+        ? `${minRtt} / ${maxRtt}`
+        : '-- / --';
+    }
+    if (gamingAvgSub) {
+      gamingAvgSub.textContent = (avgRtt !== null)
+        ? (isAr ? `المتوسط: ${avgRtt} ms` : `Avg: ${avgRtt} ms`)
+        : (isAr ? 'المتوسط: -- ms' : 'Avg: -- ms');
+    }
+
+    // Header Status Badge
+    if (badgeGamingStatus && gamingStatusText) {
+      if (gamingHudRunning) {
+        if (lostCount > 0 && (lostCount / totalProbes) >= 0.05) {
+          badgeGamingStatus.className = 'status-badge badge-rose';
+          gamingStatusText.textContent = i18n ? i18n.t('hud_status_drops', currentLang) : 'Packet Loss Spikes Detected';
+        } else if (latest && latest.jitter !== null && latest.jitter > 30) {
+          badgeGamingStatus.className = 'status-badge badge-amber';
+          gamingStatusText.textContent = i18n ? i18n.t('hud_status_jittery', currentLang) : 'High Jitter Fluctuation';
+        } else if (avgRtt !== null && avgRtt < 55) {
+          badgeGamingStatus.className = 'status-badge badge-emerald';
+          gamingStatusText.textContent = i18n ? i18n.t('hud_status_tournament', currentLang) : 'Tournament Grade (< 55ms)';
+        } else if (avgRtt !== null && avgRtt <= 85) {
+          badgeGamingStatus.className = 'status-badge badge-blue';
+          gamingStatusText.textContent = i18n ? i18n.t('hud_status_competitive', currentLang) : 'Competitive Grade (55-85ms)';
+        } else if (avgRtt !== null && avgRtt <= 110) {
+          badgeGamingStatus.className = 'status-badge badge-amber';
+          gamingStatusText.textContent = i18n ? i18n.t('hud_status_moderate', currentLang) : 'Playable Latency (86-110ms)';
+        } else {
+          badgeGamingStatus.className = 'status-badge badge-rose';
+          gamingStatusText.textContent = i18n ? i18n.t('hud_status_lag', currentLang) : 'High Latency Spike (> 110ms)';
+        }
+      } else {
+        badgeGamingStatus.className = 'status-badge badge-neutral';
+        gamingStatusText.textContent = i18n ? i18n.t('hud_status_idle', currentLang) : 'Probe Paused';
+      }
+    }
+
+    // Start / Pause Toggle Button
+    if (gamingToggleLabel && gamingToggleIcon) {
+      if (gamingHudRunning) {
+        gamingToggleLabel.textContent = i18n ? i18n.t('hud_btn_pause', currentLang) : 'Pause Probe';
+        gamingToggleIcon.innerHTML = `
+          <rect x="6" y="4" width="4" height="16"></rect>
+          <rect x="14" y="4" width="4" height="16"></rect>
+        `;
+      } else {
+        gamingToggleLabel.textContent = i18n ? i18n.t('hud_btn_start', currentLang) : 'Start Gaming Probe';
+        gamingToggleIcon.innerHTML = `<polygon points="5 3 19 12 5 21 5 3"></polygon>`;
+      }
+    }
+  }
+
+  function drawGamingSparkline() {
+    if (!canvasGamingHud) return;
+    const ctx = canvasGamingHud.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvasGamingHud.getBoundingClientRect();
+    
+    // Dynamic sizing to match display resolution
+    const displayWidth = rect.width || 1000;
+    const displayHeight = rect.height || 140;
+
+    if (canvasGamingHud.width !== Math.round(displayWidth * dpr)) {
+      canvasGamingHud.width = Math.round(displayWidth * dpr);
+      canvasGamingHud.height = Math.round(displayHeight * dpr);
+    }
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    const w = displayWidth;
+    const h = displayHeight;
+
+    // Clear background
+    const isDark = currentTheme !== 'light';
+    ctx.fillStyle = isDark ? '#080d16' : '#f1f5f9';
+    ctx.fillRect(0, 0, w, h);
+
+    // Compute Y Scale
+    const validProbes = gamingProbeHistory.filter(p => !p.lost && p.rtt !== null);
+    const validRtts = validProbes.map(p => p.rtt);
+    const highestRtt = validRtts.length > 0 ? Math.max(...validRtts) : 100;
+    const maxScale = Math.max(130, Math.ceil(highestRtt * 1.25));
+
+    const padTop = 18;
+    const padBottom = 22;
+    const padLeft = 45;
+    const padRight = 20;
+    const plotW = w - padLeft - padRight;
+    const plotH = h - padTop - padBottom;
+
+    const getY = (rtt) => {
+      const clamped = Math.max(0, Math.min(maxScale, rtt));
+      return padTop + plotH - (clamped / maxScale) * plotH;
+    };
+
+    // Draw horizontal grid lines & threshold bands
+    const thresholds = [
+      { rtt: 55, color: 'rgba(16, 185, 129, 0.25)', label: '55ms' },
+      { rtt: 85, color: 'rgba(59, 130, 246, 0.25)', label: '85ms' },
+      { rtt: 110, color: 'rgba(245, 158, 11, 0.25)', label: '110ms' }
+    ];
+
+    ctx.lineWidth = 1;
+    ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillStyle = isDark ? '#6b7280' : '#94a3b8';
+
+    // Baseline (0ms)
+    const y0 = getY(0);
+    ctx.strokeStyle = isDark ? '#1f2937' : '#cbd5e1';
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y0);
+    ctx.lineTo(w - padRight, y0);
+    ctx.stroke();
+    ctx.fillText('0ms', 10, y0 + 3);
+
+    // Threshold lines
+    for (const th of thresholds) {
+      if (th.rtt < maxScale) {
+        const yTh = getY(th.rtt);
+        ctx.strokeStyle = th.color;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, yTh);
+        ctx.lineTo(w - padRight, yTh);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillText(th.label, 10, yTh + 3);
+      }
+    }
+
+    // Top scale label
+    ctx.fillText(`${maxScale}ms`, 10, padTop + 4);
+
+    // If no probes yet, draw empty placeholder guide
+    if (gamingProbeHistory.length === 0) {
+      ctx.fillStyle = isDark ? '#4b5563' : '#94a3b8';
+      ctx.font = '12px ui-monospace, sans-serif';
+      ctx.textAlign = 'center';
+      const targetLabel = (GAME_SERVER_ENDPOINTS[selectedGameServerKey] || GAME_SERVER_ENDPOINTS.cf_ultra_fast).name;
+      ctx.fillText(currentLang === 'ar' ? `انقر على "بدء فحص الألعاب" لقياس الاستجابة لخادم ${targetLabel}` : `Click "Start Gaming Probe" to monitor latency to ${targetLabel}`, w / 2, h / 2);
+      ctx.restore();
+      return;
+    }
+
+    // Step across up to 60 data slots
+    const maxSlots = 60;
+    const stepX = plotW / (maxSlots - 1);
+
+    // Plot segments
+    const points = [];
+    const startIndex = Math.max(0, maxSlots - gamingProbeHistory.length);
+
+    gamingProbeHistory.forEach((p, i) => {
+      const slot = startIndex + i;
+      const x = padLeft + slot * stepX;
+      if (p.lost || p.rtt === null) {
+        points.push({ x, y: null, lost: true, probe: p });
+      } else {
+        points.push({ x, y: getY(p.rtt), lost: false, probe: p });
+      }
+    });
+
+    // Draw line segments between consecutive valid points
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const pt1 = points[i];
+      const pt2 = points[i + 1];
+
+      if (!pt1.lost && !pt2.lost) {
+        const avgPing = (pt1.probe.rtt + pt2.probe.rtt) / 2;
+        let strokeColor = '#10b981'; // emerald (< 55)
+        if (avgPing > 110) strokeColor = '#f43f5e'; // rose (> 110)
+        else if (avgPing > 85) strokeColor = '#f59e0b'; // amber (86-110)
+        else if (avgPing >= 55) strokeColor = '#3b82f6'; // blue (55-85)
+
+        ctx.strokeStyle = strokeColor;
+        ctx.beginPath();
+        ctx.moveTo(pt1.x, pt1.y);
+        ctx.lineTo(pt2.x, pt2.y);
+        ctx.stroke();
+      }
+    }
+
+    // Draw Drop markers & Point dots
+    points.forEach((pt, i) => {
+      if (pt.lost) {
+        // Vertical Rose Drop bar for lost probe
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pt.x, padTop);
+        ctx.lineTo(pt.x, padTop + plotH);
+        ctx.stroke();
+
+        // Top 'X' indicator
+        ctx.fillStyle = '#f43f5e';
+        ctx.font = 'bold 11px ui-monospace, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('X', pt.x, padTop - 4);
+      } else {
+        const rtt = pt.probe.rtt;
+        let dotColor = '#10b981';
+        if (rtt > 110) dotColor = '#f43f5e';
+        else if (rtt > 85) dotColor = '#f59e0b';
+        else if (rtt >= 55) dotColor = '#3b82f6';
+
+        const isLatest = (i === points.length - 1);
+        ctx.fillStyle = dotColor;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, isLatest ? 4.5 : 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (isLatest) {
+          // Subtle outer ring for active lead probe
+          ctx.strokeStyle = dotColor;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 7.5, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    });
+
+    // Time window footer (e.g. "60s ago" ... "Now")
+    ctx.fillStyle = isDark ? '#4b5563' : '#94a3b8';
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(currentLang === 'ar' ? '-60 ثانية' : '-60s', padLeft, h - 6);
+    ctx.textAlign = 'right';
+    ctx.fillText(currentLang === 'ar' ? 'الآن' : 'Now', w - padRight, h - 6);
+
+    ctx.restore();
+  }
+
+  function startGamingHud() {
+    if (gamingHudRunning) return;
+    gamingHudRunning = true;
+    updateGamingHudUi();
+    runSingleGamingProbe();
+    gamingHudInterval = setInterval(runSingleGamingProbe, 1000);
+  }
+
+  function pauseGamingHud() {
+    if (!gamingHudRunning) return;
+    gamingHudRunning = false;
+    if (gamingHudInterval) {
+      clearInterval(gamingHudInterval);
+      gamingHudInterval = null;
+    }
+    updateGamingHudUi();
+  }
+
+  function toggleGamingHud() {
+    if (gamingHudRunning) {
+      pauseGamingHud();
+    } else {
+      startGamingHud();
+    }
+  }
+
+  if (btnToggleGamingHud) {
+    btnToggleGamingHud.addEventListener('click', toggleGamingHud);
+  }
+
+  // Handle window resizing for responsive canvas
+  window.addEventListener('resize', () => {
+    drawGamingSparkline();
+  });
+
+  // Expose Gaming HUD controller on window for testing & programmatic control
+  window.NetPulseGamingHud = {
+    start: startGamingHud,
+    pause: pauseGamingHud,
+    toggle: toggleGamingHud,
+    runProbe: runSingleGamingProbe,
+    resetStats: resetGamingStats,
+    getHistory: () => gamingProbeHistory,
+    setHistory: (arr) => { gamingProbeHistory = arr; updateGamingHudUi(); drawGamingSparkline(); },
+    getEndpoints: () => GAME_SERVER_ENDPOINTS,
+    getTarget: () => selectedGameServerKey,
+    setTarget: (key) => {
+      if (GAME_SERVER_ENDPOINTS[key]) {
+        selectedGameServerKey = key;
+        if (selectGameServer) selectGameServer.value = key;
+        chrome.storage.local.set({ netpulse_game_probe_target: key });
+        resetGamingStats();
+        if (gamingHudRunning) {
+          runSingleGamingProbe();
+        }
+      }
+    },
+    isRunning: () => gamingHudRunning,
+    draw: drawGamingSparkline,
+    updateUi: updateGamingHudUi
+  };
+
+  // Draw initial empty canvas state
+  drawGamingSparkline();
 
   // Runtime listener to respond to Deep Analysis Studio sync requests
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
