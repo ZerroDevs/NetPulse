@@ -222,12 +222,45 @@
       opt_threshold_sinr: 'Critical SINR Threshold (Signal Purity)',
       opt_threshold_rsrq: 'Critical RSRQ Threshold (Tower Load)',
       opt_desktop_notifications: 'Show Desktop Notifications on Threshold Breach',
+      opt_handover_notifications: 'Tower Handover Notifications',
+      opt_handover_notifications_hint: 'Display instant desktop push notification when your cellular router switches serving cell tower (PCI / Cell ID).',
       sec_backup_title: 'Settings Management',
       btn_save_settings: 'Save Configuration',
       btn_reset_defaults: 'Reset to Factory Defaults',
       btn_export_settings: 'Export Settings (JSON)',
       toast_settings_saved: 'Configuration successfully saved and applied.',
       toast_settings_reset: 'Settings reset to default factory values.',
+
+      // Spectral Efficiency & Theoretical Capacity
+      spectral_efficiency_title: 'Link Spectral Efficiency & Sector Capacity',
+      spectral_efficiency_desc: 'Computes theoretical throughput bounds against active channel bandwidth and 256-QAM 4x4 MIMO modulation.',
+      theoretical_peak_dl: 'THEORETICAL PEAK DL',
+      link_efficiency_pct: 'LINK EFFICIENCY',
+      active_dl_capacity: 'ACTIVE DL CAPACITY',
+      spectral_modulation: 'SPECTRAL EFFICIENCY',
+      efficiency_saturated: 'Near Physical Saturation',
+      efficiency_optimal: 'Optimal Multi-User Balance',
+      efficiency_moderate: 'Moderate Sector Load',
+      efficiency_severe: 'Severe Tower Congestion / Bottleneck',
+      efficiency_unknown: 'Awaiting Speedtest',
+      ca_component_matrix: 'Carrier Aggregation (CA) Matrix',
+      ca_carriers_capacity: '{count}CA Carriers - {bw} MHz DL Capacity',
+
+      // Tower Handover Notifications
+      handover_alert_title: 'NetPulse: Cell Handover Detected',
+      handover_alert_msg: 'Switched from PCI {fromPci} (Cell {fromCell}) to PCI {toPci} (Cell {toCell}).',
+
+      // Privacy & Public Sharing Mode
+      privacy_mode_toggle: 'Toggle Privacy & Sharing Mode (Redact Sensitive Tower/IP Data)',
+      privacy_mode_on: 'Privacy: ON',
+      privacy_mode_off: 'Privacy: OFF',
+      toast_privacy_enabled: 'Privacy Sharing Mode Enabled: Sensitive IP addresses, Cell IDs, and PCIs are now visually redacted.',
+      toast_privacy_disabled: 'Privacy Sharing Mode Disabled: Full network identifiers are now visible.',
+
+      // Export PNG Card
+      export_png_card: 'Export PNG Card',
+      toast_png_exporting: 'Generating standalone high-resolution diagnostic card PNG...',
+      toast_png_exported: 'Diagnostic PNG report card downloaded successfully.',
 
       // Deep RF Analysis Studio
       analysis_title: 'Deep RF Correlation & Carrier Aggregation Studio',
@@ -528,12 +561,45 @@
       opt_threshold_sinr: 'حد SINR الحرج (نقاء الإشارة)',
       opt_threshold_rsrq: 'حد RSRQ الحرج (حمل البرج)',
       opt_desktop_notifications: 'إظهار إشعارات سطح المكتب عند انخفاض الإشارة',
+      opt_handover_notifications: 'إشعارات تبديل أبراج الاتصال',
+      opt_handover_notifications_hint: 'عرض إشعار فوري على سطح المكتب عند قيام الراوتر بالتبديل إلى برج خلوي مختلف (PCI / Cell ID).',
       sec_backup_title: 'إدارة الإعدادات',
       btn_save_settings: 'حفظ الإعدادات',
       btn_reset_defaults: 'استعادة الإعدادات الافتراضية',
       btn_export_settings: 'تصدير الإعدادات (JSON)',
       toast_settings_saved: 'تم حفظ الإعدادات وتطبيقها بنجاح.',
       toast_settings_reset: 'تمت استعادة الإعدادات الافتراضية للمصنع.',
+
+      // Spectral Efficiency & Theoretical Capacity
+      spectral_efficiency_title: 'كفاءة الطيف الترددي والسعة النظرية للبرج',
+      spectral_efficiency_desc: 'يحسب الحد النظري الأقصى للسرعة مقابل الترددات المدمجة وتعديل 256-QAM MIMO 4x4.',
+      theoretical_peak_dl: 'السرعة النظرية القصوى',
+      link_efficiency_pct: 'كفاءة التردد المستغلة',
+      active_dl_capacity: 'السعة الترددية المدمجة',
+      spectral_modulation: 'معدل استغلال الطيف',
+      efficiency_saturated: 'تشبع فيزيائي شبه كامل',
+      efficiency_optimal: 'توازن مثالي مع المستخدمين',
+      efficiency_moderate: 'حمولة متوسطة على البرج',
+      efficiency_severe: 'اختناق شديد في سعة البرج',
+      efficiency_unknown: 'بانتظار اختبار السرعة',
+      ca_component_matrix: 'مصفوفة دمج الترددات (CA)',
+      ca_carriers_capacity: 'دمج {count}CA ترددات - سعة {bw} ميجاهرتز',
+
+      // Tower Handover Notifications
+      handover_alert_title: 'NetPulse: تم رصد تحويل في البرج',
+      handover_alert_msg: 'تم التبديل من البرج PCI {fromPci} (خلية {fromCell}) إلى PCI {toPci} (خلية {toCell}).',
+
+      // Privacy & Public Sharing Mode
+      privacy_mode_toggle: 'تبديل وضع الخصوصية والمشاركة (إخفاء معرّفات الأبراج وعناوين IP)',
+      privacy_mode_on: 'الخصوصية: مفعلة',
+      privacy_mode_off: 'الخصوصية: معطلة',
+      toast_privacy_enabled: 'تم تفعيل وضع الخصوصية: تم حجب عناوين IP ومعرّفات الأبراج وPCI تلقائياً.',
+      toast_privacy_disabled: 'تم تعطيل وضع الخصوصية: تم إظهار جميع معرّفات الشبكة.',
+
+      // Export PNG Card
+      export_png_card: 'تصدير بطاقة PNG',
+      toast_png_exporting: 'جاري إنشاء بطاقة تشخيصية عالية الدقة بتنسيق PNG...',
+      toast_png_exported: 'تم تنزيل بطاقة تقرير التشخيص بصيغة PNG بنجاح.',
 
       // Deep RF Analysis Studio
       analysis_title: 'استوديو التحليل العميق للتردد اللاسلكي ودمج الترددات',

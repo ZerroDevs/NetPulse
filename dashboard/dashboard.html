@@ -84,6 +84,15 @@
           <span data-i18n="portals_modal_btn">Portals &amp; Links</span>
         </button>
 
+        <!-- Privacy & Sharing Mode Toggle -->
+        <button id="btn-privacy-toggle" class="btn-toggle-switch" type="button" title="Toggle Privacy &amp; Sharing Mode (Redact Sensitive Tower/IP Data)" data-i18n-title="privacy_mode_toggle">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+          </svg>
+          <span id="privacy-toggle-text">Privacy: OFF</span>
+        </button>
+
         <!-- Language Switcher (EN / AR) -->
         <button id="btn-lang-toggle" class="btn-toggle-switch" type="button" title="Switch Language / تبديل اللغة">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -350,6 +359,62 @@
         </div>
       </section>
 
+      <!-- Section: Link Spectral Efficiency & Sector Capacity (Feature 2) -->
+      <section class="dashboard-section">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+              </svg>
+              <div>
+                <h3 class="panel-heading" data-i18n="spectral_efficiency_title">Link Spectral Efficiency &amp; Sector Capacity</h3>
+                <span class="panel-sub" data-i18n="spectral_efficiency_desc" style="font-size: 11px; color: var(--text-muted);">Computes theoretical throughput bounds against active channel bandwidth and 256-QAM 4x4 MIMO modulation.</span>
+              </div>
+            </div>
+            <div id="badge-efficiency-status" class="status-badge badge-muted">
+              <span id="badge-efficiency-text" data-i18n="efficiency_unknown">Awaiting Speedtest</span>
+            </div>
+          </div>
+
+          <div class="eff-grid">
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="theoretical_peak_dl">THEORETICAL PEAK DL</span>
+              <span id="dash-theo-peak-dl" class="kpi-val mono" style="font-size: 18px; font-weight: 800; color: #6366f1;">--</span>
+              <span class="kpi-sub mono" data-i18n="ca_dl_bw" style="font-size: 11px; color: var(--text-muted);">Downlink Capacity</span>
+            </div>
+
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="link_efficiency_pct">LINK EFFICIENCY</span>
+              <span id="dash-link-eff-pct" class="kpi-val mono" style="font-size: 18px; font-weight: 800;">--</span>
+              <span id="dash-link-eff-sub" class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">Awaiting speedtest</span>
+            </div>
+
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="active_dl_capacity">ACTIVE DL CAPACITY</span>
+              <span id="dash-eff-bw" class="kpi-val mono" style="font-size: 18px; font-weight: 800; color: #10b981;">--</span>
+              <span class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">Aggregated Bandwidth</span>
+            </div>
+
+            <div class="eff-stat-card">
+              <span class="label-tiny" data-i18n="spectral_modulation">SPECTRAL EFFICIENCY</span>
+              <span id="dash-eff-bps" class="kpi-val mono" style="font-size: 18px; font-weight: 800; color: #3b82f6;">--</span>
+              <span class="kpi-sub mono" style="font-size: 11px; color: var(--text-muted);">Estimated Modulation</span>
+            </div>
+          </div>
+
+          <div class="eff-meter-box">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="label-tiny" data-i18n="link_efficiency_pct">LINK SPECTRAL EFFICIENCY (SPEEDTEST VS SECTOR THEORETICAL MAX)</span>
+              <span id="dash-eff-meter-label" class="mono" style="font-size: 12px; font-weight: 700; color: var(--text-primary);">--%</span>
+            </div>
+            <div class="eff-meter-track">
+              <div id="dash-eff-meter-fill" class="eff-meter-fill"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Section: Speedtest & Network History Log Table -->
       <section class="dashboard-section">
         <div class="section-header">
@@ -368,6 +433,14 @@
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
               </svg>
               <span id="btn-scan-speedtest-label" data-i18n="capture_speedtest_tab">Capture Speedtest Tab</span>
+            </button>
+            <button id="btn-export-png-card" class="btn btn-secondary" type="button" title="Export Diagnostic Card as PNG">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+              <span data-i18n="export_png_card">Export PNG Card</span>
             </button>
             <button id="btn-export-csv" class="btn btn-secondary" type="button">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">

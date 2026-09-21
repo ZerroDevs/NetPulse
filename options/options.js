@@ -22,7 +22,8 @@
     alertThresholdRsrp: -105,
     alertThresholdSinr: 3,
     alertThresholdRsrq: -15,
-    desktopNotifications: true
+    desktopNotifications: true,
+    handoverNotificationsEnabled: true
   };
 
   let currentSettings = Object.assign({}, DEFAULT_SETTINGS);
@@ -45,6 +46,7 @@
   const sliderRsrq = document.getElementById('cfg-rsrq-threshold');
   const badgeRsrq = document.getElementById('rsrq-threshold-val');
   const checkDesktopNotifs = document.getElementById('cfg-desktop-notifs');
+  const checkHandoverNotifs = document.getElementById('cfg-handover-notifs');
 
   const btnTogglePass = document.getElementById('btn-toggle-cfg-pass');
   const btnTestGateway = document.getElementById('btn-test-gateway');
@@ -126,6 +128,7 @@
     }
 
     if (checkDesktopNotifs) checkDesktopNotifs.checked = cfg.desktopNotifications !== false;
+    if (checkHandoverNotifs) checkHandoverNotifs.checked = cfg.handoverNotificationsEnabled !== false;
   }
 
   /**
@@ -146,7 +149,8 @@
       alertThresholdRsrp: parseInt(sliderRsrp.value, 10),
       alertThresholdSinr: parseInt(sliderSinr.value, 10),
       alertThresholdRsrq: parseInt(sliderRsrq.value, 10),
-      desktopNotifications: checkDesktopNotifs.checked
+      desktopNotifications: checkDesktopNotifs.checked,
+      handoverNotificationsEnabled: checkHandoverNotifs ? checkHandoverNotifs.checked : true
     };
   }
 

@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Preferences & Local State
   let currentLang = 'en';
   let currentTheme = 'dark';
+  let privacyMode = false;
   let currentRouterData = null;
   let allHistory = [];
   let filteredHistory = [];
@@ -23,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnThemeToggle = document.getElementById('btn-theme-toggle');
   const themeLabelText = document.getElementById('theme-label-text');
   const themeIconContainer = document.getElementById('theme-icon-container');
+  const btnPrivacyToggle = document.getElementById('btn-privacy-toggle');
+  const privacyToggleText = document.getElementById('privacy-toggle-text');
 
   // DOM Elements - Connection & Health
   const routerConnectionPill = document.getElementById('router-connection-pill');
@@ -46,6 +49,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const valRssi = document.getElementById('val-rssi');
   const badgeRssi = document.getElementById('badge-rssi');
   const barRssi = document.getElementById('bar-rssi');
+
+  // DOM Elements - Spectral Efficiency (Feature 2)
+  const badgeEfficiencyStatus = document.getElementById('badge-efficiency-status');
+  const badgeEfficiencyText = document.getElementById('badge-efficiency-text');
+  const dashTheoPeakDl = document.getElementById('dash-theo-peak-dl');
+  const dashLinkEffPct = document.getElementById('dash-link-eff-pct');
+  const dashLinkEffSub = document.getElementById('dash-link-eff-sub');
+  const dashEffBw = document.getElementById('dash-eff-bw');
+  const dashEffBps = document.getElementById('dash-eff-bps');
+  const dashEffMeterLabel = document.getElementById('dash-eff-meter-label');
+  const dashEffMeterFill = document.getElementById('dash-eff-meter-fill');
 
   // DOM Elements - Carrier Aggregation
   const caServingBand = document.getElementById('ca-serving-band');
@@ -73,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnScanSpeedtest = document.getElementById('btn-scan-speedtest');
   const btnScanSpeedtestLabel = document.getElementById('btn-scan-speedtest-label');
   const btnRefresh = document.getElementById('btn-refresh-telemetry');
+  const btnExportPngCard = document.getElementById('btn-export-png-card');
   const btnExportCsv = document.getElementById('btn-export-csv');
   const btnExportJson = document.getElementById('btn-export-json');
   const btnOpenClearModal = document.getElementById('btn-open-clear-modal');
@@ -120,6 +135,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const toastBanner = document.getElementById('toast-banner');
   const toastMessage = document.getElementById('toast-message');
   let toastTimer = null;
+
+  /**
+   * Update Privacy Toggle Button UI
+   */
+  function updatePrivacyUi() {
+    if (btnPrivacyToggle && privacyToggleText) {
+      if (privacyMode) {
+        btnPrivacyToggle.classList.add('privacy-active');
+        privacyToggleText.textContent = i18n ? i18n.t('privacy_mode_on', currentLang) : 'Privacy: ON';
+      } else {
+        btnPrivacyToggle.classList.remove('privacy-active');
+        privacyToggleText.textContent = i18n ? i18n.t('privacy_mode_off', currentLang) : 'Privacy: OFF';
+      }
+    }
+  }
+
+  if (btnPrivacyToggle) {
+    btnPrivacyToggle.addEventListener('click', async () => {
+      privacyMode = !privacyMode;
+      await chrome.storage.local.set({ netpulse_privacy_mode: privacyMode });
+      updatePrivacyUi();
+      renderLiveTelemetry(currentRouterData);
+      renderTable();
+      showToast(privacyMode
+        ? (i18n ? i18n.t('toast_privacy_enabled', currentLang) : 'Privacy Mode Enabled.')
+        : (i18n ? i18n.t('toast_privacy_disabled', currentLang) : 'Privacy Mode Disabled.'));
+    });
+  }
 
   /* ==========================================================================
      THEME ENGINE (Dark / Light with Zero Gradients)
@@ -380,6 +423,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  /**
+   * Render Link Spectral Efficiency & Theoretical Capacity (Feature 2)
+   */
+  function renderSpectralEfficiency() {
+    const latestSpeedtest = allHistory.length > 0 && allHistory[0].speedtest
+      ? allHistory[0].speedtest
+      : null;
+
+    const eff = evaluator
+      ? evaluator.computeSpectralEfficiency(currentRouterData ? currentRouterData.metrics : null, latestSpeedtest)
+      : {
+          totalDlBw: 20,
+          bpsPerHz: 7.8,
+          theoreticalPeakMbps: 156,
+          latestDlMbps: null,
+          efficiencyPercent: null,
+          tierKey: 'efficiency_unknown',
+          tierGrade: 'Awaiting Speedtest',
+          tierColor: '#9ca3af'
+        };
+
+    if (badgeEfficiencyStatus && badgeEfficiencyText) {
+      if (eff.efficiencyPercent !== null) {
+        if (eff.efficiencyPercent >= 70) {
+          badgeEfficiencyStatus.className = 'status-badge badge-emerald';
+        } else if (eff.efficiencyPercent >= 40) {
+          badgeEfficiencyStatus.className = 'status-badge badge-blue';
+        } else if (eff.efficiencyPercent >= 20) {
+          badgeEfficiencyStatus.className = 'status-badge badge-amber';
+        } else {
+          badgeEfficiencyStatus.className = 'status-badge badge-rose';
+        }
+        badgeEfficiencyText.textContent = i18n ? i18n.t(eff.tierKey, currentLang) : eff.tierGrade;
+      } else if (currentRouterData && currentRouterData.metrics) {
+        badgeEfficiencyStatus.className = 'status-badge badge-indigo';
+        badgeEfficiencyText.textContent = currentLang === 'ar' ? 'حساب فيزيائي جاهز' : 'Modulation Ready';
+      } else {
+        badgeEfficiencyStatus.className = 'status-badge badge-muted';
+        badgeEfficiencyText.textContent = currentLang === 'ar' ? 'بانتظار الإشارة' : 'Awaiting Telemetry';
+      }
+    }
+
+    if (dashTheoPeakDl) dashTheoPeakDl.textContent = `${eff.theoreticalPeakMbps} Mbps`;
+    if (dashLinkEffPct) {
+      dashLinkEffPct.textContent = eff.efficiencyPercent !== null ? `${eff.efficiencyPercent}%` : '--';
+      dashLinkEffPct.style.color = eff.efficiencyPercent !== null ? eff.tierColor : '#9ca3af';
+    }
+    if (dashLinkEffSub) {
+      if (eff.efficiencyPercent !== null && eff.latestDlMbps !== null) {
+        dashLinkEffSub.textContent = currentLang === 'ar'
+          ? `${eff.latestDlMbps.toFixed(1)} من ${eff.theoreticalPeakMbps} ميجابت في الثانية`
+          : `${eff.latestDlMbps.toFixed(1)} of ${eff.theoreticalPeakMbps} Mbps Peak`;
+      } else {
+        dashLinkEffSub.textContent = currentLang === 'ar' ? 'بانتظار نتيجة اختبار السرعة' : 'Awaiting speedtest benchmark';
+      }
+    }
+    if (dashEffBw) dashEffBw.textContent = `${eff.totalDlBw} MHz`;
+    if (dashEffBps) {
+      const qamLabel = eff.bpsPerHz >= 7.5 ? '256-QAM' : (eff.bpsPerHz >= 5.5 ? '64-QAM' : '16-QAM');
+      dashEffBps.textContent = `${eff.bpsPerHz} bps/Hz (${qamLabel})`;
+    }
+    if (dashEffMeterLabel) dashEffMeterLabel.textContent = eff.efficiencyPercent !== null ? `${eff.efficiencyPercent}%` : '--%';
+    if (dashEffMeterFill) {
+      dashEffMeterFill.style.width = `${eff.efficiencyPercent !== null ? eff.efficiencyPercent : 0}%`;
+      dashEffMeterFill.style.background = eff.tierColor;
+    }
+  }
+
   function renderLiveTelemetry(data) {
     currentRouterData = data;
 
@@ -404,6 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
       caComponentCount.textContent = '--';
       caTagsList.innerHTML = `<span class="tag-empty mono">${i18n ? i18n.t('ca_no_secondary', currentLang) : 'No secondary carriers currently aggregated'}</span>`;
       diagnosticText.textContent = i18n ? i18n.t('diagnostic_awaiting', currentLang) : 'Awaiting cellular telemetry snapshot from router interface (e.g. 192.168.*). Click "Scan Router Tab" or "Open Router GUI" to capture live metrics.';
+      renderSpectralEfficiency();
       return;
     }
 
@@ -451,33 +563,39 @@ document.addEventListener('DOMContentLoaded', () => {
     updateGauge('rsrq', m.rsrq, valRsrq, badgeRsrq, barRsrq, -20, -3);
     updateGauge('rssi', m.rssi, valRssi, badgeRssi, barRssi, -100, -50);
 
-    // Carrier Aggregation Details
-    caServingBand.textContent = m.band || 'N/A';
-    caDlBw.textContent = m.dlBandwidth || '20 MHz';
+    // Feature 1: Dynamic Carrier Aggregation Breakdown
+    const caInfo = evaluator ? evaluator.parseCarrierAggregation(m) : { carriersCount: 1, totalDlBw: 20, carriers: [] };
+    caServingBand.textContent = m.band || (caInfo.carriers[0] ? caInfo.carriers[0].band : 'N/A');
+    caDlBw.textContent = `${caInfo.totalDlBw} MHz`;
     caUlBw.textContent = m.ulBandwidth || '20 MHz';
-    caPci.textContent = m.pci !== null && m.pci !== undefined ? m.pci : 'N/A';
-    caCellId.textContent = m.cellId || 'N/A';
+    
+    const pciDisplay = (privacyMode && evaluator) ? evaluator.redactSensitiveData(m.pci, 'pci') : (m.pci !== null && m.pci !== undefined ? m.pci : 'N/A');
+    const cellIdDisplay = (privacyMode && evaluator) ? evaluator.redactSensitiveData(m.cellId, 'cell_id') : (m.cellId || 'N/A');
+    caPci.textContent = pciDisplay;
+    caCellId.textContent = cellIdDisplay;
 
     caModeBadge.textContent = m.networkType || (m.band && m.band.startsWith('n') ? '5G SA / NSA' : 'LTE-A Pro');
 
-    const caList = m.caBands || [];
-    if (caList.length > 0) {
-      caComponentCount.textContent = i18n ? i18n.t('ca_multi_carrier', currentLang, { count: caList.length }) : `${caList.length}x Carrier Aggregation`;
-      caTagsList.innerHTML = caList.map((b, idx) => {
-        const isPrimary = idx === 0 || b === m.band;
-        const prefix = isPrimary ? (currentLang === 'ar' ? 'الأساسي: ' : 'Primary: ') : `SCC${idx}: `;
-        return `<span class="ca-tag ${isPrimary ? 'primary' : ''} mono">${prefix}${b}</span>`;
+    if (caInfo.carriers.length > 1) {
+      caComponentCount.textContent = i18n ? i18n.t('ca_multi_carrier', currentLang, { count: caInfo.carriers.length }) : `${caInfo.carriers.length}x Carrier Aggregation`;
+      caTagsList.innerHTML = caInfo.carriers.map((c, idx) => {
+        const isPrimary = c.type === 'PCC';
+        const prefix = isPrimary ? (currentLang === 'ar' ? 'الأساسي: ' : 'Primary: ') : `${c.type}: `;
+        return `<span class="ca-tag ${isPrimary ? 'primary' : ''} mono">${prefix}${c.band} (+${c.bw} MHz)</span>`;
       }).join('');
     } else {
       caComponentCount.textContent = i18n ? i18n.t('ca_single_carrier', currentLang) : '1x Component Carrier';
       const prefix = currentLang === 'ar' ? 'الأساسي: ' : 'Primary: ';
-      caTagsList.innerHTML = `<span class="ca-tag primary mono">${prefix}${m.band || 'Unknown'}</span>`;
+      caTagsList.innerHTML = `<span class="ca-tag primary mono">${prefix}${m.band || 'Unknown'} (+${caInfo.totalDlBw} MHz)</span>`;
     }
 
     // Diagnostic Advice Engine
     if (evaluator) {
       diagnosticText.textContent = evaluator.generateDiagnosticAdvice(m);
     }
+
+    // Render Spectral Efficiency
+    renderSpectralEfficiency();
   }
 
   /* ==========================================================================
@@ -645,6 +763,12 @@ document.addEventListener('DOMContentLoaded', () => {
       tdCheck.appendChild(checkbox);
       tr.appendChild(tdCheck);
 
+      // Jitter display: Speedtest.net does not output jitter; only display for Fast.com/others when > 0
+      const isSpeedtestDotNet = /speedtest/i.test(item.source || '') && !/fast/i.test(item.source || '');
+      const rawJitter = st.jitterMs !== undefined ? st.jitterMs : (st.jitter !== undefined ? st.jitter : null);
+      const numJitter = (rawJitter !== null && rawJitter !== undefined && !isNaN(rawJitter)) ? Number(rawJitter) : null;
+      const jitterDisplay = (!isSpeedtestDotNet && numJitter !== null && numJitter > 0) ? String(numJitter) : '--';
+
       // Data cells
       const cells = [
         { content: formatTimestamp(item.timestamp), cls: 'mono', style: 'color: var(--text-muted); font-size: 11px;' },
@@ -652,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { content: st.downloadMbps !== undefined ? st.downloadMbps.toFixed(1) : '--', cls: 'text-right mono speed-val-bold text-emerald' },
         { content: st.uploadMbps !== undefined ? st.uploadMbps.toFixed(1) : '--', cls: 'text-right mono speed-val-bold text-blue' },
         { content: String(pingDisplay), cls: 'text-right mono' },
-        { content: st.jitterMs !== undefined ? String(st.jitterMs) : '--', cls: 'text-right mono', style: 'color: var(--text-muted);' },
+        { content: jitterDisplay, cls: 'text-right mono', style: 'color: var(--text-muted);' },
         { content: `${rsrpVal}${rsrpVal !== '--' ? ' dBm' : ''}`, cls: 'text-right mono', style: `font-weight: 700; color: ${rsrpColor};` },
         { content: `${sinrVal}${sinrVal !== '--' ? ' dB' : ''}`, cls: 'text-right mono', style: `font-weight: 700; color: ${sinrColor};` },
         { content: r.band || (currentLang === 'ar' ? 'خلوي' : 'Cellular'), cls: 'mono', style: 'font-weight: 600; color: var(--text-primary);' },
@@ -869,7 +993,8 @@ document.addEventListener('DOMContentLoaded', () => {
       'netpulse_history',
       'netpulse_theme',
       'netpulse_lang',
-      'netpulse_router_creds'
+      'netpulse_router_creds',
+      'netpulse_privacy_mode'
     ], (res) => {
       // Preferences
       if (res.netpulse_theme) {
@@ -878,6 +1003,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.netpulse_lang) {
         applyLanguage(res.netpulse_lang);
       }
+      privacyMode = !!res.netpulse_privacy_mode;
+      updatePrivacyUi();
 
       // Router Credentials
       if (res.netpulse_router_creds) {
@@ -906,6 +1033,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (changes.netpulse_lang) {
       applyLanguage(changes.netpulse_lang.newValue);
     }
+    if (changes.netpulse_privacy_mode !== undefined) {
+      privacyMode = !!changes.netpulse_privacy_mode.newValue;
+      updatePrivacyUi();
+      renderLiveTelemetry(currentRouterData);
+      renderTable();
+    }
     if (changes.netpulse_router_latest) {
       renderLiveTelemetry(changes.netpulse_router_latest.newValue);
     }
@@ -923,6 +1056,29 @@ document.addEventListener('DOMContentLoaded', () => {
   btnRefresh.addEventListener('click', () => {
     loadStorageData();
   });
+
+  // Feature 5: Export PNG Card Click Handler
+  if (btnExportPngCard) {
+    btnExportPngCard.addEventListener('click', () => {
+      const latestSpeedtest = allHistory.length > 0 && allHistory[0].speedtest ? allHistory[0].speedtest : null;
+      if (!currentRouterData && !latestSpeedtest) {
+        showToast(currentLang === 'ar' ? 'لا توجد بيانات متاحة لتوليد بطاقة التقرير.' : 'No telemetry available to generate report card.', 'warning');
+        return;
+      }
+      showToast(i18n ? i18n.t('toast_png_exporting', currentLang) : 'Generating diagnostic card PNG...');
+      if (evaluator && evaluator.downloadDiagnosticCardPng) {
+        evaluator.downloadDiagnosticCardPng({
+          router: currentRouterData ? currentRouterData.metrics : null,
+          speedtest: latestSpeedtest,
+          privacyMode,
+          title: 'NetPulse RF Telemetry & Speed Report',
+          timeWindow: new Date().toLocaleString(),
+          lang: currentLang
+        });
+        showToast(i18n ? i18n.t('toast_png_exported', currentLang) : 'Diagnostic PNG report card downloaded successfully.', 'success');
+      }
+    });
+  }
 
   /* ==========================================================================
      MANUAL SCAN OF OPEN ROUTER TABS

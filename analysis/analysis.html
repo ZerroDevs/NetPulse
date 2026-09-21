@@ -95,6 +95,14 @@
           <span data-i18n="btn_export_analysis">Export CSV</span>
         </button>
 
+        <!-- Privacy Mode Toggle -->
+        <button id="btn-privacy-toggle" class="btn-toggle-switch" type="button" title="Toggle Privacy &amp; Sharing Mode (Redact Sensitive Tower/IP Data)" data-i18n-title="privacy_mode_toggle">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span id="privacy-toggle-text">Privacy: OFF</span>
+        </button>
+
         <!-- Language Switcher -->
         <button id="btn-lang-toggle" class="btn-toggle-switch" type="button" title="Switch Language / تبديل اللغة">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -327,6 +335,68 @@
           </div>
         </section>
       </div>
+
+      <!-- Feature 2: Link Spectral Efficiency & Theoretical Capacity Engine -->
+      <section class="analysis-card">
+        <div class="card-header-between">
+          <div>
+            <h2 class="card-title" data-i18n="spectral_efficiency_title">Link Spectral Efficiency &amp; Sector Capacity</h2>
+            <p class="card-desc" data-i18n="spectral_efficiency_desc">Computes theoretical throughput bounds against active channel bandwidth and 256-QAM 4x4 MIMO modulation.</p>
+          </div>
+          <div id="badge-efficiency-status" class="status-badge badge-emerald">
+            <span class="badge-dot"></span>
+            <span id="badge-efficiency-text" data-i18n="efficiency_unknown">Awaiting Speedtest</span>
+          </div>
+        </div>
+
+        <div class="eff-grid">
+          <div class="eff-stat-card">
+            <span class="kpi-label" data-i18n="theoretical_peak_dl">THEORETICAL PEAK DL</span>
+            <div class="kpi-value-row">
+              <span id="kpi-theo-peak-dl" class="kpi-number mono">--</span>
+              <span class="kpi-unit mono">Mbps</span>
+            </div>
+            <span class="kpi-sub mono">Modulation Sector Limit</span>
+          </div>
+
+          <div class="eff-stat-card">
+            <span class="kpi-label" data-i18n="link_efficiency_pct">LINK EFFICIENCY</span>
+            <div class="kpi-value-row">
+              <span id="kpi-link-eff-pct" class="kpi-number mono">--%</span>
+            </div>
+            <span id="kpi-link-eff-sub" class="kpi-sub mono">Measured / Peak</span>
+          </div>
+
+          <div class="eff-stat-card">
+            <span class="kpi-label" data-i18n="active_dl_capacity">ACTIVE DL CAPACITY</span>
+            <div class="kpi-value-row">
+              <span id="kpi-eff-bw" class="kpi-number mono">--</span>
+              <span class="kpi-unit mono">MHz</span>
+            </div>
+            <span id="kpi-eff-bw-sub" class="kpi-sub mono">Aggregated Downlink</span>
+          </div>
+
+          <div class="eff-stat-card">
+            <span class="kpi-label" data-i18n="spectral_modulation">SPECTRAL EFFICIENCY</span>
+            <div class="kpi-value-row">
+              <span id="kpi-eff-bps" class="kpi-number mono">--</span>
+              <span class="kpi-unit mono">bps/Hz</span>
+            </div>
+            <span id="kpi-eff-bps-sub" class="kpi-sub mono">256-QAM 4x4 MIMO</span>
+          </div>
+        </div>
+
+        <!-- Meter bar -->
+        <div class="eff-meter-box">
+          <div class="eff-meter-header">
+            <span class="mono" style="font-size: 11px; color: var(--text-secondary);" data-i18n="link_efficiency_pct">LINK EFFICIENCY</span>
+            <span id="eff-meter-label" class="mono" style="font-size: 12px; font-weight: 700; color: var(--text-primary);">-- / -- Mbps (--%)</span>
+          </div>
+          <div class="eff-meter-track">
+            <div id="eff-meter-fill" class="eff-meter-fill"></div>
+          </div>
+        </div>
+      </section>
 
       <!-- Grid Row 3: RF vs Throughput Scatter Matrix & Diagnostic Quadrants -->
       <section class="analysis-card">

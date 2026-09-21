@@ -11,10 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentLang = 'en';
   let currentTheme = 'dark';
+  let isPrivacyMode = false;
   let latestRouterPayload = null;
   let latestHistoryList = [];
 
-  // DOM Elements - Theme & Language
+  // DOM Elements - Theme & Language & Privacy
+  const btnPopupPrivacy = document.getElementById('btn-popup-privacy');
   const btnPopupTheme = document.getElementById('btn-popup-theme');
   const popupThemeIcon = document.getElementById('popup-theme-icon');
   const btnPopupLang = document.getElementById('btn-popup-lang');
@@ -72,10 +74,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const openDashboardBtn = document.getElementById('open-dashboard-btn');
 
   /* ==========================================================================
-     THEME & LANGUAGE HANDLING
+     THEME, PRIVACY & LANGUAGE HANDLING
      ========================================================================== */
   const SUN_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
   const MOON_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+
+  function applyPrivacyMode(enabled) {
+    isPrivacyMode = !!enabled;
+    if (btnPopupPrivacy) {
+      btnPopupPrivacy.classList.toggle('privacy-active', isPrivacyMode);
+      btnPopupPrivacy.setAttribute('title', isPrivacyMode
+        ? (i18n ? i18n.t('privacy_mode_active', currentLang) : 'Privacy Mode Active')
+        : (i18n ? i18n.t('privacy_mode_off', currentLang) : 'Privacy Mode Inactive'));
+    }
+    renderRouterTelemetry(latestRouterPayload);
+    renderLatestSpeedtest(latestHistoryList);
+  }
+
+  if (btnPopupPrivacy) {
+    btnPopupPrivacy.addEventListener('click', async () => {
+      const nextState = !isPrivacyMode;
+      applyPrivacyMode(nextState);
+      await chrome.storage.local.set({ netpulse_privacy_mode: nextState });
+    });
+  }
 
   function applyTheme(theme) {
     currentTheme = theme === 'light' ? 'light' : 'dark';
@@ -196,7 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (latestData.routerUrl) {
       try {
         const u = new URL(latestData.routerUrl);
-        routerIpText.textContent = u.hostname;
+        const host = u.hostname;
+        routerIpText.textContent = isPrivacyMode && evaluator ? evaluator.redactSensitiveData(host, 'ip') : host;
       } catch (e) {
         routerIpText.textContent = '192.168.*';
       }
@@ -228,14 +251,21 @@ document.addEventListener('DOMContentLoaded', () => {
       updateTierBadge(rssiBadge, evaluator.evaluateMetric('rssi', m.rssi));
     }
 
-    caPrimaryBand.textContent = m.band || 'N/A';
-    caBandwidth.textContent = m.dlBandwidth || '20 MHz';
-    if (m.caBands && m.caBands.length > 1) {
-      caCarriersCount.textContent = i18n
-        ? i18n.t('ca_multi_carrier', currentLang, { count: m.caBands.length })
-        : `${m.caBands.length}x CA (${m.caBands.join('+')})`;
+    if (evaluator && evaluator.parseCarrierAggregation) {
+      const caInfo = evaluator.parseCarrierAggregation(m);
+      caPrimaryBand.textContent = caInfo.pcc ? `${caInfo.pcc.band}` : (m.band || 'N/A');
+      caBandwidth.textContent = `${caInfo.totalBandwidthMhz} MHz`;
+      caCarriersCount.textContent = caInfo.caBadge;
     } else {
-      caCarriersCount.textContent = i18n ? i18n.t('ca_single_carrier', currentLang) : '1x Component Carrier';
+      caPrimaryBand.textContent = m.band || 'N/A';
+      caBandwidth.textContent = m.dlBandwidth || '20 MHz';
+      if (m.caBands && m.caBands.length > 1) {
+        caCarriersCount.textContent = i18n
+          ? i18n.t('ca_multi_carrier', currentLang, { count: m.caBands.length })
+          : `${m.caBands.length}x CA (${m.caBands.join('+')})`;
+      } else {
+        caCarriersCount.textContent = i18n ? i18n.t('ca_single_carrier', currentLang) : '1x Component Carrier';
+      }
     }
   }
 
@@ -563,13 +593,17 @@ document.addEventListener('DOMContentLoaded', () => {
     'netpulse_router_latest',
     'netpulse_history',
     'netpulse_theme',
-    'netpulse_lang'
+    'netpulse_lang',
+    'netpulse_privacy_mode'
   ], (result) => {
     if (result.netpulse_theme) {
       applyTheme(result.netpulse_theme);
     }
     if (result.netpulse_lang) {
       applyLanguage(result.netpulse_lang);
+    }
+    if (result.netpulse_privacy_mode !== undefined) {
+      applyPrivacyMode(result.netpulse_privacy_mode);
     }
 
     renderRouterTelemetry(result.netpulse_router_latest);
@@ -586,6 +620,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (changes.netpulse_lang) {
       applyLanguage(changes.netpulse_lang.newValue);
+    }
+    if (changes.netpulse_privacy_mode !== undefined) {
+      applyPrivacyMode(changes.netpulse_privacy_mode.newValue);
     }
     if (changes.netpulse_router_latest) {
       renderRouterTelemetry(changes.netpulse_router_latest.newValue);

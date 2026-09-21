@@ -14,6 +14,7 @@
   // --- State Variables ---
   let currentLang = 'en';
   let currentTheme = 'dark';
+  let privacyMode = false;
   let rawSpeedtestHistory = [];
   let rawRfTimeline = [];
   let latestRouterPayload = null;
@@ -39,6 +40,8 @@
   const langToggleText = document.getElementById('lang-toggle-text');
   const btnThemeToggle = document.getElementById('btn-theme-toggle');
   const themeLabelText = document.getElementById('theme-label-text');
+  const btnPrivacyToggle = document.getElementById('btn-privacy-toggle');
+  const privacyToggleText = document.getElementById('privacy-toggle-text');
 
   // Screenshot Modal
   const modalScreenshot = document.getElementById('modal-screenshot-overlay');
@@ -64,6 +67,22 @@
   const toastBanner = document.getElementById('toast-banner');
   const toastMessage = document.getElementById('toast-message');
   let toastTimeout = null;
+
+  /**
+   * Update Privacy Toggle Button UI
+   */
+  function updatePrivacyUi() {
+    if (btnPrivacyToggle && privacyToggleText) {
+      const i18n = window.NetPulseI18n;
+      if (privacyMode) {
+        btnPrivacyToggle.classList.add('privacy-active');
+        privacyToggleText.textContent = i18n ? i18n.t('privacy_mode_on', currentLang) : 'Privacy: ON';
+      } else {
+        btnPrivacyToggle.classList.remove('privacy-active');
+        privacyToggleText.textContent = i18n ? i18n.t('privacy_mode_off', currentLang) : 'Privacy: OFF';
+      }
+    }
+  }
 
   /* ==========================================================================
      TOAST NOTIFICATION ENGINE
@@ -135,17 +154,20 @@
         'netpulse_history',
         'netpulse_rf_timeline',
         'netpulse_router_latest',
+        'netpulse_privacy_mode',
         'netpulse_lang',
         'netpulse_theme'
       ]);
 
-      // Apply Language & Theme
+      // Apply Language, Theme & Privacy
       if (data.netpulse_lang) {
         applyLanguage(data.netpulse_lang);
       }
       if (data.netpulse_theme) {
         applyTheme(data.netpulse_theme);
       }
+      privacyMode = !!data.netpulse_privacy_mode;
+      updatePrivacyUi();
 
       rawSpeedtestHistory = Array.isArray(data.netpulse_history) ? data.netpulse_history : [];
       rawRfTimeline = Array.isArray(data.netpulse_rf_timeline) ? data.netpulse_rf_timeline : [];
@@ -463,7 +485,11 @@
 
       if (m.ulBandwidth) ul = String(m.ulBandwidth).replace(/mhz|m/i, '');
       if (m.dlBandwidth) dl = String(m.dlBandwidth).replace(/mhz|m/i, '');
-      if (m.cellId) cellId = String(m.cellId);
+      if (m.cellId) {
+        cellId = (privacyMode && window.NetPulseEvaluator)
+          ? window.NetPulseEvaluator.redactSensitiveData(m.cellId, 'cell_id')
+          : String(m.cellId);
+      }
     }
 
     // 2. Speedtest Runs Within This Hour
@@ -476,25 +502,44 @@
       const lines = bucket.speedtests.map((st) => {
         const d = new Date(st.timestamp || Date.now());
         const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-        const sourceName = st.source || (st.speedtest && st.speedtest.source) || 'Speedtest';
+        let sourceName = st.source || (st.speedtest && st.speedtest.source) || 'Speedtest.net';
+        if (sourceName.toLowerCase() === 'speedtest') {
+          sourceName = 'Speedtest.net';
+        }
 
         // Support both new format (.speedtest.downloadMbps) and legacy (.download)
         const std = st.speedtest || st;
         const dlVal = std.downloadMbps !== undefined ? std.downloadMbps : (std.download !== undefined ? std.download : '--');
         const ulVal = std.uploadMbps !== undefined ? std.uploadMbps : (std.upload !== undefined ? std.upload : '--');
         const pingVal = std.pingMs !== undefined ? std.pingMs : (std.ping !== undefined ? std.ping : '--');
-        const jitterVal = std.jitterMs !== undefined ? std.jitterMs : (std.jitter !== undefined ? std.jitter : '--');
+        
+        // Jitter formatting: Speedtest.net does not output standard jitter; omit unless valid positive number from Fast.com/others
+        const isSpeedtestDotNet = /speedtest/i.test(sourceName) && !/fast/i.test(sourceName);
+        const rawJitter = std.jitterMs !== undefined ? std.jitterMs : (std.jitter !== undefined ? std.jitter : null);
+        const numJitter = (rawJitter !== null && rawJitter !== undefined && !isNaN(rawJitter)) ? Number(rawJitter) : null;
+        const hasValidJitter = !isSpeedtestDotNet && numJitter !== null && numJitter > 0;
+
+        let latencyPartAr = `(استجابة: ${pingVal} ms)`;
+        let latencyPartEn = `(Ping: ${pingVal} ms)`;
+        if (hasValidJitter) {
+          latencyPartAr = `(استجابة: ${pingVal} ms, تذبذب: ${numJitter} ms)`;
+          latencyPartEn = `(Ping: ${pingVal} ms, Jitter: ${numJitter} ms)`;
+        }
 
         // Add paired router RF info if available
         const pr = st.router || st.pairedRouter;
-        const rfNote = pr && pr.rsrp !== null && pr.rsrp !== undefined
-          ? ` [RF: RSRP ${pr.rsrp} dBm, SINR ${pr.sinr !== null ? pr.sinr + ' dB' : '--'}, Band: ${pr.band || '--'}]`
-          : '';
+        let rfNote = '';
+        if (pr && pr.rsrp !== null && pr.rsrp !== undefined) {
+          const pciDisplay = (privacyMode && window.NetPulseEvaluator)
+            ? window.NetPulseEvaluator.redactSensitiveData(pr.pci, 'pci')
+            : (pr.pci || '--');
+          rfNote = ` [RF: RSRP ${pr.rsrp} dBm, SINR ${pr.sinr !== null ? pr.sinr + ' dB' : '--'}, Band: ${pr.band || '--'}, PCI: ${pciDisplay}]`;
+        }
 
         if (isAr) {
-          return `- [${timeStr}] ${sourceName}: تنزيل ${dlVal} Mbps | رفع ${ulVal} Mbps (استجابة: ${pingVal} ms, تذبذب: ${jitterVal} ms)${rfNote}`;
+          return `- [${timeStr}] ${sourceName}: تنزيل ${dlVal} Mbps | رفع ${ulVal} Mbps ${latencyPartAr}${rfNote}`;
         } else {
-          return `- [${timeStr}] ${sourceName}: Download ${dlVal} Mbps | Upload ${ulVal} Mbps (Ping: ${pingVal} ms, Jitter: ${jitterVal} ms)${rfNote}`;
+          return `- [${timeStr}] ${sourceName}: Download ${dlVal} Mbps | Upload ${ulVal} Mbps ${latencyPartEn}${rfNote}`;
         }
       });
       speedtestLines = lines.join('\n');
@@ -503,8 +548,18 @@
     const avgDl = bucket.avgDownload !== undefined ? bucket.avgDownload : '--';
     const avgUl = bucket.avgUpload !== undefined ? bucket.avgUpload : '--';
 
+    // 3. Link Spectral Efficiency Calculation
+    let effArLines = '';
+    let effEnLines = '';
+    if (m && window.NetPulseEvaluator && window.NetPulseEvaluator.computeSpectralEfficiency) {
+      const topSpeed = bucket.speedtests.length > 0 ? (bucket.speedtests[0].speedtest || bucket.speedtests[0]) : null;
+      const eff = window.NetPulseEvaluator.computeSpectralEfficiency(m, topSpeed);
+      effArLines = `\n- السعة الترددية القصوى (Theoretical Peak): ${eff.theoreticalPeakMbps} Mbps (${eff.totalBandwidthMhz} MHz @ ${eff.bpsPerHz} bps/Hz 256-QAM)\n- كفاءة استغلال التردد (Link Efficiency): ${eff.efficiencyPct !== null ? eff.efficiencyPct + '%' : '--'} (${eff.statusText})`;
+      effEnLines = `\n- Theoretical Peak DL Capacity: ${eff.theoreticalPeakMbps} Mbps (${eff.totalBandwidthMhz} MHz @ ${eff.bpsPerHz} bps/Hz 256-QAM)\n- Link Spectral Efficiency: ${eff.efficiencyPct !== null ? eff.efficiencyPct + '%' : '--'} (${eff.statusText})`;
+    }
+
     if (isAr) {
-      return `# تقرير فحص الشبكة - NetPulse
+      return `# تقرير فحص الشبكة - NetPulse ${privacyMode ? '(وضع الخصوصية: معرّفات البرج محجوبة)' : ''}
 **الفترة الزمنية:** ${timeWindow}
 
 ### 1. بيانات إشارة البرج والراوتر:
@@ -514,15 +569,15 @@
 - طاقة الإشارة الكلية (RSSI): ${rssi} dBm
 - الترددات المدمجة (Bands): ${bands}
 - نطاق الرفع / التنزيل: UL ${ul}M / DL ${dl}M
-- معرّف الخلية (Cell ID): ${cellId}
+- معرّف الخلية (Cell ID): ${cellId}${effArLines}
 
 ### 2. نتائج اختبارات السرعة خلال هذه الساعة:
 ${speedtestLines}
 - متوسط السرعة المسجل: تنزيل ${avgDl} Mbps | رفع ${avgUl} Mbps
 
-المطلوب من الذكاء الاصطناعي: قم بتحليل هذه القراءات، وتقييم أداء البرج والشبكة خلال هذه الساعة، وتحديد هل السرعة المسجلة متوافقة مع جودة الإشارة أم يوجد عنق زجاجة أو ازدحام.`;
+المطلوب من الذكاء الاصطناعي: قم بتحليل هذه القراءات، وتقييم أداء البرج والشبكة خلال هذه الساعة، وتحديد هل السرعة المسجلة متوافقة مع جودة الإشارة وكفاءة الطيف الترددي أم يوجد عنق زجاجة أو ازدحام.`;
     } else {
-      return `# Network Diagnostic Report - NetPulse
+      return `# Network Diagnostic Report - NetPulse ${privacyMode ? '(Privacy Redacted Mode)' : ''}
 **Time Window:** ${timeWindow}
 
 ### 1. Cellular Signal & Router Metrics:
@@ -532,13 +587,13 @@ ${speedtestLines}
 - RSSI: ${rssi} dBm
 - Carrier Aggregation: ${bands}
 - Bandwidth: UL ${ul}M / DL ${dl}M
-- Cell ID: ${cellId}
+- Cell ID: ${cellId}${effEnLines}
 
 ### 2. Speedtest Runs Within This Hour:
 ${speedtestLines}
 - Hourly Average: Download ${avgDl} Mbps | Upload ${avgUl} Mbps
 
-AI Prompt: Analyze these network metrics and speedtest results for this hour. Evaluate RF link quality, detect potential tower congestion, and verify if throughput matches signal parameters.`;
+AI Prompt: Analyze these network metrics and speedtest results for this hour. Evaluate RF link quality, spectral efficiency utilization, detect potential tower congestion, and verify if throughput matches channel capacity.`;
     }
   }
 
@@ -637,6 +692,41 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
       });
 
       headerRight.appendChild(btnCopyAi);
+
+      // Feature 5: "Export PNG Card" Button
+      const btnExportPng = document.createElement('button');
+      btnExportPng.type = 'button';
+      btnExportPng.className = 'btn-copy-ai';
+      btnExportPng.setAttribute('title', isAr ? 'تصدير بطاقة التقرير كصورة PNG' : 'Export diagnostic report card as PNG image');
+      btnExportPng.innerHTML = `
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span>${isAr ? 'تصدير بطاقة PNG' : 'Export PNG Card'}</span>
+      `;
+      btnExportPng.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const latestSpeedtest = bucket.speedtests.length > 0 ? bucket.speedtests[bucket.speedtests.length - 1] : null;
+        if (window.NetPulseEvaluator && window.NetPulseEvaluator.downloadDiagnosticCardPng) {
+          window.NetPulseEvaluator.downloadDiagnosticCardPng({
+            router: bucket.routerMetrics,
+            speedtest: latestSpeedtest ? (latestSpeedtest.speedtest || latestSpeedtest) : {
+              downloadMbps: bucket.avgDownload !== '--' ? parseFloat(bucket.avgDownload) : null,
+              uploadMbps: bucket.avgUpload !== '--' ? parseFloat(bucket.avgUpload) : null,
+              pingMs: bucket.avgPing !== '--' ? parseFloat(bucket.avgPing) : null
+            },
+            privacyMode,
+            title: `NetPulse Hourly Report (${bucket.label})`,
+            timeWindow: bucket.label,
+            lang: currentLang
+          });
+          const msg = isAr ? 'تم تحميل بطاقة تقرير التشخيص بنجاح كصورة PNG' : 'Diagnostic report card downloaded as PNG.';
+          showToast(msg);
+        }
+      });
+      headerRight.appendChild(btnExportPng);
 
       // Delete Hour Block Button
       const btnDeleteHour = document.createElement('button');
@@ -805,8 +895,12 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
         const bwStr = (m.dlBandwidth || m.ulBandwidth)
           ? `UL ${m.ulBandwidth || '--'}M / DL ${m.dlBandwidth || '--'}M`
           : '--';
-        const cellStr = m.cellId || '--';
-        const pciStr = m.pci !== null && m.pci !== undefined ? String(m.pci) : '--';
+        const cellStr = (privacyMode && window.NetPulseEvaluator)
+          ? window.NetPulseEvaluator.redactSensitiveData(m.cellId, 'cell_id')
+          : (m.cellId || '--');
+        const pciStr = (privacyMode && window.NetPulseEvaluator)
+          ? window.NetPulseEvaluator.redactSensitiveData(m.pci, 'pci')
+          : (m.pci !== null && m.pci !== undefined ? String(m.pci) : '--');
 
         // Signal Health Grade Badge
         let gradeBadge = '';
@@ -923,13 +1017,19 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
           const dlDisp = dl !== undefined && dl !== null ? dl : '--';
           const ulDisp = ul !== undefined && ul !== null ? ul : '--';
           const pingDisp = ping !== undefined && ping !== null ? ping : '--';
-          const jitterDisp = jitter !== undefined && jitter !== null ? jitter : '--';
 
           // Source: top-level .source, or from .speedtest.source
           const entrySource = st.source || (st.speedtest && st.speedtest.source) || '';
           const isFast = entrySource.toLowerCase().includes('fast');
+          const isSpeedtestDotNet = !isFast && /speedtest/i.test(entrySource);
           const sourceBadgeClass = isFast ? 'badge-source-fast' : 'badge-source-speedtest';
           const sourceLabel = isFast ? 'Fast.com' : 'Speedtest.net';
+
+          const numJitter = (jitter !== undefined && jitter !== null && !isNaN(jitter)) ? Number(jitter) : null;
+          const showJitter = !isSpeedtestDotNet && numJitter !== null && numJitter > 0;
+          const jitterMetricHtml = showJitter
+            ? `<span class="run-metric"><strong class="mono text-muted">${numJitter}</strong> <small>jit</small></span>`
+            : '';
 
           let screenshotBtnHtml = '';
           if (st.screenshotUrl) {
@@ -954,7 +1054,7 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
               <span class="run-metric"><strong class="mono text-cyan">${dlDisp}</strong> <small>DL</small></span>
               <span class="run-metric"><strong class="mono text-purple">${ulDisp}</strong> <small>UL</small></span>
               <span class="run-metric"><strong class="mono text-amber">${pingDisp}</strong> <small>ms</small></span>
-              <span class="run-metric"><strong class="mono text-muted">${jitterDisp}</strong> <small>jit</small></span>
+              ${jitterMetricHtml}
             </div>
             <div class="run-extra">
               ${screenshotBtnHtml}
@@ -1337,10 +1437,23 @@ AI Prompt: Analyze these network metrics and speedtest results for this hour. Ev
     }
   });
 
+  if (btnPrivacyToggle) {
+    btnPrivacyToggle.addEventListener('click', async () => {
+      privacyMode = !privacyMode;
+      await chrome.storage.local.set({ netpulse_privacy_mode: privacyMode });
+      updatePrivacyUi();
+      renderHourlyBlocks();
+      const i18n = window.NetPulseI18n;
+      showToast(privacyMode
+        ? (i18n ? i18n.t('toast_privacy_enabled', currentLang) : 'Privacy Mode Enabled.')
+        : (i18n ? i18n.t('toast_privacy_disabled', currentLang) : 'Privacy Mode Disabled.'));
+    });
+  }
+
   // Storage live synchronization
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
-      if (changes.netpulse_history || changes.netpulse_rf_timeline || changes.netpulse_router_latest) {
+      if (changes.netpulse_history || changes.netpulse_rf_timeline || changes.netpulse_router_latest || changes.netpulse_privacy_mode) {
         loadData();
       }
     }

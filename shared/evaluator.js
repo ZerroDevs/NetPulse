@@ -269,6 +269,481 @@
     return `Achieved ${dl.toFixed(1)} Mbps DL on ${band} with RSRP ${rsrp} dBm and SINR ${sinr !== null ? sinr + ' dB' : 'N/A'}. Balanced cellular performance.`;
   }
 
+  /**
+   * Feature 1: Robust Carrier Aggregation & Dynamic Multi-Band Parsing
+   * Parses comma-separated downlink bandwidths and extracts all component carriers (PCC, SCC1..n)
+   */
+  function parseCarrierAggregation(metrics) {
+    if (!metrics) {
+      return {
+        carriersCount: 1,
+        totalDlBw: 20,
+        carriers: [{ type: 'PCC', band: 'B3', bw: 20, freq: 'LTE Primary', tagClass: 'tag-pcc' }]
+      };
+    }
+
+    // 1. Extract Band list
+    let bands = [];
+    if (Array.isArray(metrics.caBands) && metrics.caBands.length > 0) {
+      metrics.caBands.forEach(b => {
+        const name = typeof b === 'object' ? (b.band || '') : String(b);
+        name.split(/[,\s/+]+/).map(s => s.trim()).filter(Boolean).forEach(x => bands.push(x));
+      });
+    } else if (metrics.band) {
+      String(metrics.band).split(/[,\s/+]+/).map(s => s.trim()).filter(Boolean).forEach(x => bands.push(x));
+    }
+    if (bands.length === 0) bands = ['B3'];
+
+    // 2. Extract and parse individual bandwidths from dlBandwidth
+    let dlBwArray = [];
+    if (metrics.dlBandwidth !== null && metrics.dlBandwidth !== undefined) {
+      const rawBwStr = String(metrics.dlBandwidth);
+      // Matches numbers like "20M, 10M, 10M, 10M MHz" or "20, 10, 10, 10" or "100 MHz"
+      const matchedNumbers = rawBwStr.match(/\d+(?:\.\d+)?/g);
+      if (matchedNumbers && matchedNumbers.length > 0) {
+        dlBwArray = matchedNumbers.map(n => Math.round(parseFloat(n))).filter(n => n > 0);
+      }
+    }
+
+    // If caBands has objects with .bandwidth property, check those too
+    if (Array.isArray(metrics.caBands) && dlBwArray.length <= 1) {
+      const objBws = metrics.caBands.map(b => (typeof b === 'object' && b.bandwidth) ? parseInt(b.bandwidth) : null).filter(Boolean);
+      if (objBws.length > 0) {
+        const primaryBw = dlBwArray[0] || (bands[0] && bands[0].toLowerCase().startsWith('n') ? 100 : 20);
+        dlBwArray = [primaryBw, ...objBws];
+      }
+    }
+
+    // Fallback if no bandwidths were parsed
+    if (dlBwArray.length === 0) {
+      dlBwArray = [bands[0] && bands[0].toLowerCase().startsWith('n') ? 100 : 20];
+    }
+
+    // Ensure bands count matches bandwidths count or adjust
+    const count = Math.max(bands.length, dlBwArray.length);
+    const carriers = [];
+    let totalDlBw = 0;
+
+    for (let i = 0; i < count; i++) {
+      const isPcc = i === 0;
+      const type = isPcc ? 'PCC' : `SCC${i}`;
+      const bandName = bands[i] || (bands[0] ? `${bands[0]}` : 'B3');
+      const bw = dlBwArray[i] || (dlBwArray.length === 1 && !isPcc ? Math.round(dlBwArray[0] / count) : 10);
+      totalDlBw += bw;
+
+      let freqLabel = 'LTE Primary';
+      if (bandName.toLowerCase().startsWith('n')) {
+        freqLabel = isPcc ? '5G NR (Primary)' : '5G Sub-6 (Secondary)';
+      } else {
+        freqLabel = isPcc ? 'LTE Primary' : 'LTE Secondary';
+      }
+
+      const tagClass = isPcc ? 'tag-pcc' : `tag-scc${Math.min(i, 4)}`;
+
+      carriers.push({
+        type,
+        band: bandName,
+        bw,
+        freq: freqLabel,
+        tagClass
+      });
+    }
+
+    return {
+      carriersCount: carriers.length,
+      totalDlBw,
+      carriers
+    };
+  }
+
+  /**
+   * Feature 2: Link Spectral Efficiency & Theoretical Capacity Engine
+   */
+  function computeSpectralEfficiency(metrics, speedtest) {
+    const caInfo = parseCarrierAggregation(metrics);
+    const totalDlBw = caInfo.totalDlBw || 20;
+
+    // Estimate spectral efficiency (bps/Hz) based on SINR & modulation
+    const sinr = (metrics && metrics.sinr !== null && metrics.sinr !== undefined) ? Number(metrics.sinr) : null;
+    let bpsPerHz = 7.5; // Default baseline (256-QAM / 4x4 MIMO)
+
+    if (sinr !== null) {
+      if (sinr >= 20) {
+        bpsPerHz = 7.8; // Peak 256-QAM 4x4 MIMO
+      } else if (sinr >= 13) {
+        bpsPerHz = 6.0; // 64-QAM / 256-QAM mix
+      } else if (sinr >= 5) {
+        bpsPerHz = 4.2; // 16-QAM / 64-QAM
+      } else {
+        bpsPerHz = 2.0; // QPSK under interference
+      }
+    }
+
+    const theoreticalPeakMbps = Math.round(totalDlBw * bpsPerHz);
+
+    let dlSpeed = null;
+    if (speedtest && speedtest.downloadMbps) {
+      dlSpeed = Number(speedtest.downloadMbps);
+    } else if (speedtest && speedtest.download) {
+      dlSpeed = Number(speedtest.download);
+    }
+
+    let efficiencyPercent = null;
+    let tierKey = 'efficiency_unknown';
+    let tierGrade = 'Awaiting Speedtest';
+    let tierColor = '#9ca3af';
+
+    if (dlSpeed !== null && dlSpeed > 0 && theoreticalPeakMbps > 0) {
+      efficiencyPercent = Math.min(100, Math.round((dlSpeed / theoreticalPeakMbps) * 100));
+      if (efficiencyPercent >= 70) {
+        tierKey = 'efficiency_saturated';
+        tierGrade = 'Near Physical Saturation';
+        tierColor = '#10b981'; // Emerald
+      } else if (efficiencyPercent >= 40) {
+        tierKey = 'efficiency_optimal';
+        tierGrade = 'Optimal Multi-User Balance';
+        tierColor = '#3b82f6'; // Blue
+      } else if (efficiencyPercent >= 20) {
+        tierKey = 'efficiency_moderate';
+        tierGrade = 'Moderate Sector Load';
+        tierColor = '#f59e0b'; // Amber
+      } else {
+        tierKey = 'efficiency_severe';
+        tierGrade = 'Severe Tower Congestion / Bottleneck';
+        tierColor = '#f43f5e'; // Rose
+      }
+    }
+
+    return {
+      totalDlBw,
+      bpsPerHz,
+      theoreticalPeakMbps,
+      latestDlMbps: dlSpeed,
+      efficiencyPercent,
+      tierKey,
+      tierGrade,
+      tierColor
+    };
+  }
+
+  /**
+   * Feature 4: Privacy & Public Sharing Mode (Sensitive Data Redaction)
+   * Redacts IP addresses, Cell IDs, PCIs, and MAC addresses for safe sharing.
+   */
+  function redactSensitiveData(val, type = 'generic') {
+    if (val === null || val === undefined) return '--';
+    const str = String(val).trim();
+    if (!str || str === '--') return '--';
+
+    if (type === 'ip' || str.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+      const parts = str.split('.');
+      if (parts.length === 4) {
+        return `${parts[0]}.${parts[1]}.*.*`;
+      }
+      return str.replace(/\.\d+$/g, '.*');
+    }
+
+    if (type === 'pci') {
+      return '*';
+    }
+
+    if (type === 'cell_id' || type === 'cell') {
+      if (str.length <= 3) return '***';
+      const visibleLen = Math.max(1, Math.min(3, Math.floor(str.length / 2)));
+      return str.slice(0, visibleLen) + '*'.repeat(str.length - visibleLen);
+    }
+
+    if (type === 'mac' || (str.includes(':') && str.length === 17)) {
+      const parts = str.split(':');
+      if (parts.length === 6) {
+        return `${parts[0]}:${parts[1]}:${parts[2]}:**:**:**`;
+      }
+    }
+
+    // Generic fallback: if length > 4, mask second half
+    if (str.length > 4) {
+      const half = Math.floor(str.length / 2);
+      return str.slice(0, half) + '*'.repeat(str.length - half);
+    }
+    return '****';
+  }
+
+  /**
+   * Feature 5: 1-Click "Export Diagnostic Card as PNG" Engine
+   * Pure client-side HTML5 Canvas rendering (0 external CDNs, 100% MV3 CSP compliant).
+   * Generates a high-contrast, flat diagnostic report card.
+   */
+  function generateDiagnosticCardCanvas(options = {}) {
+    const {
+      router = {},
+      speedtest = {},
+      privacyMode = false,
+      title = 'NetPulse RF Telemetry & Speed Report',
+      timeWindow = new Date().toLocaleString(),
+      lang = 'en'
+    } = options;
+
+    const r = router || {};
+    const st = speedtest || {};
+    const ca = parseCarrierAggregation(r);
+    const eff = computeSpectralEfficiency(r, st);
+    const health = getOverallHealth(r.rsrp, r.sinr, r.rsrq);
+
+    const redact = (val, type) => {
+      return privacyMode ? redactSensitiveData(val, type) : (val !== null && val !== undefined ? String(val) : '--');
+    };
+
+    const width = 800;
+    const height = 540;
+    const scale = 2; // 2x for sharp high-DPI rendering
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    // 1. Solid Canvas Background (#0b0f19)
+    ctx.fillStyle = '#0b0f19';
+    ctx.fillRect(0, 0, width, height);
+
+    // Helper: Rounded Rectangle
+    function roundRect(x, y, w, h, radius, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    // 2. Top Header Bar Card
+    roundRect(24, 24, width - 48, 70, 6, '#111827', '#1f2937');
+
+    // Brand / Title
+    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#f9fafb';
+    ctx.fillText(title, 40, 52);
+
+    // Subtitle & Time Window
+    ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText(`Time Window: ${timeWindow} ${privacyMode ? '(Privacy Redacted)' : ''}`, 40, 74);
+
+    // Overall Health Badge
+    const badgeText = health.status || 'Optimal RF';
+    const badgeColor = health.color || '#10b981';
+    ctx.font = 'bold 11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+    const badgeWidth = ctx.measureText(badgeText).width + 20;
+    roundRect(width - 40 - badgeWidth, 42, badgeWidth, 26, 4, '#0f172a', badgeColor);
+    ctx.fillStyle = badgeColor;
+    ctx.fillText(badgeText, width - 40 - badgeWidth + 10, 59);
+
+    // 3. Section: Cellular RF Telemetry (4 Cards Grid)
+    const rfCards = [
+      {
+        name: 'RSRP',
+        val: r.rsrp !== null && r.rsrp !== undefined ? `${r.rsrp} dBm` : '--',
+        eval: evaluateMetric('rsrp', r.rsrp),
+        desc: 'Signal Power'
+      },
+      {
+        name: 'SINR',
+        val: r.sinr !== null && r.sinr !== undefined ? `${r.sinr} dB` : '--',
+        eval: evaluateMetric('sinr', r.sinr),
+        desc: 'Signal Purity'
+      },
+      {
+        name: 'RSRQ',
+        val: r.rsrq !== null && r.rsrq !== undefined ? `${r.rsrq} dB` : '--',
+        eval: evaluateMetric('rsrq', r.rsrq),
+        desc: 'Sector Load'
+      },
+      {
+        name: 'RSSI',
+        val: r.rssi !== null && r.rssi !== undefined ? `${r.rssi} dBm` : '--',
+        eval: evaluateMetric('rssi', r.rssi),
+        desc: 'Total Power'
+      }
+    ];
+
+    const cardW = (width - 48 - 36) / 4;
+    rfCards.forEach((c, idx) => {
+      const cx = 24 + idx * (cardW + 12);
+      const cy = 106;
+      roundRect(cx, cy, cardW, 95, 6, '#111827', '#1f2937');
+
+      // Metric Title
+      ctx.font = 'bold 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillText(c.name, cx + 12, cy + 24);
+
+      // Grade Tag
+      ctx.font = 'bold 10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      ctx.fillStyle = c.eval.color || '#9ca3af';
+      const gradeText = c.eval.grade || '--';
+      const gWidth = ctx.measureText(gradeText).width;
+      ctx.fillText(gradeText, cx + cardW - 12 - gWidth, cy + 24);
+
+      // Value
+      ctx.font = 'bold 20px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      ctx.fillStyle = c.eval.color || '#f3f4f6';
+      ctx.fillText(c.val, cx + 12, cy + 58);
+
+      // Sub Description
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#6b7280';
+      ctx.fillText(c.desc, cx + 12, cy + 80);
+    });
+
+    // 4. Section: Throughput Performance & Spectral Efficiency (4 Cards Grid)
+    const dlSpeed = st.downloadMbps !== undefined ? st.downloadMbps : (st.download !== undefined ? st.download : null);
+    const ulSpeed = st.uploadMbps !== undefined ? st.uploadMbps : (st.upload !== undefined ? st.upload : null);
+    const pingVal = st.pingMs !== undefined ? st.pingMs : (st.ping !== undefined ? st.ping : null);
+    
+    const sourceName = st.source || (st.speedtest && st.speedtest.source) || '';
+    const isSpeedtestDotNet = /speedtest/i.test(sourceName) && !/fast/i.test(sourceName);
+    const rawJitter = st.jitterMs !== undefined ? st.jitterMs : (st.jitter !== undefined ? st.jitter : null);
+    const numJitter = (rawJitter !== null && rawJitter !== undefined && !isNaN(rawJitter)) ? Number(rawJitter) : null;
+    const hasValidJitter = !isSpeedtestDotNet && numJitter !== null && numJitter > 0;
+
+    let latencyTitle = hasValidJitter ? 'LATENCY / JITTER' : 'LATENCY (PING)';
+    let latencyVal = '--';
+    if (pingVal !== null && pingVal !== undefined) {
+      latencyVal = hasValidJitter ? `${pingVal} ms / ${numJitter} ms` : `${pingVal} ms`;
+    }
+
+    const perfCards = [
+      {
+        name: 'DOWNLOAD',
+        val: dlSpeed !== null ? `${Number(dlSpeed).toFixed(1)} Mbps` : '--',
+        color: '#10b981',
+        desc: 'Speedtest Throughput'
+      },
+      {
+        name: 'UPLOAD',
+        val: ulSpeed !== null ? `${Number(ulSpeed).toFixed(1)} Mbps` : '--',
+        color: '#3b82f6',
+        desc: 'Uplink Throughput'
+      },
+      {
+        name: latencyTitle,
+        val: latencyVal,
+        color: '#f59e0b',
+        desc: hasValidJitter ? 'Round Trip Ping / Jitter' : 'Round Trip Ping'
+      },
+      {
+        name: 'LINK EFFICIENCY',
+        val: eff.efficiencyPercent !== null ? `${eff.efficiencyPercent}%` : '--',
+        color: eff.tierColor || '#6366f1',
+        desc: `${eff.theoreticalPeakMbps} Mbps Sector Peak`
+      }
+    ];
+
+    perfCards.forEach((c, idx) => {
+      const cx = 24 + idx * (cardW + 12);
+      const cy = 213;
+      roundRect(cx, cy, cardW, 95, 6, '#111827', '#1f2937');
+
+      ctx.font = 'bold 11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillText(c.name, cx + 12, cy + 24);
+
+      ctx.font = 'bold 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      ctx.fillStyle = c.color;
+      ctx.fillText(c.val, cx + 12, cy + 58);
+
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#6b7280';
+      ctx.fillText(c.desc, cx + 12, cy + 80);
+    });
+
+    // 5. Section: Serving Cell & Carrier Aggregation Details
+    roundRect(24, 320, width - 48, 140, 6, '#111827', '#1f2937');
+
+    ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#f9fafb';
+    ctx.fillText('Carrier Aggregation (CA) & Serving Cell Topology', 40, 346);
+
+    // Row 1: Band & Bandwidth
+    const bandDisplay = r.band || (r.caBands && r.caBands.length > 0 ? r.caBands.join(' + ') : 'LTE/5G');
+    const caCapacityText = `${ca.carriersCount}CA Carriers - ${ca.totalDlBw} MHz DL Bandwidth`;
+
+    ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText('Active Bands:', 40, 376);
+    ctx.fillStyle = '#60a5fa';
+    ctx.fillText(bandDisplay, 130, 376);
+
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText('DL Capacity:', 440, 376);
+    ctx.fillStyle = '#34d399';
+    ctx.fillText(caCapacityText, 530, 376);
+
+    // Row 2: Serving Cell ID & PCI
+    const pciDisplay = redact(r.pci, 'pci');
+    const cellIdDisplay = redact(r.cellId, 'cell_id');
+
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText('Physical Cell ID:', 40, 404);
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillText(`PCI ${pciDisplay}`, 160, 404);
+
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText('Cell Tower ID:', 440, 404);
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillText(`Cell ID ${cellIdDisplay}`, 540, 404);
+
+    // Row 3: Modulation & Sector Assessment
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText('Efficiency State:', 40, 432);
+    ctx.fillStyle = eff.tierColor || '#a7f3d0';
+    ctx.fillText(`${eff.tierGrade} (${eff.bpsPerHz} bps/Hz on 256-QAM)`, 160, 432);
+
+    // 6. Footer Strip
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#4b5563';
+    ctx.fillText('100% Local Diagnostic Telemetry - No External Network Requests', 24, 490);
+
+    ctx.font = 'bold 11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+    ctx.fillStyle = '#6366f1';
+    const footerBrand = 'Generated by NetPulse - @ZerroDevs';
+    const fWidth = ctx.measureText(footerBrand).width;
+    ctx.fillText(footerBrand, width - 24 - fWidth, 490);
+
+    return canvas;
+  }
+
+  /**
+   * Helper to trigger immediate browser download of the diagnostic card canvas
+   */
+  function downloadDiagnosticCardPng(options = {}) {
+    const canvas = generateDiagnosticCardCanvas(options);
+    const dataUrl = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    const ts = Date.now();
+    a.href = dataUrl;
+    a.download = `NetPulse_Diagnostic_Report_${ts}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return true;
+  }
+
   return {
     BENCHMARKS,
     evaluateMetric,
@@ -277,6 +752,12 @@
     evaluateRSRQ,
     getOverallHealth,
     generateDiagnosticAdvice,
-    correlateSpeedtestWithRF
+    correlateSpeedtestWithRF,
+    parseCarrierAggregation,
+    computeSpectralEfficiency,
+    redactSensitiveData,
+    generateDiagnosticCardCanvas,
+    downloadDiagnosticCardPng
   };
 });
+

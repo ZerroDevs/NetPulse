@@ -11,8 +11,10 @@
 
   let currentLang = 'en';
   let currentTheme = 'dark';
+  let privacyMode = false;
   let telemetryHistory = [];
   let rfTimeline = [];
+  let handoverEvents = [];
   let latestRouterMetrics = null;
   let latestRouterPayload = null;
 
@@ -47,6 +49,17 @@
   const caArcScc2 = document.getElementById('ca-arc-scc2');
   const caArcScc3 = document.getElementById('ca-arc-scc3');
 
+  // DOM Elements - Spectral Efficiency (Feature 2)
+  const badgeEfficiencyStatus = document.getElementById('badge-efficiency-status');
+  const badgeEfficiencyText = document.getElementById('badge-efficiency-text');
+  const kpiTheoPeakDl = document.getElementById('kpi-theo-peak-dl');
+  const kpiLinkEffPct = document.getElementById('kpi-link-eff-pct');
+  const kpiLinkEffSub = document.getElementById('kpi-link-eff-sub');
+  const kpiEffBw = document.getElementById('kpi-eff-bw');
+  const kpiEffBps = document.getElementById('kpi-eff-bps');
+  const effMeterLabel = document.getElementById('eff-meter-label');
+  const effMeterFill = document.getElementById('eff-meter-fill');
+
   // DOM Elements - Scatter Matrix & Diagnostics
   const groupScatterPoints = document.getElementById('group-scatter-points');
   const diagDiagnosisBox = document.getElementById('diagnostic-diagnosis-box');
@@ -66,6 +79,8 @@
   const langToggleText = document.getElementById('lang-toggle-text');
   const btnThemeToggle = document.getElementById('btn-theme-toggle');
   const themeLabelText = document.getElementById('theme-label-text');
+  const btnPrivacyToggle = document.getElementById('btn-privacy-toggle');
+  const privacyToggleText = document.getElementById('privacy-toggle-text');
 
   const modalClearOverlay = document.getElementById('modal-clear-overlay');
   const btnModalCancel = document.getElementById('btn-modal-cancel');
@@ -88,6 +103,22 @@
   }
 
   /**
+   * Update Privacy Toggle Button Appearance
+   */
+  function updatePrivacyUi() {
+    if (btnPrivacyToggle && privacyToggleText) {
+      const i18n = window.NetPulseI18n;
+      if (privacyMode) {
+        btnPrivacyToggle.classList.add('privacy-active');
+        privacyToggleText.textContent = i18n ? i18n.t('privacy_mode_on', currentLang) : 'Privacy: ON';
+      } else {
+        btnPrivacyToggle.classList.remove('privacy-active');
+        privacyToggleText.textContent = i18n ? i18n.t('privacy_mode_off', currentLang) : 'Privacy: OFF';
+      }
+    }
+  }
+
+  /**
    * Load data from storage (merges router telemetry snapshots, rolling timeline, and speedtests)
    */
   async function loadData(updateSyncTime = true) {
@@ -96,17 +127,23 @@
         'netpulse_router_latest',
         'netpulse_history',
         'netpulse_rf_timeline',
+        'netpulse_handover_events',
+        'netpulse_privacy_mode',
         'netpulse_lang',
         'netpulse_theme'
       ]);
 
       currentLang = storage.netpulse_lang || 'en';
       currentTheme = storage.netpulse_theme || 'dark';
+      privacyMode = !!storage.netpulse_privacy_mode;
+      updatePrivacyUi();
+
       applyTheme(currentTheme);
       applyLanguage(currentLang);
 
       telemetryHistory = storage.netpulse_history || [];
       rfTimeline = storage.netpulse_rf_timeline || [];
+      handoverEvents = storage.netpulse_handover_events || [];
       latestRouterPayload = storage.netpulse_router_latest || null;
       latestRouterMetrics = (latestRouterPayload && latestRouterPayload.metrics)
         ? latestRouterPayload.metrics
@@ -174,6 +211,7 @@
     renderWaveforms();
     renderHandoverRadar();
     renderCarrierAggregation();
+    renderSpectralEfficiency();
     renderScatterMatrix();
   }
 
@@ -200,7 +238,14 @@
     }
 
     if (kpiDominantPci) {
-      kpiDominantPci.textContent = dominantPci ? `PCI ${dominantPci}` : '--';
+      if (dominantPci) {
+        const displayPci = privacyMode && window.NetPulseEvaluator
+          ? window.NetPulseEvaluator.redactSensitiveData(dominantPci, 'pci')
+          : dominantPci;
+        kpiDominantPci.textContent = `PCI ${displayPci}`;
+      } else {
+        kpiDominantPci.textContent = '--';
+      }
     }
     if (kpiDominantPciSub) {
       if (dominantPci) {
@@ -223,33 +268,28 @@
       }
     }
 
-    // Aggregated Bandwidth
-    let totalBw = 20;
-    if (latestRouterMetrics && latestRouterMetrics.dlBandwidth) {
-      totalBw = parseInt(latestRouterMetrics.dlBandwidth) || 20;
-    }
-    if (latestRouterMetrics && Array.isArray(latestRouterMetrics.caBands) && latestRouterMetrics.caBands.length > 0) {
-      latestRouterMetrics.caBands.forEach(b => {
-        const bw = typeof b === 'object' && b.bandwidth ? parseInt(b.bandwidth) : 15;
-        totalBw += (bw || 15);
-      });
-    }
-    if (kpiAggBw) kpiAggBw.textContent = totalBw;
+    // Feature 1: Dynamic Aggregated Bandwidth
+    const caInfo = window.NetPulseEvaluator
+      ? window.NetPulseEvaluator.parseCarrierAggregation(latestRouterMetrics)
+      : { totalDlBw: 20 };
+    if (kpiAggBw) kpiAggBw.textContent = caInfo.totalDlBw;
 
-    // Handover Count
-    let switches = 0;
+    // Feature 3: Handover Count (Merges storage handover events + session switches)
+    let sessionSwitches = 0;
     let lastSeenPci = null;
     rfPoints.forEach(item => {
       const pci = item.router ? item.router.pci : null;
-      if (pci && lastSeenPci && pci !== lastSeenPci) {
-        switches++;
+      if (pci && lastSeenPci && String(pci) !== String(lastSeenPci)) {
+        sessionSwitches++;
       }
       if (pci) lastSeenPci = pci;
     });
 
+    const totalHandoverCount = Math.max(sessionSwitches, handoverEvents.length);
+
     if (kpiHandoverCount) {
-      if (switches > 0) {
-        kpiHandoverCount.textContent = switches;
+      if (totalHandoverCount > 0) {
+        kpiHandoverCount.textContent = totalHandoverCount;
       } else if (dominantPci) {
         kpiHandoverCount.textContent = currentLang === 'ar' ? '0 (مستقر)' : '0 (Stable)';
       } else {
@@ -393,8 +433,8 @@
 
     rfPoints.forEach(item => {
       const r = item.router;
-      if (!r || !r.pci) return;
-      if (lastPci && r.pci !== lastPci) {
+      if (!r || r.pci === null || r.pci === undefined) return;
+      if (lastPci !== null && String(r.pci) !== String(lastPci)) {
         events.push({
           timestamp: item.timestamp,
           fromPci: lastPci,
@@ -406,6 +446,16 @@
       lastPci = r.pci;
       lastBand = r.band;
     });
+
+    // Merge persistent background handover events if available
+    if (handoverEvents && handoverEvents.length > 0) {
+      handoverEvents.forEach(he => {
+        if (!events.some(e => Math.abs(e.timestamp - he.timestamp) < 3000)) {
+          events.push(he);
+        }
+      });
+      events.sort((a, b) => a.timestamp - b.timestamp);
+    }
 
     const isPingPong = events.length >= 3;
 
@@ -425,8 +475,15 @@
       }
     }
 
+    const redact = (val, type) => {
+      return (privacyMode && window.NetPulseEvaluator)
+        ? window.NetPulseEvaluator.redactSensitiveData(val, type)
+        : (val !== null && val !== undefined ? val : '--');
+    };
+
     if (events.length === 0) {
       if (latestRouterMetrics && latestRouterMetrics.pci) {
+        const pciDisplay = redact(latestRouterMetrics.pci, 'pci');
         // Render current active tower on radar
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', '230');
@@ -436,14 +493,14 @@
         circle.setAttribute('stroke', '#111827');
         circle.setAttribute('stroke-width', '2');
         const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-        title.textContent = `Active Anchor: PCI ${latestRouterMetrics.pci} (${latestRouterMetrics.band || 'LTE/5G'})`;
+        title.textContent = `Active Anchor: PCI ${pciDisplay} (${latestRouterMetrics.band || 'LTE/5G'})`;
         circle.appendChild(title);
         groupHandoverNodes.appendChild(circle);
 
         handoverLogList.innerHTML = `
           <div class="handover-log-item" style="display: flex; align-items: center; justify-content: space-between;">
             <span class="mono" style="color: #9ca3af;">${new Date().toLocaleTimeString()}</span>
-            <span class="mono" style="font-weight: 700; color: #f3f4f6;">PCI ${latestRouterMetrics.pci} (${latestRouterMetrics.band || 'Serving Cell'})</span>
+            <span class="mono" style="font-weight: 700; color: #f3f4f6;">PCI ${pciDisplay} (${latestRouterMetrics.band || 'Serving Cell'})</span>
             <span class="status-badge badge-emerald" style="font-size: 10px; padding: 2px 6px;">Connected &amp; Stable</span>
           </div>
         `;
@@ -461,6 +518,8 @@
     events.forEach((ev, idx) => {
       const x = Math.round(minX + idx * stepX);
       const y = 90;
+      const fromPciDisplay = redact(ev.fromPci, 'pci');
+      const toPciDisplay = redact(ev.toPci, 'pci');
 
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circle.setAttribute('cx', x);
@@ -471,7 +530,7 @@
       circle.setAttribute('stroke-width', '2');
 
       const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-      title.textContent = `${new Date(ev.timestamp).toLocaleTimeString()}: Switched PCI ${ev.fromPci} -> PCI ${ev.toPci}`;
+      title.textContent = `${new Date(ev.timestamp).toLocaleTimeString()}: Switched PCI ${fromPciDisplay} -> PCI ${toPciDisplay}`;
       circle.appendChild(title);
       groupHandoverNodes.appendChild(circle);
 
@@ -479,7 +538,7 @@
       row.className = 'handover-log-item';
       row.innerHTML = `
         <span class="mono" style="color: #9ca3af;">${new Date(ev.timestamp).toLocaleTimeString()}</span>
-        <span class="mono" style="font-weight: 700; color: #f3f4f6;">PCI ${ev.fromPci} (${ev.fromBand}) &rarr; PCI ${ev.toPci} (${ev.toBand})</span>
+        <span class="mono" style="font-weight: 700; color: #f3f4f6;">PCI ${fromPciDisplay} (${ev.fromBand || 'N/A'}) &rarr; PCI ${toPciDisplay} (${ev.toBand || 'N/A'})</span>
         <span class="status-badge ${isPingPong ? 'badge-rose' : 'badge-emerald'}" style="font-size: 10px; padding: 2px 6px;">Handover</span>
       `;
       handoverLogList.appendChild(row);
@@ -487,36 +546,22 @@
   }
 
   /**
-   * 4. Render Carrier Aggregation Component Matrix
+   * 4. Render Carrier Aggregation Component Matrix (Feature 1: Dynamic Multi-Band Parsing)
    */
   function renderCarrierAggregation() {
     if (!caCarriersList) return;
     caCarriersList.innerHTML = '';
 
-    const pccBand = (latestRouterMetrics && latestRouterMetrics.band) ? latestRouterMetrics.band : 'B3';
-    const pccBw = (latestRouterMetrics && latestRouterMetrics.dlBandwidth) ? parseInt(latestRouterMetrics.dlBandwidth) || 20 : 20;
+    const caInfo = window.NetPulseEvaluator
+      ? window.NetPulseEvaluator.parseCarrierAggregation(latestRouterMetrics)
+      : {
+          carriersCount: 1,
+          totalDlBw: 20,
+          carriers: [{ type: 'PCC', band: 'B3', bw: 20, freq: 'LTE Primary', tagClass: 'tag-pcc' }]
+        };
 
-    const carriers = [
-      { type: 'PCC', band: pccBand, freq: pccBand.startsWith('n') ? '5G NR' : 'LTE Primary', bw: pccBw, tagClass: 'tag-pcc' }
-    ];
-
-    if (latestRouterMetrics && Array.isArray(latestRouterMetrics.caBands) && latestRouterMetrics.caBands.length > 0) {
-      latestRouterMetrics.caBands.forEach((b, idx) => {
-        const bName = typeof b === 'object' ? (b.band || `SCC${idx + 1}`) : String(b);
-        const bw = typeof b === 'object' && b.bandwidth ? parseInt(b.bandwidth) : 15;
-        const tag = idx === 0 ? 'tag-scc1' : (idx === 1 ? 'tag-scc2' : 'tag-scc3');
-        carriers.push({
-          type: `SCC${idx + 1}`,
-          band: bName,
-          freq: bName.startsWith('n') ? '5G Sub-6' : 'LTE Secondary',
-          bw: bw || 15,
-          tagClass: tag
-        });
-      });
-    }
-
-    let totalBw = 0;
-    carriers.forEach(c => totalBw += c.bw);
+    const carriers = caInfo.carriers;
+    const totalBw = caInfo.totalDlBw;
 
     if (caTotalBadgeVal) caTotalBadgeVal.textContent = totalBw;
     if (caCenterCount) caCenterCount.textContent = `${carriers.length}CA`;
@@ -528,13 +573,15 @@
     arcs.forEach(a => { if (a) a.style.strokeDasharray = '0 365'; });
 
     carriers.forEach((c, idx) => {
-      const arc = arcs[idx];
-      const sliceLen = (c.bw / totalBw) * circ;
-      if (arc) {
-        arc.style.strokeDasharray = `${sliceLen} ${circ - sliceLen}`;
-        arc.style.strokeDashoffset = `-${accumulatedAngle}`;
+      if (idx < arcs.length) {
+        const arc = arcs[idx];
+        const sliceLen = (c.bw / (totalBw || 1)) * circ;
+        if (arc) {
+          arc.style.strokeDasharray = `${sliceLen} ${circ - sliceLen}`;
+          arc.style.strokeDashoffset = `-${accumulatedAngle}`;
+        }
+        accumulatedAngle += sliceLen;
       }
-      accumulatedAngle += sliceLen;
 
       const row = document.createElement('div');
       row.className = 'carrier-row';
@@ -547,6 +594,95 @@
       `;
       caCarriersList.appendChild(row);
     });
+  }
+
+  /**
+   * Feature 2: Render Link Spectral Efficiency & Theoretical Capacity
+   */
+  function renderSpectralEfficiency() {
+    const latestSpeedtest = telemetryHistory.length > 0 && telemetryHistory[0].speedtest
+      ? telemetryHistory[0].speedtest
+      : null;
+
+    const eff = window.NetPulseEvaluator
+      ? window.NetPulseEvaluator.computeSpectralEfficiency(latestRouterMetrics, latestSpeedtest)
+      : {
+          totalDlBw: 20,
+          bpsPerHz: 7.8,
+          theoreticalPeakMbps: 156,
+          latestDlMbps: null,
+          efficiencyPercent: null,
+          tierGrade: 'Awaiting Speedtest',
+          tierColor: '#9ca3af'
+        };
+
+    const i18n = window.NetPulseI18n;
+
+    // Status Badge
+    if (badgeEfficiencyStatus && badgeEfficiencyText) {
+      if (eff.efficiencyPercent !== null) {
+        if (eff.efficiencyPercent >= 70) {
+          badgeEfficiencyStatus.className = 'status-badge badge-emerald';
+        } else if (eff.efficiencyPercent >= 40) {
+          badgeEfficiencyStatus.className = 'status-badge badge-blue';
+        } else if (eff.efficiencyPercent >= 20) {
+          badgeEfficiencyStatus.className = 'status-badge badge-amber';
+        } else {
+          badgeEfficiencyStatus.className = 'status-badge badge-rose';
+        }
+        badgeEfficiencyText.textContent = i18n ? i18n.t(eff.tierKey, currentLang) : eff.tierGrade;
+      } else if (latestRouterMetrics) {
+        badgeEfficiencyStatus.className = 'status-badge badge-indigo';
+        badgeEfficiencyText.textContent = currentLang === 'ar' ? 'حساب فيزيائي جاهز' : 'Modulation Ready';
+      } else {
+        badgeEfficiencyStatus.className = 'status-badge badge-muted';
+        badgeEfficiencyText.textContent = currentLang === 'ar' ? 'بانتظار الإشارة' : 'Awaiting Telemetry';
+      }
+    }
+
+    if (kpiTheoPeakDl) {
+      kpiTheoPeakDl.textContent = `${eff.theoreticalPeakMbps} Mbps`;
+    }
+
+    if (kpiLinkEffPct) {
+      kpiLinkEffPct.textContent = eff.efficiencyPercent !== null ? `${eff.efficiencyPercent}%` : '--';
+      if (eff.efficiencyPercent !== null) {
+        kpiLinkEffPct.style.color = eff.tierColor;
+      } else {
+        kpiLinkEffPct.style.color = '#9ca3af';
+      }
+    }
+
+    if (kpiLinkEffSub) {
+      if (eff.efficiencyPercent !== null && eff.latestDlMbps !== null) {
+        kpiLinkEffSub.textContent = currentLang === 'ar'
+          ? `${eff.latestDlMbps.toFixed(1)} من ${eff.theoreticalPeakMbps} ميجابت في الثانية`
+          : `${eff.latestDlMbps.toFixed(1)} of ${eff.theoreticalPeakMbps} Mbps Peak`;
+      } else {
+        kpiLinkEffSub.textContent = currentLang === 'ar'
+          ? 'بانتظار نتيجة اختبار السرعة'
+          : 'Awaiting speedtest benchmark';
+      }
+    }
+
+    if (kpiEffBw) {
+      kpiEffBw.textContent = `${eff.totalDlBw} MHz`;
+    }
+
+    if (kpiEffBps) {
+      const qamLabel = eff.bpsPerHz >= 7.5 ? '256-QAM' : (eff.bpsPerHz >= 5.5 ? '64-QAM' : '16-QAM');
+      kpiEffBps.textContent = `${eff.bpsPerHz} bps/Hz (${qamLabel})`;
+    }
+
+    if (effMeterLabel) {
+      effMeterLabel.textContent = eff.efficiencyPercent !== null ? `${eff.efficiencyPercent}%` : '--%';
+    }
+
+    if (effMeterFill) {
+      const pct = eff.efficiencyPercent !== null ? eff.efficiencyPercent : 0;
+      effMeterFill.style.width = `${pct}%`;
+      effMeterFill.style.background = eff.tierColor;
+    }
   }
 
   /**
@@ -999,10 +1135,23 @@
     });
   }
 
+  if (btnPrivacyToggle) {
+    btnPrivacyToggle.addEventListener('click', async () => {
+      privacyMode = !privacyMode;
+      await chrome.storage.local.set({ netpulse_privacy_mode: privacyMode });
+      updatePrivacyUi();
+      renderAll();
+      const i18n = window.NetPulseI18n;
+      showToast(privacyMode
+        ? (i18n ? i18n.t('toast_privacy_enabled', currentLang) : 'Privacy Mode Enabled.')
+        : (i18n ? i18n.t('toast_privacy_disabled', currentLang) : 'Privacy Mode Disabled.'));
+    });
+  }
+
   // Live Storage Event Listener (instant sync upon new telemetry or speedtest)
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
-      if (changes.netpulse_history || changes.netpulse_router_latest || changes.netpulse_rf_timeline) {
+      if (changes.netpulse_history || changes.netpulse_router_latest || changes.netpulse_rf_timeline || changes.netpulse_handover_events || changes.netpulse_privacy_mode) {
         loadData(true);
       }
     }

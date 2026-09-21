@@ -36,6 +36,19 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   updateBadge(null);
 });
 
+// Track active cell identifiers for handover detection
+let lastKnownPci = null;
+let lastKnownCellId = null;
+
+// Initialize in-memory cell IDs from storage
+chrome.storage.local.get(['netpulse_router_latest'], (res) => {
+  if (res.netpulse_router_latest && res.netpulse_router_latest.metrics) {
+    const m = res.netpulse_router_latest.metrics;
+    if (m.pci !== null && m.pci !== undefined) lastKnownPci = String(m.pci);
+    if (m.cellId !== null && m.cellId !== undefined) lastKnownCellId = String(m.cellId);
+  }
+});
+
 // Update Action Badge based on RSRP value
 function updateBadge(metrics) {
   if (!metrics || metrics.rsrp === undefined || metrics.rsrp === null) {
@@ -61,12 +74,84 @@ function updateBadge(metrics) {
   chrome.action.setBadgeText({ text: text });
 }
 
-// Listen for storage changes to synchronize badge
+// Feature 3: Tower Handover & PCI Flapping Background Alert Engine
+async function handleHandoverCheck(newMetrics) {
+  if (!newMetrics) return;
+
+  const newPci = (newMetrics.pci !== null && newMetrics.pci !== undefined) ? String(newMetrics.pci) : null;
+  const newCellId = (newMetrics.cellId !== null && newMetrics.cellId !== undefined) ? String(newMetrics.cellId) : null;
+  const newBand = newMetrics.band || 'Cellular';
+
+  if (!newPci && !newCellId) return;
+
+  const hasPciChanged = lastKnownPci && newPci && newPci !== lastKnownPci;
+  const hasCellChanged = lastKnownCellId && newCellId && newCellId !== lastKnownCellId;
+
+  if (hasPciChanged || hasCellChanged) {
+    const fromPci = lastKnownPci || 'N/A';
+    const toPci = newPci || 'N/A';
+    const fromCell = lastKnownCellId || 'N/A';
+    const toCell = newCellId || 'N/A';
+
+    const handoverEvent = {
+      timestamp: Date.now(),
+      fromPci,
+      toPci,
+      fromCell,
+      toCell,
+      band: newBand
+    };
+
+    console.log('[NetPulse Background] Tower handover detected:', handoverEvent);
+
+    // Persist into netpulse_handover_events (max 50 entries)
+    try {
+      const storage = await chrome.storage.local.get(['netpulse_handover_events', 'netpulse_settings', 'netpulse_lang']);
+      let events = storage.netpulse_handover_events || [];
+      events.unshift(handoverEvent);
+      if (events.length > 50) events = events.slice(0, 50);
+
+      await chrome.storage.local.set({ netpulse_handover_events: events });
+
+      // Dispatch non-intrusive Chrome notification if enabled
+      const settings = storage.netpulse_settings || {};
+      const isNotificationEnabled = settings.handoverNotificationsEnabled !== false && settings.notificationsEnabled !== false;
+
+      if (isNotificationEnabled && chrome.notifications) {
+        const isAr = (storage.netpulse_lang === 'ar');
+        const notifTitle = isAr ? 'NetPulse: تم رصد تحويل في البرج' : 'NetPulse: Cell Handover Detected';
+        const notifMsg = isAr
+          ? `تم التبديل من البرج PCI ${fromPci} (خلية ${fromCell}) إلى PCI ${toPci} (خلية ${toCell}).`
+          : `Switched from PCI ${fromPci} (Cell ${fromCell}) to PCI ${toPci} (Cell ${toCell}).`;
+
+        chrome.notifications.create(`netpulse_handover_${Date.now()}`, {
+          type: 'basic',
+          iconUrl: 'icons/icon128.png',
+          title: notifTitle,
+          message: notifMsg,
+          priority: 1
+        }, () => {
+          if (chrome.runtime.lastError) {
+            // Silently ignore notification creation errors if permissions blocked
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('[NetPulse Background] Failed to record handover:', e);
+    }
+  }
+
+  if (newPci) lastKnownPci = newPci;
+  if (newCellId) lastKnownCellId = newCellId;
+}
+
+// Listen for storage changes to synchronize badge and monitor tower handovers
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'local' && changes.netpulse_router_latest) {
     const latest = changes.netpulse_router_latest.newValue;
     if (latest && latest.metrics) {
       updateBadge(latest.metrics);
+      handleHandoverCheck(latest.metrics);
     } else {
       updateBadge(null);
     }

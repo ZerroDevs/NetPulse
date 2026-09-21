@@ -1432,3 +1432,66 @@ body {
   background-color: var(--bg-card-hover);
   border-color: var(--border-light);
 }
+
+/* Privacy Mode Active Button Style */
+.btn-toggle-switch.privacy-active {
+  background-color: #064e3b;
+  border-color: #10b981;
+  color: #a7f3d0;
+}
+
+[data-theme="light"] .btn-toggle-switch.privacy-active {
+  background-color: #bbf7d0;
+  border-color: #059669;
+  color: #064e3b;
+}
+
+/* Spectral Efficiency Grid & Diagnostic Card */
+.eff-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 900px) {
+  .eff-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.eff-stat-card {
+  background-color: var(--bg-toolbar);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eff-meter-box {
+  background-color: var(--bg-toolbar);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eff-meter-track {
+  height: 8px;
+  background-color: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.eff-meter-fill {
+  height: 100%;
+  width: 0%;
+  background-color: var(--accent-emerald);
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+

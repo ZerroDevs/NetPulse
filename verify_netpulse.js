@@ -357,6 +357,61 @@ assert(I18n.t('open_router_login', 'ar').includes('فتح صفحة الموجه'
 assert(I18n.t('open_and_autofill_router', 'en').includes('Open Router'), 'EN translation for open_and_autofill_router exists');
 assert(I18n.t('open_and_autofill_router', 'ar').includes('فتح الموجه'), 'AR translation for open_and_autofill_router exists');
 
+// 9. Feature 1: Dynamic Multi-Band CA Parsing Verification
+const caParsed = Evaluator.parseCarrierAggregation({
+  dlBandwidth: '20M, 10M, 10M, 10M MHz',
+  caBands: ['B3', 'B1', 'B3', 'B8']
+});
+assert(caParsed.totalDlBw === 50, 'CA parser sums 20+10+10+10 to 50 MHz');
+assert(caParsed.carriersCount === 4, 'CA parser extracts 4 carriers');
+assert(caParsed.carriers[0].type === 'PCC' && caParsed.carriers[0].band === 'B3' && caParsed.carriers[0].bw === 20, 'CA parser maps PCC to B3 (+20 MHz)');
+assert(caParsed.carriers[1].type === 'SCC1' && caParsed.carriers[1].band === 'B1' && caParsed.carriers[1].bw === 10, 'CA parser maps SCC1 to B1 (+10 MHz)');
+assert(caParsed.carriers[2].type === 'SCC2' && caParsed.carriers[2].band === 'B3' && caParsed.carriers[2].bw === 10, 'CA parser maps SCC2 to B3 (+10 MHz)');
+assert(caParsed.carriers[3].type === 'SCC3' && caParsed.carriers[3].band === 'B8' && caParsed.carriers[3].bw === 10, 'CA parser maps SCC3 to B8 (+10 MHz)');
+
+// 10. Feature 2: Link Spectral Efficiency & Sector Capacity Verification
+const effCalculated = Evaluator.computeSpectralEfficiency({
+  dlBandwidth: '20M, 10M, 10M, 10M MHz',
+  caBands: ['B3', 'B1', 'B3', 'B8'],
+  sinr: 22
+}, { downloadMbps: 290 });
+assert(effCalculated.totalDlBw === 50, 'Spectral engine detects 50 MHz total BW');
+assert(effCalculated.bpsPerHz === 7.8, 'Spectral engine calculates 7.8 bps/Hz for SINR >= 20 dB');
+assert(effCalculated.theoreticalPeakMbps === 390, 'Theoretical peak is 390 Mbps (50 * 7.8)');
+assert(effCalculated.efficiencyPercent === 74, 'Link efficiency is 74% (290/390)');
+assert(effCalculated.tierKey === 'efficiency_saturated', 'Link efficiency tier is Near Physical Saturation');
+
+// 11. Feature 3: Tower Handover Verification in background.js
+assert(bgJsContent.includes('handleHandoverCheck'), 'background.js includes handleHandoverCheck');
+assert(bgJsContent.includes('netpulse_handover_events'), 'background.js tracks netpulse_handover_events');
+assert(bgJsContent.includes('chrome.notifications.create'), 'background.js dispatches Chrome notifications on handover');
+assert(manifest.permissions.includes('notifications'), 'manifest.json has "notifications" permission');
+
+// 12. Feature 4: Privacy & Public Sharing Mode Verification
+assert(Evaluator.redactSensitiveData('102.212.137.227', 'ip') === '102.212.*.*', 'IP address redaction masks last 2 octets');
+assert(Evaluator.redactSensitiveData('192.168.1.100', 'ip') === '192.168.*.*', 'Local IP address redaction masks last 2 octets');
+assert(Evaluator.redactSensitiveData('188930', 'cell_id') === '188***', 'Cell ID redaction masks trailing digits');
+assert(Evaluator.redactSensitiveData('4', 'pci') === '*', 'PCI redaction masks value to asterisk');
+assert(Evaluator.redactSensitiveData('00:1A:2B:3C:4D:5E', 'mac') === '00:1A:2B:**:**:**', 'MAC redaction masks last 3 pairs');
+
+assert(popupHtmlContent.includes('btn-popup-privacy'), 'popup.html contains btn-popup-privacy toggle');
+assert(dashHtml.includes('btn-privacy-toggle'), 'dashboard.html contains btn-privacy-toggle');
+assert(analysisHtml.includes('btn-privacy-toggle'), 'analysis.html contains btn-privacy-toggle');
+assert(historyHtmlContent.includes('btn-privacy-toggle'), 'history.html contains btn-privacy-toggle');
+
+// 13. Feature 5: Diagnostic Card PNG Generator & Export Verification
+assert(typeof Evaluator.generateDiagnosticCardCanvas === 'function', 'Evaluator exports generateDiagnosticCardCanvas');
+assert(typeof Evaluator.downloadDiagnosticCardPng === 'function', 'Evaluator exports downloadDiagnosticCardPng');
+assert(dashHtml.includes('btn-export-png-card'), 'dashboard.html contains btn-export-png-card button');
+const histJsRaw = fs.readFileSync(path.join(ROOT_DIR, 'history/history.js'), 'utf8');
+assert(histJsRaw.includes('downloadDiagnosticCardPng'), 'history.js calls downloadDiagnosticCardPng');
+
+// 14. Speedtest Jitter Formatting Verification
+assert(histJsRaw.includes('isSpeedtestDotNet'), 'history.js checks isSpeedtestDotNet provider');
+assert(histJsRaw.includes('hasValidJitter'), 'history.js validates jitter positivity');
+const dashJsRaw = fs.readFileSync(path.join(ROOT_DIR, 'dashboard/dashboard.js'), 'utf8');
+assert(dashJsRaw.includes('isSpeedtestDotNet'), 'dashboard.js checks isSpeedtestDotNet provider');
+
 console.log(`\nVerification Complete: ${passes} passed, ${failures} failed.`);
 if (failures > 0) {
   process.exit(1);

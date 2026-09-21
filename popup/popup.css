@@ -157,6 +157,12 @@ body {
   border-color: var(--border-light);
 }
 
+.btn-icon-toggle.privacy-active {
+  background-color: var(--accent-emerald-dark);
+  color: var(--accent-emerald-text);
+  border-color: var(--accent-emerald);
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;

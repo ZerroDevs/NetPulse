@@ -629,7 +629,7 @@
         downloadMbps: downloadSpeed,
         uploadMbps: uploadSpeed || 0,
         pingMs: ping || 0,
-        jitterMs: jitter || 0,
+        jitterMs: jitter !== null && jitter !== undefined ? jitter : null,
         isp: isp,
         server: server,
         resultUrl: resultUrl,
@@ -670,7 +670,7 @@
         downloadMbps: downloadSpeed,
         uploadMbps: uploadSpeed || 0,
         pingMs: ping || 0,
-        jitterMs: jitter || 0,
+        jitterMs: jitter !== null && jitter !== undefined ? jitter : null,
         isp: 'Netflix / Fast.com CDN',
         server: 'Fast.com Edge',
         resultUrl: window.location.href
