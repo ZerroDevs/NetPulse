@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPulse - Changelog &amp; Release History</title>
+  <link rel="icon" type="image/png" sizes="128x128" href="assets/Images/icon128.png">
+  <link rel="icon" type="image/svg+xml" href="assets/Images/icon.svg">
+  <link rel="shortcut icon" href="assets/Images/icon16.png">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <div class="docs-layout">
+    <!-- Header Topbar -->
+    <header class="docs-header">
+      <div class="header-brand">
+        <img src="assets/Images/icon.svg" alt="NetPulse Logo" width="28" height="28" class="brand-logo" style="width: 28px; height: 28px; object-fit: contain;">
+        <div class="brand-text-block">
+          <div class="brand-row">
+            <span class="brand-title" data-i18n="cl_title">NetPulse Changelog</span>
+            <span class="version-pill">v1.0.0 MV3</span>
+          </div>
+          <span class="brand-sub" data-i18n="cl_sub">Commit History &amp; Release Timeline</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Live Search Bar -->
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="docs-search-input" placeholder="Search commits..." data-i18n-placeholder="search_commits_ph">
+        </div>
+
+        <!-- Language Switcher -->
+        <button id="btn-lang-toggle" class="btn-toggle-switch" type="button" title="Switch Language / تبديل اللغة">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1-4-10z"></path>
+          </svg>
+          <span id="lang-toggle-text">العربية</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="btn-theme-toggle" class="btn-toggle-switch" type="button" title="Toggle Dark/Light Mode">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12.01" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <span id="theme-label-text">Light</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Body -->
+    <div class="docs-body">
+      <!-- Sidebar Navigation -->
+      <aside class="docs-sidebar">
+        <nav class="sidebar-nav">
+          <a href="index.html" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            </svg>
+            <span data-i18n="nav_docs_home">Docs Home</span>
+          </a>
+          <a href="changelog.html" class="sidebar-link active">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span data-i18n="nav_changelog">Changelog</span>
+          </a>
+          <a href="antenna-guide.html" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20v-6M6 20V10M18 20V4"></path>
+            </svg>
+            <span data-i18n="nav_antenna">5G Antenna Guide</span>
+          </a>
+          <a href="privacy.html" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span data-i18n="nav_privacy">Privacy Policy</span>
+          </a>
+          <a href="developer.html" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <span data-i18n="nav_developer">Developer API</span>
+          </a>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="docs-content">
+        <section class="docs-hero">
+          <h1 class="hero-heading" data-i18n="cl_hero_title">NetPulse Release History &amp; Changelog</h1>
+          <p class="hero-desc" data-i18n="cl_hero_desc">
+            Complete timeline of commits, structural updates, feature releases, and optimizations for NetPulse.
+          </p>
+        </section>
+
+        <section class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="cl_sec_commits">Git Commit History</h2>
+          </div>
+          <div class="section-body">
+            <div class="faq-accordion">
+              <!-- New Commit -->
+              <div class="doc-card" style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                  <a href="https://github.com/ZerroDevs/NetPulse/commit/339d93a860f99d5436fb457b0f164cc3a0e4cc52" target="_blank" rel="noopener noreferrer" style="font-weight: 700; color: var(--accent-indigo); text-decoration: none; font-size: 14px;">
+                    feat: add documentation site, extension UI views, and update README
+                  </a>
+                  <span class="gateway-badge">339d93a</span>
+                </div>
+              </div>
+
+              <!-- Commit 1 -->
+              <div class="doc-card" style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                  <a href="https://github.com/ZerroDevs/NetPulse/commit/542bdcce0828dac163e0393e43fd5a98352960f6" target="_blank" rel="noopener noreferrer" style="font-weight: 700; color: var(--accent-indigo); text-decoration: none; font-size: 14px;">
+                    feat: implement NetPulse extension with core dashboard, analysis, and scraper modules
+                  </a>
+                  <span class="gateway-badge">542bdcc</span>
+                </div>
+              </div>
+
+              <!-- Commit 2 -->
+              <div class="doc-card" style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                  <a href="https://github.com/ZerroDevs/NetPulse/commit/5c3dca51ea4a20a375a1ed4487d167b824d80a01" target="_blank" rel="noopener noreferrer" style="font-weight: 700; color: var(--accent-indigo); text-decoration: none; font-size: 14px;">
+                    feat: implement NetPulse telemetry analysis, dashboard UI, and router scraper modules
+                  </a>
+                  <span class="gateway-badge">5c3dca5</span>
+                </div>
+              </div>
+
+              <!-- Commit 3 -->
+              <div class="doc-card" style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                  <a href="https://github.com/ZerroDevs/NetPulse/commit/af2beb1f9df66e131704780fd1aa279ac570adf7" target="_blank" rel="noopener noreferrer" style="font-weight: 700; color: var(--accent-indigo); text-decoration: none; font-size: 14px;">
+                    docs: add MIT license and update documentation and verification script
+                  </a>
+                  <span class="gateway-badge">af2beb1</span>
+                </div>
+              </div>
+
+              <!-- Commit 4 -->
+              <div class="doc-card" style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                  <a href="https://github.com/ZerroDevs/NetPulse/commit/f909cf6c688818421e581707dd70deb5bb837b06" target="_blank" rel="noopener noreferrer" style="font-weight: 700; color: var(--accent-indigo); text-decoration: none; font-size: 14px;">
+                    feat: add NetPulse UI stylesheets and speedtest scraper script along with verification updates
+                  </a>
+                  <span class="gateway-badge">f909cf6</span>
+                </div>
+              </div>
+
+              <!-- Commit 5 -->
+              <div class="doc-card" style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                  <a href="https://github.com/ZerroDevs/NetPulse/commit/baf0174fd1cbeae27bc4360c1becb22df82e2e81" target="_blank" rel="noopener noreferrer" style="font-weight: 700; color: var(--accent-indigo); text-decoration: none; font-size: 14px;">
+                    feat: implement NetPulse browser extension with scrapers, dashboard, popup, and analysis modules
+                  </a>
+                  <span class="gateway-badge">baf0174</span>
+                </div>
+              </div>
+
+              <!-- Commit 6 -->
+              <div class="doc-card" style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                  <a href="https://github.com/ZerroDevs/NetPulse/commit/7be1136a924bc5ee98952d7dbdf2be211a4277a0" target="_blank" rel="noopener noreferrer" style="font-weight: 700; color: var(--accent-indigo); text-decoration: none; font-size: 14px;">
+                    feat: implement NetPulse dashboard, router and speedtest scrapers, and internationalization support
+                  </a>
+                  <span class="gateway-badge">7be1136</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="assets/js/script.js"></script>
+</body>
+</html>

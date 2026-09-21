@@ -15,6 +15,13 @@
       doc_title: 'NetPulse Documentation',
       doc_sub: 'Cellular RF Telemetry & Speedtest Correlation Engine',
       search_ph: 'Search docs (e.g. SINR, IP, CSV)...',
+      search_commits_ph: 'Search commits...',
+
+      nav_docs_home: 'Docs Home',
+      nav_changelog: 'Changelog',
+      nav_antenna: '5G Antenna Guide',
+      nav_privacy: 'Privacy Policy',
+      nav_developer: 'Developer API',
 
       nav_overview: 'Overview & Features',
       nav_install: 'Installation & Setup',
@@ -127,13 +134,54 @@
       author_whatsapp: 'Contact on WhatsApp (+218 916808225)',
       author_github: 'Lead Developer Profile (@ZerroDevs)',
       author_repo: 'Official GitHub Repository (ZerroDevs/NetPulse)',
-      author_license: 'Released under the MIT License. Copyright (c) 2026 ZerroDevs.'
+      author_license: 'Released under the MIT License. Copyright (c) 2026 ZerroDevs.',
+
+      cl_title: 'NetPulse Changelog',
+      cl_sub: 'Commit History & Release Timeline',
+      cl_hero_title: 'NetPulse Release History & Changelog',
+      cl_hero_desc: 'Complete timeline of commits, structural updates, feature releases, and optimizations for NetPulse.',
+      cl_sec_commits: 'Git Commit History',
+
+      ant_title: '5G Antenna Placement Guide',
+      ant_sub: 'RF Signal Tuning & Path Loss Calculator',
+      ant_hero_title: 'Interactive 5G Antenna Tuning & RF Placement Calculator',
+      ant_hero_desc: 'Calculate your estimated throughput penalty based on current RSRP and SINR metrics, and optimize your 4x4 MIMO router positioning.',
+      ant_calc_title: 'RF Placement & Path Loss Calculator',
+      ant_lbl_rsrp: 'Enter RSRP (Signal Power in dBm):',
+      ant_lbl_sinr: 'Enter SINR (Signal Purity in dB):',
+      ant_mimo_title: '4x4 MIMO Antenna Cross-Polarization Guide',
+      ant_mimo_desc: 'For external TS9 / SMA antennas, ensure dual elements are angled at ±45° (slant cross-polarization) to align with cell tower transmit arrays:',
+      ant_mimo_tip1: 'Element A (+45°): Primary Downlink/Uplink transceiver array.',
+      ant_mimo_tip2: 'Element B (-45°): Secondary Downlink diversity receiver.',
+      ant_mimo_tip3: 'Line of Sight (LoS): Elevate antenna above rooflines to clear tree foliage and building obstacles.',
+
+      priv_title: 'NetPulse Privacy Policy',
+      priv_sub: '100% Local Storage & Zero Tracking Guarantee',
+      priv_hero_title: 'NetPulse Privacy Policy & Security Assurance',
+      priv_hero_desc: 'Your telemetry data is 100% private, saved locally in your browser, and never shared or uploaded to third-party servers.',
+      priv_sec_guarantee: 'Core Privacy Commitments',
+      priv_p1: 'Local Storage Only: All cellular signal metrics (RSRP, SINR, Cell ID) and speedtest results are stored exclusively in chrome.storage.local inside your browser.',
+      priv_p2: 'Zero Analytics / Tracking: NetPulse contains zero tracking scripts, zero telemetry trackers, and zero Google Analytics.',
+      priv_p3: 'No External Data Transmission: Router stats and credentials never leave your local machine or your local subnet (192.168.*.*, 10.*.*.*).',
+      priv_p4: 'Open Source Auditability: The complete source code is publicly accessible on GitHub under the MIT License for community security auditing.',
+
+      dev_title: 'NetPulse Developer Guide',
+      dev_sub: 'Internal Message Bus & JSON Schemas',
+      dev_hero_title: 'NetPulse Extension API & Architecture Reference',
+      dev_hero_desc: 'Technical specification of internal messaging bus, background alarms, and JSON data schemas.'
     },
 
     ar: {
       doc_title: 'توثيق ودليل NetPulse',
       doc_sub: 'محرك أداء وقياس الإشارة اللاسلكية واختبارات السرعة',
       search_ph: 'البحث في التوثيق (مثال: SINR, IP, CSV)...',
+      search_commits_ph: 'البحث في السجلات...',
+
+      nav_docs_home: 'رئيسية التوثيق',
+      nav_changelog: 'سجل التغييرات',
+      nav_antenna: 'دليل الهوائي',
+      nav_privacy: 'سياسة الخصوصية',
+      nav_developer: 'دليل المطورين',
 
       nav_overview: 'نظرة عامة والمميزات',
       nav_install: 'التثبيت والتهيئة',
@@ -234,7 +282,7 @@
 
       sec_settings_title: '4. الإعدادات وتهيئـة البوابة',
       settings_desc: 'يتيح للمستخدم تهيئة بيانات دخول الموجه، وفترات التحديث، وقواعد الالتقاط التلقائي، وعتبات التنبيه.',
-      settings_cap1: 'مؤشرات التنبيه للإشارة: تخصيص عتبات التنبيه الحرجة لانخفاض RSRP وSINR.',
+      settings_cap1: 'عنوان البوابة وملف الموجه: دعم 192.168.1.1 و10.*.*.* وملفات الموجهات (Zyxel, Huawei, ZTE, Generic).',
       settings_cap2: 'خزنة البيانات التلقائية: حفظ آمن لاسم المستخدم وكلمة المرور مع ملء تلقائي ذكي.',
       settings_cap3: 'معدلات محرك التحديث: فترات قابلة للتخصيص (2 ثانية للأداء العالي، 5 ثوانٍ متوازن، 15 ثانية لموفر الطاقة).',
       settings_cap4: 'مؤشرات التنبيه للإشارة: تخصيص عتبات التنبيه الحرجة لانخفاض RSRP وSINR.',

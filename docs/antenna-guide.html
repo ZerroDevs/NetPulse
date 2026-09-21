@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPulse - 5G Antenna Placement &amp; Tuning Guide</title>
+  <link rel="icon" type="image/png" sizes="128x128" href="assets/Images/icon128.png">
+  <link rel="icon" type="image/svg+xml" href="assets/Images/icon.svg">
+  <link rel="shortcut icon" href="assets/Images/icon16.png">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    .calc-box {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .calc-inputs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .calc-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .calc-field label {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+    .calc-field input {
+      background-color: var(--bg-canvas);
+      border: 1px solid var(--border-medium);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      outline: none;
+    }
+    .calc-field input:focus {
+      border-color: var(--border-focus);
+    }
+    .calc-result {
+      background-color: var(--bg-subtle);
+      border-left: 4px solid var(--accent-indigo);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .result-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text-primary);
+    }
+    .result-text {
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="docs-layout">
+    <!-- Header Topbar -->
+    <header class="docs-header">
+      <div class="header-brand">
+        <img src="assets/Images/icon.svg" alt="NetPulse Logo" width="28" height="28" class="brand-logo" style="width: 28px; height: 28px; object-fit: contain;">
+        <div class="brand-text-block">
+          <div class="brand-row">
+            <span class="brand-title" data-i18n="ant_title">5G Antenna Placement Guide</span>
+            <span class="version-pill">v1.0.0 MV3</span>
+          </div>
+          <span class="brand-sub" data-i18n="ant_sub">RF Signal Tuning &amp; Path Loss Calculator</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Language Switcher -->
+        <button id="btn-lang-toggle" class="btn-toggle-switch" type="button" title="Switch Language / تبديل اللغة">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span id="lang-toggle-text">العربية</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="btn-theme-toggle" class="btn-toggle-switch" type="button" title="Toggle Dark/Light Mode">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12.01" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <span id="theme-label-text">Light</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="docs-body">
+      <!-- Sidebar Navigation -->
+      <aside class="docs-sidebar">
+        <nav class="sidebar-nav">
+          <a href="index.html" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            </svg>
+            <span data-i18n="nav_docs_home">Docs Home</span>
+          </a>
+          <a href="changelog.html" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span data-i18n="nav_changelog">Changelog</span>
+          </a>
+          <a href="antenna-guide.html" class="sidebar-link active">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20v-6M6 20V10M18 20V4"></path>
+            </svg>
+            <span data-i18n="nav_antenna">5G Antenna Guide</span>
+          </a>
+          <a href="privacy.html" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span data-i18n="nav_privacy">Privacy Policy</span>
+          </a>
+          <a href="developer.html" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <span data-i18n="nav_developer">Developer API</span>
+          </a>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="docs-content">
+        <section class="docs-hero">
+          <h1 class="hero-heading" data-i18n="ant_hero_title">Interactive 5G Antenna Tuning &amp; RF Placement Calculator</h1>
+          <p class="hero-desc" data-i18n="ant_hero_desc">
+            Calculate your estimated throughput penalty based on current RSRP and SINR metrics, and optimize your 4x4 MIMO router positioning.
+          </p>
+        </section>
+
+        <!-- Interactive Calculator -->
+        <section class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20v-6M6 20V10M18 20V4"></path>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="ant_calc_title">RF Placement &amp; Path Loss Calculator</h2>
+          </div>
+          <div class="section-body">
+            <div class="calc-box">
+              <div class="calc-inputs">
+                <div class="calc-field">
+                  <label for="input-rsrp" data-i18n="ant_lbl_rsrp">Enter RSRP (Signal Power in dBm):</label>
+                  <input type="number" id="input-rsrp" value="-98" placeholder="-98">
+                </div>
+                <div class="calc-field">
+                  <label for="input-sinr" data-i18n="ant_lbl_sinr">Enter SINR (Signal Purity in dB):</label>
+                  <input type="number" id="input-sinr" value="6" placeholder="6">
+                </div>
+              </div>
+
+              <div id="calc-result-block" class="calc-result">
+                <div id="result-rating" class="result-title">Calculating...</div>
+                <div id="result-recommendation" class="result-text">Enter values to compute instant feedback.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- MIMO Orientation Guide -->
+        <section class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="ant_mimo_title">4x4 MIMO Antenna Cross-Polarization Guide</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="ant_mimo_desc">
+              For external TS9 / SMA antennas (e.g. Poynting, Panorama, QuWireless), ensure dual elements are angled at <strong>±45° (slant cross-polarization)</strong> to align with cell tower transmit arrays:
+            </p>
+            <ul>
+              <li data-i18n="ant_mimo_tip1"><strong>Element A (+45°)</strong>: Primary Downlink/Uplink transceiver array.</li>
+              <li data-i18n="ant_mimo_tip2"><strong>Element B (-45°)</strong>: Secondary Downlink diversity receiver.</li>
+              <li data-i18n="ant_mimo_tip3"><strong>Line of Sight (LoS)</strong>: Elevate antenna above rooflines to clear tree foliage and building obstacles.</li>
+            </ul>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="assets/js/script.js"></script>
+  <script>
+    (function() {
+      const inputRsrp = document.getElementById('input-rsrp');
+      const inputSinr = document.getElementById('input-sinr');
+      const resRating = document.getElementById('result-rating');
+      const resRec = document.getElementById('result-recommendation');
+
+      function calculate() {
+        const rsrp = parseFloat(inputRsrp.value) || -100;
+        const sinr = parseFloat(inputSinr.value) || 0;
+
+        let rating = '';
+        let loss = 0;
+        let action = '';
+
+        if (rsrp >= -85 && sinr >= 15) {
+          rating = '🟢 Excellent Connection Quality (256-QAM Peak Throughput)';
+          loss = 0;
+          action = 'Your antenna positioning is optimal. No adjustments needed!';
+        } else if (rsrp >= -98 && sinr >= 8) {
+          rating = '🔵 Good Connection Quality (64-QAM Modulation)';
+          loss = 15;
+          action = 'Rotate router 10° toward the nearest window to boost SINR past 15 dB.';
+        } else if (rsrp >= -108 || sinr >= 2) {
+          rating = '🟡 Fair Connection (Path Loss Throttling ~35% Speed Penalty)';
+          loss = 35;
+          action = 'Move router closer to an exterior window or elevate antenna position by 1-2 meters.';
+        } else {
+          rating = '🔴 Poor Connection (Severe RF Degradation ~65% Speed Loss)';
+          loss = 65;
+          action = 'High interference & path loss! Rotate router 20° clockwise away from indoor electronics and microwave appliances.';
+        }
+
+        resRating.textContent = rating;
+        resRec.textContent = `Estimated Speed Loss: ~${loss}% | Action: ${action}`;
+      }
+
+      if (inputRsrp && inputSinr) {
+        inputRsrp.addEventListener('input', calculate);
+        inputSinr.addEventListener('input', calculate);
+        calculate();
+      }
+    })();
+  </script>
+</body>
+</html>
