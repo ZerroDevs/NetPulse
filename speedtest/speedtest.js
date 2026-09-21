@@ -1,6 +1,7 @@
 /**
  * NetPulse - Speedtest Controller & Runner Script
- * Manages test execution, live RF pairing, UI updates, and storage persistence under "NetPulse Test".
+ * Upgraded Semi-Circular Speedometer Gauge Engine (Speedtest.net style)
+ * Strict Guidelines: ZERO GRADIENTS, solid matte colors, zero emojis, full LTR/RTL compliance.
  */
 
 (function () {
@@ -22,9 +23,17 @@
   const phaseText = document.getElementById('speedtest-phase-text');
   const progressFill = document.getElementById('arena-progress-fill');
 
+  const speedometerCanvas = document.getElementById('speedometer-canvas');
+  const gaugePhasePill = document.getElementById('gauge-phase-pill');
+  const gaugePhaseIconWrap = document.getElementById('gauge-phase-icon-wrap');
   const focusLabel = document.getElementById('focus-metric-label');
   const focusValue = document.getElementById('focus-metric-value');
   const focusUnit = document.getElementById('focus-metric-unit');
+
+  const cardPing = document.getElementById('card-kpi-ping');
+  const cardJitter = document.getElementById('card-kpi-jitter');
+  const cardDl = document.getElementById('card-kpi-dl');
+  const cardUl = document.getElementById('card-kpi-ul');
 
   const statPing = document.getElementById('stat-ping-val');
   const statJitter = document.getElementById('stat-jitter-val');
@@ -43,6 +52,7 @@
   const previewBbGrade = document.getElementById('preview-bb-grade');
   const previewCsiScore = document.getElementById('preview-csi-score');
   const previewDlLoaded = document.getElementById('preview-dl-loaded');
+  const previewUlLoaded = document.getElementById('preview-ul-loaded');
 
   const btnPrivacyToggle = document.getElementById('btn-privacy-toggle');
   const privacyToggleText = document.getElementById('privacy-toggle-text');
@@ -56,8 +66,272 @@
   const syncIndicator = document.getElementById('live-sync-indicator');
 
   /* ==========================================================================
+     GAUGE ENGINE & PIECEWISE NON-LINEAR SCALE
+     ========================================================================== */
+  const START_ANGLE = (150 * Math.PI) / 180; // 150 deg (2.618 rad)
+  const TOTAL_ANGLE = (240 * Math.PI) / 180; // 240 deg (4.189 rad)
+  const END_ANGLE = START_ANGLE + TOTAL_ANGLE; // 390 deg (6.807 rad)
+
+  const SCALE_POINTS = [
+    { speed: 0, label: '0', frac: 0.00 },
+    { speed: 5, label: '5', frac: 0.10 },
+    { speed: 10, label: '10', frac: 0.22 },
+    { speed: 50, label: '50', frac: 0.40 },
+    { speed: 100, label: '100', frac: 0.56 },
+    { speed: 250, label: '250', frac: 0.72 },
+    { speed: 500, label: '500', frac: 0.86 },
+    { speed: 1000, label: '1k', frac: 1.00 }
+  ];
+
+  const SVG_ICONS = {
+    dl: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>',
+    ul: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>',
+    ping: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.07 4.93a10 10 0 0 0-14.14 0"></path><path d="M4.93 19.07a10 10 0 0 0 14.14 0"></path></svg>',
+    complete: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+    idle: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>'
+  };
+
+  let currentPhase = 'idle'; // 'idle', 'ping', 'download', 'upload', 'completed'
+  let targetFrac = 0.0;
+  let currentFrac = 0.0;
+  let gaugeAnimId = null;
+
+  function speedToFraction(speed) {
+    if (!speed || speed <= 0) return 0;
+    if (speed >= 1000) return 1.0;
+    for (let i = 0; i < SCALE_POINTS.length - 1; i++) {
+      const p1 = SCALE_POINTS[i];
+      const p2 = SCALE_POINTS[i + 1];
+      if (speed >= p1.speed && speed <= p2.speed) {
+        const segT = (speed - p1.speed) / (p2.speed - p1.speed);
+        return p1.frac + segT * (p2.frac - p1.frac);
+      }
+    }
+    return 1.0;
+  }
+
+  function resizeCanvas() {
+    if (!speedometerCanvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = speedometerCanvas.getBoundingClientRect();
+    const w = rect.width || 460;
+    const h = rect.height || 290;
+
+    speedometerCanvas.width = Math.round(w * dpr);
+    speedometerCanvas.height = Math.round(h * dpr);
+    const ctx = speedometerCanvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+  }
+
+  function drawGauge() {
+    if (!speedometerCanvas) return;
+    const rect = speedometerCanvas.getBoundingClientRect();
+    const w = rect.width || 460;
+    const h = rect.height || 290;
+    const ctx = speedometerCanvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const cy = h * 0.72;
+    const radius = Math.min(cx - 32, cy - 22);
+
+    const isDark = currentTheme === 'dark';
+    const trackColor = isDark ? '#1f2937' : '#e2e8f0';
+    const majorTickColor = isDark ? '#4b5563' : '#94a3b8';
+    const minorTickColor = isDark ? '#374151' : '#cbd5e1';
+    const tickTextColor = isDark ? '#9ca3af' : '#64748b';
+    const needleColor = isDark ? '#f3f4f6' : '#1e293b';
+    const hubBg = isDark ? '#111827' : '#ffffff';
+    const hubBorder = isDark ? '#374151' : '#cbd5e1';
+
+    let activeColor = '#10b981'; // Solid Emerald
+    if (currentPhase === 'ping') activeColor = '#f59e0b'; // Solid Amber
+    else if (currentPhase === 'download') activeColor = '#10b981'; // Solid Emerald
+    else if (currentPhase === 'upload') activeColor = '#3b82f6'; // Solid Blue
+    else if (currentPhase === 'completed') activeColor = '#10b981';
+
+    // 1. Base Track Arc
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, START_ANGLE, END_ANGLE, false);
+    ctx.strokeStyle = trackColor;
+    ctx.lineWidth = 10;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 2. Active Dynamic Arc
+    if (currentFrac > 0.002) {
+      const activeEnd = START_ANGLE + (currentFrac * TOTAL_ANGLE);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, START_ANGLE, activeEnd, false);
+      ctx.strokeStyle = activeColor;
+      ctx.lineWidth = 10;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // 3. Minor Sub-Ticks
+    const numSubTicks = 36;
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = minorTickColor;
+    for (let i = 0; i <= numSubTicks; i++) {
+      const t = i / numSubTicks;
+      const angle = START_ANGLE + (t * TOTAL_ANGLE);
+      const rInner = radius + 9;
+      const rOuter = radius + 15;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+      ctx.beginPath();
+      ctx.moveTo(cx + rInner * cosA, cy + rInner * sinA);
+      ctx.lineTo(cx + rOuter * cosA, cy + rOuter * sinA);
+      ctx.stroke();
+    }
+
+    // 4. Major Ticks & Non-Linear Scale Labels
+    ctx.font = '600 11px "JetBrains Mono", Menlo, Consolas, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let i = 0; i < SCALE_POINTS.length; i++) {
+      const pt = SCALE_POINTS[i];
+      const angle = START_ANGLE + (pt.frac * TOTAL_ANGLE);
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+
+      // Major tick mark
+      const rInner = radius + 8;
+      const rOuter = radius + 18;
+      ctx.beginPath();
+      ctx.moveTo(cx + rInner * cosA, cy + rInner * sinA);
+      ctx.lineTo(cx + rOuter * cosA, cy + rOuter * sinA);
+      ctx.strokeStyle = (pt.frac <= currentFrac && currentFrac > 0.01) ? activeColor : majorTickColor;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Label
+      const rLabel = radius + 30;
+      const lx = cx + rLabel * cosA;
+      const ly = cy + rLabel * sinA;
+      ctx.fillStyle = (pt.frac <= currentFrac && currentFrac > 0.01) ? activeColor : tickTextColor;
+      ctx.fillText(pt.label, lx, ly);
+    }
+
+    // 5. Tapered Needle Pointer
+    const needleAngle = START_ANGLE + (currentFrac * TOTAL_ANGLE);
+    const needleLength = radius - 16;
+    const tailLength = 14;
+    const needleCos = Math.cos(needleAngle);
+    const needleSin = Math.sin(needleAngle);
+    const normCos = Math.cos(needleAngle + Math.PI / 2);
+    const normSin = Math.sin(needleAngle + Math.PI / 2);
+
+    ctx.save();
+    ctx.beginPath();
+    // Tip
+    ctx.moveTo(cx + needleLength * needleCos, cy + needleLength * needleSin);
+    // Right flank
+    ctx.lineTo(cx + 3 * normCos - tailLength * 0.4 * needleCos, cy + 3 * normSin - tailLength * 0.4 * needleSin);
+    // Tail
+    ctx.lineTo(cx - tailLength * needleCos, cy - tailLength * needleSin);
+    // Left flank
+    ctx.lineTo(cx - 3 * normCos - tailLength * 0.4 * needleCos, cy - 3 * normSin - tailLength * 0.4 * needleSin);
+    ctx.closePath();
+    ctx.fillStyle = needleColor;
+    ctx.fill();
+
+    // Center Hub Outer Ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.fillStyle = hubBg;
+    ctx.fill();
+    ctx.strokeStyle = hubBorder;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Center Hub Inner Pin
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+    ctx.fillStyle = activeColor;
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function startGaugeAnimationLoop() {
+    if (gaugeAnimId) cancelAnimationFrame(gaugeAnimId);
+
+    function frame() {
+      const diff = targetFrac - currentFrac;
+      if (Math.abs(diff) > 0.0005) {
+        currentFrac += diff * 0.12; // Smooth cubic-like inertia
+      } else {
+        currentFrac = targetFrac;
+      }
+
+      drawGauge();
+      gaugeAnimId = requestAnimationFrame(frame);
+    }
+
+    gaugeAnimId = requestAnimationFrame(frame);
+  }
+
+  function setGaugePhase(phase, speedVal, unitVal) {
+    currentPhase = phase;
+    const isAr = currentLang === 'ar';
+    const i18n = window.NetPulseI18n;
+
+    // Reset card highlight classes
+    if (cardPing) cardPing.classList.remove('kpi-card-active-ping');
+    if (cardDl) cardDl.classList.remove('kpi-card-active-dl');
+    if (cardUl) cardUl.classList.remove('kpi-card-active-ul');
+
+    if (gaugePhasePill) {
+      gaugePhasePill.className = 'gauge-phase-pill';
+    }
+
+    if (phase === 'ping') {
+      if (gaugePhasePill) gaugePhasePill.classList.add('phase-pill-ping');
+      if (gaugePhaseIconWrap) gaugePhaseIconWrap.innerHTML = SVG_ICONS.ping;
+      if (focusLabel) focusLabel.textContent = i18n ? i18n.t('speedtest_idle_latency', currentLang) : 'PING / RTT';
+      if (cardPing) cardPing.classList.add('kpi-card-active-ping');
+      targetFrac = 0.05; // Gentle live radar indicator
+    } else if (phase === 'download') {
+      if (gaugePhasePill) gaugePhasePill.classList.add('phase-pill-dl');
+      if (gaugePhaseIconWrap) gaugePhaseIconWrap.innerHTML = SVG_ICONS.dl;
+      if (focusLabel) focusLabel.textContent = i18n ? i18n.t('speedtest_dl_throughput', currentLang) : 'DOWNLOAD SPEED';
+      if (cardDl) cardDl.classList.add('kpi-card-active-dl');
+      targetFrac = speedToFraction(speedVal);
+    } else if (phase === 'upload') {
+      if (gaugePhasePill) gaugePhasePill.classList.add('phase-pill-ul');
+      if (gaugePhaseIconWrap) gaugePhaseIconWrap.innerHTML = SVG_ICONS.ul;
+      if (focusLabel) focusLabel.textContent = i18n ? i18n.t('speedtest_ul_throughput', currentLang) : 'UPLOAD SPEED';
+      if (cardUl) cardUl.classList.add('kpi-card-active-ul');
+      targetFrac = speedToFraction(speedVal);
+    } else if (phase === 'completed') {
+      if (gaugePhasePill) gaugePhasePill.classList.add('phase-pill-done');
+      if (gaugePhaseIconWrap) gaugePhaseIconWrap.innerHTML = SVG_ICONS.complete;
+      if (focusLabel) focusLabel.textContent = i18n ? i18n.t('speedtest_dl_throughput', currentLang) : 'DOWNLOAD SPEED';
+      targetFrac = 0; // Smoothly glide needle to rest
+    } else {
+      if (gaugePhasePill) gaugePhasePill.classList.add('phase-pill-idle');
+      if (gaugePhaseIconWrap) gaugePhaseIconWrap.innerHTML = SVG_ICONS.idle;
+      if (focusLabel) focusLabel.textContent = i18n ? i18n.t('speedtest_dl_throughput', currentLang) : 'DOWNLOAD SPEED';
+      targetFrac = 0;
+    }
+
+    if (focusValue && speedVal !== undefined) {
+      focusValue.textContent = typeof speedVal === 'number' ? speedVal.toFixed(1) : speedVal;
+    }
+    if (focusUnit && unitVal !== undefined) {
+      focusUnit.textContent = unitVal;
+    }
+  }
+
+  /* ==========================================================================
      INITIALIZATION & STORAGE SYNC
-     ========================================================================= */
+     ========================================================================== */
   async function init() {
     try {
       const data = await chrome.storage.local.get([
@@ -77,6 +351,10 @@
       applyPrivacyMode(privacyMode);
       renderRfSnapshot(currentRouterData ? currentRouterData.metrics : null);
 
+      resizeCanvas();
+      startGaugeAnimationLoop();
+      setGaugePhase('idle', '0.0', 'Mbps');
+
       setupListeners();
     } catch (err) {
       console.error('[NetPulse Speedtest] Init error:', err);
@@ -86,6 +364,11 @@
   function setupListeners() {
     if (btnStart) btnStart.addEventListener('click', startSpeedtest);
     if (btnAbort) btnAbort.addEventListener('click', abortSpeedtest);
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      drawGauge();
+    });
 
     if (btnLangToggle) {
       btnLangToggle.addEventListener('click', () => {
@@ -136,10 +419,11 @@
 
   /* ==========================================================================
      THEME & LANGUAGE & PRIVACY
-     ========================================================================= */
+     ========================================================================== */
   function applyTheme(theme) {
     currentTheme = theme;
     document.documentElement.setAttribute('data-theme', theme);
+    drawGauge();
   }
 
   function applyLanguage(lang) {
@@ -150,6 +434,7 @@
     if (langToggleText) {
       langToggleText.textContent = lang === 'en' ? 'العربية' : 'English';
     }
+    drawGauge();
   }
 
   function applyPrivacyMode(enabled) {
@@ -175,7 +460,7 @@
 
   /* ==========================================================================
      RF TELEMETRY SNAPSHOT
-     ========================================================================= */
+     ========================================================================== */
   function renderRfSnapshot(m) {
     const evaluator = window.NetPulseEvaluator;
     const isAr = currentLang === 'ar';
@@ -241,7 +526,7 @@
 
   /* ==========================================================================
      SPEEDTEST RUNNER ORCHESTRATION
-     ========================================================================= */
+     ========================================================================== */
   function startSpeedtest() {
     if (activeRunner) {
       activeRunner.abort();
@@ -258,12 +543,19 @@
     if (statDl) statDl.textContent = '--';
     if (statUl) statUl.textContent = '--';
 
-    if (previewBbGrade) previewBbGrade.textContent = '--';
-    if (previewCsiScore) previewCsiScore.textContent = '--';
+    if (previewBbGrade) {
+      previewBbGrade.textContent = '--';
+      previewBbGrade.style.color = '';
+      previewBbGrade.style.borderColor = '';
+    }
+    if (previewCsiScore) {
+      previewCsiScore.textContent = '--';
+      previewCsiScore.style.color = '';
+    }
     if (previewDlLoaded) previewDlLoaded.textContent = '--';
+    if (previewUlLoaded) previewUlLoaded.textContent = '--';
 
-    const isAr = currentLang === 'ar';
-    const i18n = window.NetPulseI18n;
+    setGaugePhase('ping', '--', 'ms');
 
     activeRunner = new window.NetPulseSpeedtestRunner({
       pingProbes: 10,
@@ -294,6 +586,8 @@
 
     if (btnStart) btnStart.style.display = 'inline-flex';
     if (btnAbort) btnAbort.style.display = 'none';
+
+    setGaugePhase('idle', '0.0', 'Mbps');
   }
 
   function handleTestProgress(evt) {
@@ -319,25 +613,19 @@
       phaseText.textContent = i18n ? i18n.t(phaseKey, currentLang) : phase;
     }
 
-    // Update numbers on cards
+    // Update numbers on KPI cards
     if (results.pingMs > 0 && statPing) statPing.textContent = results.pingMs;
     if (results.jitterMs > 0 && statJitter) statJitter.textContent = results.jitterMs;
     if (results.downloadMbps > 0 && statDl) statDl.textContent = results.downloadMbps.toFixed(1);
     if (results.uploadMbps > 0 && statUl) statUl.textContent = results.uploadMbps.toFixed(1);
 
-    // Update Big Main Dial
+    // Update Speedometer Gauge & Center HUD
     if (phase === 'ping') {
-      if (focusLabel) focusLabel.textContent = i18n ? i18n.t('speedtest_idle_latency', currentLang) : 'PING / RTT';
-      if (focusValue) focusValue.textContent = results.pingMs || '--';
-      if (focusUnit) focusUnit.textContent = 'ms';
+      setGaugePhase('ping', results.pingMs || '--', 'ms');
     } else if (phase === 'download') {
-      if (focusLabel) focusLabel.textContent = i18n ? i18n.t('speedtest_dl_throughput', currentLang) : 'DOWNLOAD SPEED';
-      if (focusValue) focusValue.textContent = results.downloadMbps.toFixed(1);
-      if (focusUnit) focusUnit.textContent = 'Mbps';
+      setGaugePhase('download', results.downloadMbps, 'Mbps');
     } else if (phase === 'upload') {
-      if (focusLabel) focusLabel.textContent = i18n ? i18n.t('speedtest_ul_throughput', currentLang) : 'UPLOAD SPEED';
-      if (focusValue) focusValue.textContent = results.uploadMbps.toFixed(1);
-      if (focusUnit) focusUnit.textContent = 'Mbps';
+      setGaugePhase('upload', results.uploadMbps, 'Mbps');
     }
   }
 
@@ -352,9 +640,7 @@
     if (btnViewHistory) btnViewHistory.style.display = 'inline-flex';
     if (saveNotice) saveNotice.style.display = 'flex';
 
-    if (focusLabel) focusLabel.textContent = i18n ? i18n.t('speedtest_dl_throughput', currentLang) : 'DOWNLOAD SPEED';
-    if (focusValue) focusValue.textContent = results.downloadMbps.toFixed(1);
-    if (focusUnit) focusUnit.textContent = 'Mbps';
+    setGaugePhase('completed', results.downloadMbps, 'Mbps');
 
     // Live calculations for Bufferbloat & CSI
     const bb = evaluator ? evaluator.evaluateBufferbloat(results) : null;
@@ -375,8 +661,22 @@
       previewCsiScore.style.color = csi.color;
     }
 
-    if (results.downloadLoadedPing && previewDlLoaded) {
-      previewDlLoaded.textContent = `${results.downloadLoadedPing} ms`;
+    if (previewDlLoaded) {
+      if (results.downloadLoadedPing) {
+        const dlDelta = Math.max(0, results.downloadLoadedPing - (results.pingMs || 0));
+        previewDlLoaded.textContent = `${results.downloadLoadedPing} ms (+${dlDelta} ms)`;
+      } else {
+        previewDlLoaded.textContent = results.pingMs ? `${results.pingMs} ms (+0 ms)` : '--';
+      }
+    }
+
+    if (previewUlLoaded) {
+      if (results.uploadLoadedPing) {
+        const ulDelta = Math.max(0, results.uploadLoadedPing - (results.pingMs || 0));
+        previewUlLoaded.textContent = `${results.uploadLoadedPing} ms (+${ulDelta} ms)`;
+      } else {
+        previewUlLoaded.textContent = results.pingMs ? `${results.pingMs} ms (+0 ms)` : '--';
+      }
     }
 
     // Auto-Save into chrome.storage.local netpulse_history
@@ -430,6 +730,7 @@
     if (phaseBadge) phaseBadge.className = 'phase-badge phase-ready';
     if (phaseText) phaseText.textContent = currentLang === 'ar' ? 'حدث خطأ أثناء الفحص' : 'Error during measurement';
 
+    setGaugePhase('idle', '0.0', 'Mbps');
     showToast(currentLang === 'ar' ? 'فشل فحص السرعة. تأكد من اتصال الإنترنت.' : 'Speedtest failed. Verify internet connectivity.');
   }
 
@@ -441,3 +742,4 @@
   }
 
 })();
+

@@ -137,17 +137,32 @@
             </div>
           </div>
 
-          <!-- Main Live Focus Dial / Meter -->
+          <!-- Main Live Speedometer Gauge Arena -->
           <div class="speedtest-focus-panel">
-            <div class="focus-metric-wrap">
-              <span id="focus-metric-label" class="focus-label" data-i18n="speedtest_dl_throughput">DOWNLOAD SPEED</span>
-              <div class="focus-number-row">
-                <span id="focus-metric-value" class="focus-value mono">0.0</span>
+            <div class="gauge-container">
+              <canvas id="speedometer-canvas" class="speedometer-canvas" width="460" height="300"></canvas>
+              
+              <!-- Center Gauge HUD Readout -->
+              <div class="gauge-hud-overlay">
+                <div id="gauge-phase-pill" class="gauge-phase-pill phase-pill-idle">
+                  <span id="gauge-phase-icon-wrap">
+                    <svg id="gauge-phase-svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <polyline points="19 12 12 19 5 12"></polyline>
+                    </svg>
+                  </span>
+                  <span id="focus-metric-label" data-i18n="speedtest_dl_throughput">DOWNLOAD SPEED</span>
+                </div>
+
+                <div class="gauge-number-row">
+                  <span id="focus-metric-value" class="focus-value mono">0.0</span>
+                </div>
+
                 <span id="focus-metric-unit" class="focus-unit mono">Mbps</span>
               </div>
             </div>
 
-            <!-- Flat Progress Line -->
+            <!-- Subtle Sub-Progress Indicator -->
             <div class="arena-progress-track">
               <div id="arena-progress-fill" class="arena-progress-fill" style="width: 0%;"></div>
             </div>
@@ -321,6 +336,10 @@
               <div class="eval-row">
                 <span class="eval-label" data-i18n="dl_loaded_latency">DL Loaded Latency</span>
                 <span id="preview-dl-loaded" class="mono text-muted">--</span>
+              </div>
+              <div class="eval-row">
+                <span class="eval-label" data-i18n="ul_loaded_latency">UL Loaded Latency</span>
+                <span id="preview-ul-loaded" class="mono text-muted">--</span>
               </div>
             </div>
           </section>

@@ -698,6 +698,21 @@ speedtestI18nKeys.forEach((k) => {
   assert(I18n.t(k, 'ar') !== k, `AR translation exists for ${k}`);
 });
 
+// 26. Semi-Circular Speedometer Canvas Gauge & Dynamic HUD Verification
+assert(speedtestHtml.includes('id="speedometer-canvas"'), 'speedtest.html contains speedometer-canvas');
+assert(speedtestHtml.includes('id="gauge-phase-pill"'), 'speedtest.html contains gauge-phase-pill');
+assert(speedtestHtml.includes('id="gauge-phase-icon-wrap"'), 'speedtest.html contains gauge-phase-icon-wrap');
+assert(speedtestHtml.includes('class="gauge-hud-overlay"'), 'speedtest.html contains gauge-hud-overlay');
+assert(speedtestCss.includes('.speedometer-canvas'), 'speedtest.css styles .speedometer-canvas');
+assert(speedtestCss.includes('.gauge-hud-overlay'), 'speedtest.css styles .gauge-hud-overlay');
+assert(speedtestCss.includes('.gauge-phase-pill'), 'speedtest.css styles .gauge-phase-pill');
+assert(speedtestJs.includes('START_ANGLE'), 'speedtest.js defines 240-degree START_ANGLE');
+assert(speedtestJs.includes('SCALE_POINTS'), 'speedtest.js defines piecewise non-linear SCALE_POINTS');
+assert(speedtestJs.includes('speedToFraction'), 'speedtest.js implements speedToFraction non-linear mapping');
+assert(speedtestJs.includes('drawGauge'), 'speedtest.js implements drawGauge canvas renderer');
+assert(speedtestJs.includes('startGaugeAnimationLoop'), 'speedtest.js implements startGaugeAnimationLoop physics easing');
+assert(speedtestJs.includes('setGaugePhase'), 'speedtest.js implements dynamic setGaugePhase');
+
 console.log(`\nVerification Complete: ${passes} passed, ${failures} failed.`);
 if (failures > 0) {
   process.exit(1);

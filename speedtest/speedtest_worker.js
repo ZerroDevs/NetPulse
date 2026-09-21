@@ -199,67 +199,122 @@
     }
 
     /**
-     * Measure Download Throughput with parallel chunk reading and live smoothing
+     * Helper to probe loaded latency against independent Anycast edge endpoints
+     * Uses separate connection hosts from the download/upload streams to prevent client-side socket congestion
+     */
+    async probeLoadedLatency(signal) {
+      const endpoints = [
+        'https://1.1.1.1/cdn-cgi/trace',
+        'https://www.google.com/generate_204',
+        'https://checkip.amazonaws.com/'
+      ];
+      const targetUrl = `${endpoints[Math.floor(Math.random() * endpoints.length)]}?_lp=${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const pStart = performance.now();
+      try {
+        await fetch(targetUrl, {
+          method: 'GET',
+          cache: 'no-store',
+          mode: 'no-cors',
+          signal
+        });
+        const pRtt = Math.round(performance.now() - pStart);
+        if (pRtt > 0 && pRtt < 2500) {
+          return pRtt;
+        }
+      } catch (e) {
+        // Secondary fallback
+        try {
+          const fbStart = performance.now();
+          await fetch(`https://1.1.1.1/cdn-cgi/trace?_lp_fb=${Date.now()}`, {
+            method: 'GET',
+            cache: 'no-store',
+            mode: 'no-cors',
+            signal
+          });
+          const fbRtt = Math.round(performance.now() - fbStart);
+          if (fbRtt > 0 && fbRtt < 2500) return fbRtt;
+        } catch (e2) {}
+      }
+      return null;
+    }
+
+    /**
+     * Measure Download Throughput with parallel chunk reading, error checking, and live smoothing
      */
     async measureDownload(signal, onLiveUpdate) {
       const durationMs = this.options.downloadDurationMs;
-      const numStreams = this.options.downloadStreams;
+      const numStreams = Math.min(3, this.options.downloadStreams || 3);
       const startTime = performance.now();
       let totalBytesReceived = 0;
       const sampleRates = [];
+      const loadedSamples = [];
       let loadedPing = null;
 
       let isDlRunning = true;
 
-      // Loaded ping probe timer
+      // Loaded ping probe timer - runs every 1200ms using independent edge probe
       const loadedPingInterval = setInterval(async () => {
         if (!isDlRunning || this.isAborted) return;
-        const pStart = performance.now();
         try {
-          await fetch(`https://speed.cloudflare.com/__down?bytes=0&lp=${Date.now()}`, {
-            method: 'GET',
-            cache: 'no-store',
-            mode: 'cors',
-            signal
-          });
-          const pRtt = Math.round(performance.now() - pStart);
-          if (pRtt > 0 && pRtt < 3000) {
-            loadedPing = pRtt;
+          const pRtt = await this.probeLoadedLatency(signal);
+          if (pRtt !== null && pRtt > 0) {
+            loadedSamples.push(pRtt);
+            const sorted = [...loadedSamples].sort((a, b) => a - b);
+            loadedPing = sorted[Math.floor(sorted.length / 2)];
           }
-        } catch (e) {
-          // ignore
-        }
-      }, 1500);
+        } catch (e) {}
+      }, 1200);
+
+      // High-capacity download chunk endpoints (Cloudflare Speed & Anycast CDN)
+      const downloadEndpoints = [
+        'https://speed.cloudflare.com/__down?bytes=10000000',
+        'https://speed.cloudflare.com/__down?bytes=25000000',
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
+      ];
 
       // Stream worker function
       const runStream = async (streamIndex) => {
+        let endpointIdx = streamIndex % downloadEndpoints.length;
+
         while (isDlRunning && !this.isAborted) {
+          const url = downloadEndpoints[endpointIdx];
           try {
-            const url = `https://speed.cloudflare.com/__down?bytes=25000000&s=${streamIndex}&t=${Date.now()}`;
             const res = await fetch(url, {
               method: 'GET',
               cache: 'no-store',
-              mode: 'cors',
               signal
             });
 
-            if (!res.body) {
-              const buf = await res.arrayBuffer();
-              totalBytesReceived += buf.byteLength;
-              continue;
+            if (!res || !res.ok) {
+              throw new Error(`HTTP ${res ? res.status : 'ERR'}`);
             }
 
-            const reader = res.body.getReader();
-            while (isDlRunning && !this.isAborted) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              if (value) {
-                totalBytesReceived += value.length;
+            if (res.body && typeof res.body.getReader === 'function') {
+              const reader = res.body.getReader();
+              try {
+                while (isDlRunning && !this.isAborted) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  if (value && value.length > 0) {
+                    totalBytesReceived += value.length;
+                  }
+                }
+              } finally {
+                try {
+                  reader.cancel();
+                } catch (cancelErr) {}
+              }
+            } else {
+              const buf = await res.arrayBuffer();
+              if (buf && buf.byteLength > 0) {
+                totalBytesReceived += buf.byteLength;
               }
             }
           } catch (e) {
             if (!isDlRunning || this.isAborted) break;
-            await new Promise(r => setTimeout(r, 100));
+            endpointIdx = (endpointIdx + 1) % downloadEndpoints.length;
+            await new Promise(r => setTimeout(r, 400));
           }
         }
       };
@@ -286,9 +341,8 @@
           const instantMbps = (intervalBytes * 8) / (intervalSec * 1000000);
           const cumulativeMbps = elapsedSec > 0 ? (totalBytesReceived * 8) / (elapsedSec * 1000000) : 0;
           
-          // Smooth blend
-          const displayMbps = parseFloat(((instantMbps * 0.4) + (cumulativeMbps * 0.6)).toFixed(2));
-          if (elapsedSec > 1.0) {
+          const displayMbps = parseFloat(((instantMbps * 0.45) + (cumulativeMbps * 0.55)).toFixed(1));
+          if (elapsedSec > 0.6) {
             sampleRates.push(displayMbps);
           }
 
@@ -303,15 +357,23 @@
       isDlRunning = false;
       clearInterval(loadedPingInterval);
 
-      const totalElapsedSec = (performance.now() - startTime) / 1000;
-      let finalMbps = totalElapsedSec > 0 ? parseFloat(((totalBytesReceived * 8) / (totalElapsedSec * 1000000)).toFixed(2)) : 0;
+      try {
+        await Promise.all(streamPromises);
+      } catch (e) {}
 
-      // If sample rates collected, take trimmed mean for accuracy
+      if (loadedSamples.length > 0) {
+        const sorted = [...loadedSamples].sort((a, b) => a - b);
+        loadedPing = sorted[Math.floor(sorted.length / 2)];
+      }
+
+      const totalElapsedSec = (performance.now() - startTime) / 1000;
+      let finalMbps = totalElapsedSec > 0 ? parseFloat(((totalBytesReceived * 8) / (totalElapsedSec * 1000000)).toFixed(1)) : 0;
+
       if (sampleRates.length >= 4) {
         sampleRates.sort((a, b) => a - b);
         const trimmed = sampleRates.slice(1, -1);
         const avg = trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
-        finalMbps = parseFloat(avg.toFixed(2));
+        finalMbps = parseFloat(avg.toFixed(1));
       }
 
       return {
@@ -326,58 +388,55 @@
      */
     async measureUpload(signal, onLiveUpdate) {
       const durationMs = this.options.uploadDurationMs;
-      const numStreams = this.options.uploadStreams;
+      const numStreams = Math.min(3, this.options.uploadStreams || 3);
       const startTime = performance.now();
       let totalBytesUploaded = 0;
       const sampleRates = [];
+      const ulLoadedSamples = [];
       let loadedPing = null;
 
       let isUlRunning = true;
 
-      // Prepare random upload payload chunks (1 MB each)
-      const chunkSize = 1024 * 1024; // 1 MB
+      // Prepare random upload payload chunks (256 KB each for smooth streaming)
+      const chunkSize = 256 * 1024; // 256 KB
       const chunkData = new Uint8Array(chunkSize);
       for (let i = 0; i < chunkSize; i += 64) {
         chunkData[i] = Math.floor(Math.random() * 256);
       }
       const chunkBlob = new Blob([chunkData]);
 
-      // Loaded ping probe timer
+      // Loaded ping probe timer - runs every 1200ms using independent edge probe
       const loadedPingInterval = setInterval(async () => {
         if (!isUlRunning || this.isAborted) return;
-        const pStart = performance.now();
         try {
-          await fetch(`https://speed.cloudflare.com/__down?bytes=0&ulp=${Date.now()}`, {
-            method: 'GET',
-            cache: 'no-store',
-            mode: 'cors',
-            signal
-          });
-          const pRtt = Math.round(performance.now() - pStart);
-          if (pRtt > 0 && pRtt < 3000) {
-            loadedPing = pRtt;
+          const pRtt = await this.probeLoadedLatency(signal);
+          if (pRtt !== null && pRtt > 0) {
+            ulLoadedSamples.push(pRtt);
+            const sorted = [...ulLoadedSamples].sort((a, b) => a - b);
+            loadedPing = sorted[Math.floor(sorted.length / 2)];
           }
-        } catch (e) {
-          // ignore
-        }
-      }, 1500);
+        } catch (e) {}
+      }, 1200);
 
       // Stream upload function
       const runUploadStream = async (streamIndex) => {
         while (isUlRunning && !this.isAborted) {
           try {
-            const url = `https://speed.cloudflare.com/__up?s=${streamIndex}&t=${Date.now()}`;
-            await fetch(url, {
+            const url = 'https://speed.cloudflare.com/__up';
+            const res = await fetch(url, {
               method: 'POST',
               body: chunkBlob,
               cache: 'no-store',
-              mode: 'cors',
               signal
             });
-            totalBytesUploaded += chunkSize;
+            if (res && res.ok) {
+              totalBytesUploaded += chunkSize;
+            } else {
+              throw new Error(`HTTP ${res ? res.status : 'ERR'}`);
+            }
           } catch (e) {
             if (!isUlRunning || this.isAborted) break;
-            await new Promise(r => setTimeout(r, 80));
+            await new Promise(r => setTimeout(r, 300));
           }
         }
       };
@@ -404,8 +463,8 @@
           const instantMbps = (intervalBytes * 8) / (intervalSec * 1000000);
           const cumulativeMbps = elapsedSec > 0 ? (totalBytesUploaded * 8) / (elapsedSec * 1000000) : 0;
           
-          const displayMbps = parseFloat(((instantMbps * 0.4) + (cumulativeMbps * 0.6)).toFixed(2));
-          if (elapsedSec > 0.8) {
+          const displayMbps = parseFloat(((instantMbps * 0.45) + (cumulativeMbps * 0.55)).toFixed(1));
+          if (elapsedSec > 0.6) {
             sampleRates.push(displayMbps);
           }
 
@@ -420,14 +479,23 @@
       isUlRunning = false;
       clearInterval(loadedPingInterval);
 
+      try {
+        await Promise.all(streamPromises);
+      } catch (e) {}
+
+      if (ulLoadedSamples.length > 0) {
+        const sorted = [...ulLoadedSamples].sort((a, b) => a - b);
+        loadedPing = sorted[Math.floor(sorted.length / 2)];
+      }
+
       const totalElapsedSec = (performance.now() - startTime) / 1000;
-      let finalMbps = totalElapsedSec > 0 ? parseFloat(((totalBytesUploaded * 8) / (totalElapsedSec * 1000000)).toFixed(2)) : 0;
+      let finalMbps = totalElapsedSec > 0 ? parseFloat(((totalBytesUploaded * 8) / (totalElapsedSec * 1000000)).toFixed(1)) : 0;
 
       if (sampleRates.length >= 3) {
         sampleRates.sort((a, b) => a - b);
         const trimmed = sampleRates.slice(1, -1);
         const avg = trimmed.reduce((a, b) => a + b, 0) / (trimmed.length || 1);
-        finalMbps = parseFloat(avg.toFixed(2));
+        finalMbps = parseFloat(avg.toFixed(1));
       }
 
       return {
