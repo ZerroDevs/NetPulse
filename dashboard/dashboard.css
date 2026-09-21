@@ -219,6 +219,10 @@ body {
   border-color: var(--border-color);
 }
 
+.nav-link-icon-only {
+  padding: 6px 8px;
+}
+
 .connection-status-block {
   display: flex;
   align-items: center;

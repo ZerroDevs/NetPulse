@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPulse - Technical Documentation &amp; Complete Guide</title>
+  <link rel="icon" type="image/png" sizes="128x128" href="assets/Images/icon128.png">
+  <link rel="icon" type="image/svg+xml" href="assets/Images/icon.svg">
+  <link rel="shortcut icon" href="assets/Images/icon16.png">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <div class="docs-layout">
+    <!-- Header Topbar -->
+    <header class="docs-header">
+      <div class="header-brand">
+        <img src="assets/Images/icon.svg" alt="NetPulse Logo" width="28" height="28" class="brand-logo" style="width: 28px; height: 28px; object-fit: contain;">
+        <div class="brand-text-block">
+          <div class="brand-row">
+            <span class="brand-title" data-i18n="doc_title">NetPulse Documentation</span>
+            <span class="version-pill">v1.0.0 MV3</span>
+          </div>
+          <span class="brand-sub" data-i18n="doc_sub">Cellular RF Telemetry &amp; Speedtest Correlation Engine</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Live Search Bar -->
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="docs-search-input" placeholder="Search docs (e.g. SINR, IP, CSV)..." data-i18n-placeholder="search_ph">
+        </div>
+
+        <!-- Language Switcher -->
+        <button id="btn-lang-toggle" class="btn-toggle-switch" type="button" title="Switch Language / تبديل اللغة">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span id="lang-toggle-text">العربية</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="btn-theme-toggle" class="btn-toggle-switch" type="button" title="Toggle Dark/Light Mode">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12.01" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <span id="theme-label-text">Light</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Documentation Body -->
+    <div class="docs-body">
+      <!-- Sidebar Navigation -->
+      <aside class="docs-sidebar">
+        <nav class="sidebar-nav">
+          <a href="#overview" class="sidebar-link active">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span data-i18n="nav_overview">Overview &amp; Features</span>
+          </a>
+
+          <a href="#install" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span data-i18n="nav_install">Installation &amp; Setup</span>
+          </a>
+
+          <a href="#gateways" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+            <span data-i18n="nav_gateways">Gateway IPs &amp; Compatibility</span>
+          </a>
+
+          <a href="#dashboard" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span data-i18n="nav_dashboard">Telemetry Dashboard</span>
+          </a>
+
+          <a href="#rf-benchmarks" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20v-6M6 20V10M18 20V4"></path>
+            </svg>
+            <span data-i18n="nav_rf_matrix">RF Benchmark Matrix</span>
+          </a>
+
+          <a href="#analysis" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+            <span data-i18n="nav_analysis">Deep RF Studio</span>
+          </a>
+
+          <a href="#history" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span data-i18n="nav_history">Hourly Audit &amp; AI</span>
+          </a>
+
+          <a href="#isp-complaint" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span data-i18n="nav_isp">ISP Complaint Generator</span>
+          </a>
+
+          <a href="#faq" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span data-i18n="nav_faq">FAQ &amp; Troubleshooting</span>
+          </a>
+
+          <a href="#settings" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span data-i18n="nav_settings">Settings &amp; Gateway</span>
+          </a>
+
+          <a href="#author" class="sidebar-link">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span data-i18n="nav_author">Author &amp; Open Source</span>
+          </a>
+        </nav>
+      </aside>
+
+      <!-- Main Content Sections -->
+      <main class="docs-content">
+        <!-- Hero Banner -->
+        <section class="docs-hero">
+          <h1 class="hero-heading" data-i18n="hero_title">NetPulse Complete Guide &amp; Documentation</h1>
+          <p class="hero-desc" data-i18n="hero_desc">
+            Comprehensive technical guide on installation, router RF telemetry extraction, speed test pairing, hourly rollups, AI diagnostic report generation, and gateway configuration.
+          </p>
+        </section>
+
+        <!-- Overview Section -->
+        <section id="overview" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_overview_title">Overview &amp; Architecture</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="overview_p1">
+              NetPulse is a Manifest V3 browser extension engineered to bridge physical radio-frequency (RF) cellular signal metrics (RSRP, SINR, RSRQ, RSSI, Cell ID, Bandwidth, Carrier Aggregation) with real network speed benchmarks (Speedtest.net, Fast.com).
+            </p>
+            <p data-i18n="overview_p2">
+              Designed specifically for 5G and 4G LTE Fixed Wireless Access (FWA) routers (Zyxel NR5103E, Huawei, ZTE, Nokia, Mikrotik), NetPulse extracts live radio stats without modifying router firmware and pairs each speed test with the exact RF signal snapshot.
+            </p>
+            <div style="background-color: var(--bg-subtle); border-left: 4px solid var(--accent-emerald); padding: 14px; border-radius: 6px; margin-top: 16px;">
+              <strong style="color: var(--accent-emerald);" data-i18n="overview_privacy_title">100% Privacy Guarantee:</strong>
+              <span data-i18n="overview_privacy_desc">All telemetry data is saved locally inside chrome.storage.local. Zero tracking or telemetry data is ever sent to external servers.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Installation Section -->
+        <section id="install" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_install_title">Installation &amp; Developer Setup</h2>
+          </div>
+          <div class="section-body">
+            <ol>
+              <li data-i18n="install_step1">Download or clone the repository from GitHub: https://github.com/ZerroDevs/NetPulse</li>
+              <li data-i18n="install_step2">Open Google Chrome or Microsoft Edge and navigate to chrome://extensions or edge://extensions.</li>
+              <li data-i18n="install_step3">Enable Developer Mode in the top-right corner of the extensions page.</li>
+              <li data-i18n="install_step4">Click "Load unpacked" and select the NetPulse directory (or unzip release/NetPulse.zip and select the folder).</li>
+              <li data-i18n="install_step5">Pin the NetPulse extension icon to your browser toolbar for quick access.</li>
+            </ol>
+          </div>
+        </section>
+
+        <!-- Gateways & Compatibility Matrix Section -->
+        <section id="gateways" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_gateways_title">Gateway Default IPs &amp; Auto-Detect Matrix</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="gateways_desc">
+              NetPulse features auto-detection across standard private IP subnets (192.168.*.*, 10.*.*.*, 172.16.*.*). Reference default router addresses below:
+            </p>
+
+            <div class="gateway-grid">
+              <!-- Zyxel -->
+              <div class="gateway-card">
+                <div class="gateway-header">
+                  <span class="gateway-title" data-i18n="gw_zyxel_title">Zyxel 5G / 4G Gateways</span>
+                  <span class="gateway-badge">Primary Focus</span>
+                </div>
+                <div class="gateway-models" data-i18n="gw_zyxel_models">NR5103E, NR5103, Three Hub 5G, EE Smart Hub 2</div>
+                <div class="gateway-ip-block">
+                  <span style="font-size: 11px; color: var(--text-muted);">Default Address:</span>
+                  <span class="gateway-ip">192.168.1.1</span>
+                </div>
+              </div>
+
+              <!-- Huawei -->
+              <div class="gateway-card">
+                <div class="gateway-header">
+                  <span class="gateway-title" data-i18n="gw_huawei_title">Huawei CPE Routers</span>
+                  <span class="gateway-badge">Supported</span>
+                </div>
+                <div class="gateway-models" data-i18n="gw_huawei_models">5G CPE Pro (H112/H122), B535, B818, B525</div>
+                <div class="gateway-ip-block">
+                  <span style="font-size: 11px; color: var(--text-muted);">Default Address:</span>
+                  <span class="gateway-ip">192.168.8.1</span>
+                </div>
+              </div>
+
+              <!-- ZTE -->
+              <div class="gateway-card">
+                <div class="gateway-header">
+                  <span class="gateway-title" data-i18n="gw_zte_title">ZTE 5G Routers</span>
+                  <span class="gateway-badge">Supported</span>
+                </div>
+                <div class="gateway-models" data-i18n="gw_zte_models">MC801A, MC801, Hyperbox 5G, MC888</div>
+                <div class="gateway-ip-block">
+                  <span style="font-size: 11px; color: var(--text-muted);">Default Address:</span>
+                  <span class="gateway-ip">192.168.0.1 / 32.1</span>
+                </div>
+              </div>
+
+              <!-- Nokia & Generic -->
+              <div class="gateway-card">
+                <div class="gateway-header">
+                  <span class="gateway-title" data-i18n="gw_nokia_title">Nokia &amp; Generic Gateways</span>
+                  <span class="gateway-badge">Supported</span>
+                </div>
+                <div class="gateway-models" data-i18n="gw_nokia_models">Nokia FastMile 5G, Alcatel HH70, Netgear Nighthawk</div>
+                <div class="gateway-ip-block">
+                  <span style="font-size: 11px; color: var(--text-muted);">Default Address:</span>
+                  <span class="gateway-ip">192.168.1.254</span>
+                </div>
+              </div>
+
+              <!-- Generic Auto-Detect -->
+              <div class="gateway-card" style="border-color: var(--accent-indigo);">
+                <div class="gateway-header">
+                  <span class="gateway-title" data-i18n="gw_auto_title">Generic Auto-Detect Engine</span>
+                  <span class="gateway-badge" style="background-color: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border-color: rgba(16, 185, 129, 0.3);">Auto-Discovery</span>
+                </div>
+                <div class="gateway-models" data-i18n="gw_auto_models">Scans all local subnets automatically during browser tab navigation</div>
+                <div class="gateway-ip-block">
+                  <span style="font-size: 11px; color: var(--text-muted);">Scope:</span>
+                  <span class="gateway-ip" style="color: var(--accent-emerald);">Subnet Scanner</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Dashboard Section (Image 1) -->
+        <section id="dashboard" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_dash_title">1. Telemetry Dashboard</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="dash_desc">
+              The main dashboard provides real-time RF signal meters, carrier aggregation details, and paired speed test history.
+            </p>
+
+            <div class="doc-image-container">
+              <img src="assets/Images/1.png" alt="NetPulse Telemetry Dashboard" class="doc-image">
+              <p class="doc-image-caption" data-i18n="dash_img_cap">Figure 1: NetPulse Telemetry Dashboard Interface with Live Gauges and Multi-Select Record Merge Bar.</p>
+            </div>
+
+            <ul>
+              <li data-i18n="dash_cap1">Live RF Signal Gauges: Real-time visual progress meters for RSRP (Signal Power), SINR (Purity), RSRQ (Tower Load), and RSSI (Signal Level).</li>
+              <li data-i18n="dash_cap2">Carrier Aggregation Breakdown: Primary Band (PCC), Physical Cell ID (PCI), Cell ID, Downlink/Uplink Bandwidths, and Secondary Component Carriers (SCC1, SCC2, etc.).</li>
+              <li data-i18n="dash_cap3">Multi-Select Record Merge: Select 2 or more log rows using checkboxes to average speed test metrics while retaining paired router signal telemetry.</li>
+              <li data-i18n="dash_cap4">Per-Row Delete: Hover over any entry row to reveal the trash icon button and confirm deletion via modal.</li>
+              <li data-i18n="dash_cap5">Export Options: Export complete telemetry log history to CSV or JSON format with 1-click.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- RF Benchmark Matrix Section -->
+        <section id="rf-benchmarks" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20v-6M6 20V10M18 20V4"></path>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_rf_title">Signal Quality Reference Chart (RF Benchmark Matrix)</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="rf_desc">
+              Use this standardized rating matrix to evaluate 5G NR and 4G LTE physical layer radio signal conditions:
+            </p>
+
+            <div class="rf-table-container">
+              <table class="rf-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="rf_th_metric">Radio Metric</th>
+                    <th data-i18n="rf_th_excellent">Excellent</th>
+                    <th data-i18n="rf_th_good">Good</th>
+                    <th data-i18n="rf_th_fair">Fair</th>
+                    <th data-i18n="rf_th_poor">Poor</th>
+                    <th data-i18n="rf_th_action">Troubleshooting Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="metric-name">RSRP<span class="metric-full">Signal Power (dBm)</span></td>
+                    <td><span class="badge-excellent">&gt; -80 dBm</span></td>
+                    <td><span class="badge-good">-80 to -95</span></td>
+                    <td><span class="badge-fair">-95 to -105</span></td>
+                    <td><span class="badge-poor">&lt; -115 dBm</span></td>
+                    <td class="action-tip" data-i18n="rf_advice_rsrp">If RSRP &lt; -105 dBm, move router closer to an elevated window facing the nearest cellular tower.</td>
+                  </tr>
+                  <tr>
+                    <td class="metric-name">SINR<span class="metric-full">Signal Purity (dB)</span></td>
+                    <td><span class="badge-excellent">&gt; 20 dB</span></td>
+                    <td><span class="badge-good">13 to 20 dB</span></td>
+                    <td><span class="badge-fair">5 to 13 dB</span></td>
+                    <td><span class="badge-poor">&lt; 0 dB</span></td>
+                    <td class="action-tip" data-i18n="rf_advice_sinr">If SINR &lt; 0 dB, rotate antenna/router 15° away from interference sources (microwaves, power supplies).</td>
+                  </tr>
+                  <tr>
+                    <td class="metric-name">RSRQ<span class="metric-full">Tower Load (dB)</span></td>
+                    <td><span class="badge-excellent">&gt; -10 dB</span></td>
+                    <td><span class="badge-good">-10 to -12 dB</span></td>
+                    <td><span class="badge-fair">-12 to -15 dB</span></td>
+                    <td><span class="badge-poor">&lt; -15 dB</span></td>
+                    <td class="action-tip" data-i18n="rf_advice_rsrq">If RSRQ &lt; -14 dB, the cell tower is congested. Use Band Locking to switch to a less congested secondary band.</td>
+                  </tr>
+                  <tr>
+                    <td class="metric-name">CQI<span class="metric-full">Channel Quality (0-15)</span></td>
+                    <td><span class="badge-excellent">13 to 15</span></td>
+                    <td><span class="badge-good">10 to 12</span></td>
+                    <td><span class="badge-fair">7 to 9</span></td>
+                    <td><span class="badge-poor">&lt; 6</span></td>
+                    <td class="action-tip" data-i18n="rf_advice_cqi">If CQI &lt; 7, connection modulation drops to QPSK. Re-orient router to achieve higher QAM modulation.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Deep RF Analysis Section (Image 2) -->
+        <section id="analysis" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_analysis_title">2. Deep RF Correlation Studio</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="analysis_desc">
+              The Deep RF Studio provides advanced visual waveforms and scatter correlation matrices for in-depth network diagnostics.
+            </p>
+
+            <div class="doc-image-container">
+              <img src="assets/Images/2.png" alt="NetPulse Deep RF Correlation Studio" class="doc-image">
+              <p class="doc-image-caption" data-i18n="analysis_img_cap">Figure 2: Deep RF Correlation &amp; Carrier Aggregation Studio with Waveform Timeline and Scatter Quadrants.</p>
+            </div>
+
+            <ul>
+              <li data-i18n="analysis_cap1">RF Waveform Timeline: Multi-layer continuous time-series tracking RSRP power, SINR purity, and RSRQ tower load.</li>
+              <li data-i18n="analysis_cap2">PCI Handover Tracker: Monitors tower handovers between Cell IDs to identify cell ping-pong instability.</li>
+              <li data-i18n="analysis_cap3">Signal vs. Speed Scatter Matrix: Maps RSRP vs. Download speed and SINR vs. Upload speed to isolate cell congestion from radio path loss.</li>
+              <li data-i18n="analysis_cap4">Live Auto-Sync Engine: Continuously updates waveforms from active router background telemetry.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- Hourly Audit Section (Image 3) -->
+        <section id="history" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_history_title">3. Hourly Audit Studio &amp; AI Prompt Generator</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="history_desc">
+              Organizes connection logs into 1-hour time blocks and generates AI diagnostic reports for LLM analysis.
+            </p>
+
+            <div class="doc-image-container">
+              <img src="assets/Images/3.png" alt="NetPulse Hourly Audit Studio" class="doc-image">
+              <p class="doc-image-caption" data-i18n="history_img_cap">Figure 3: Hourly History Audit Studio showing 1-Hour Accordion Blocks and AI Report Copy Tool.</p>
+            </div>
+
+            <ul>
+              <li data-i18n="history_cap1">Hourly Accordion Blocks: Consolidates tests into 1-hour windows (e.g. 02:00 - 02:59) showing hourly averages and peak speeds.</li>
+              <li data-i18n="history_cap2">1-Click "Copy for AI Analysis": Formats hourly cellular metrics and speed runs into clean Markdown prompt queries optimized for ChatGPT, Claude, and Gemini.</li>
+              <li data-i18n="history_cap3">Date &amp; Provider Filters: Instantly search history by date or test platform (Speedtest.net vs Fast.com).</li>
+              <li data-i18n="history_cap4">Screenshot Viewer: Click screenshot badges to view full-screen result capture modals.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ISP Complaint Prompt Generator Section -->
+        <section id="isp-complaint" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_isp_title">Official ISP Complaint &amp; AI Prompt Generator</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="isp_desc">
+              Generate a standardized technical report containing raw RF telemetry snapshots and speed test logs to submit directly to your ISP support or run through ChatGPT / Claude for analysis.
+            </p>
+
+            <div class="isp-prompt-card">
+              <div class="isp-prompt-header">
+                <span class="isp-prompt-title">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-indigo)" stroke-width="2">
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                  </svg>
+                  Formatted ISP Support Ticket &amp; AI Diagnostic Query
+                </span>
+                <button id="btn-copy-isp-prompt" type="button" class="btn-copy-prompt">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span data-i18n="isp_copy_btn">Copy Official ISP Complaint Report</span>
+                </button>
+              </div>
+
+              <pre id="isp-prompt-text" class="isp-prompt-code">Subject: Technical Escalation - Cellular Signal & Bandwidth Performance Log
+
+To ISP Network Engineering Support,
+
+Please review the following hardware telemetry audit captured via NetPulse Cellular Gateway Engine:
+
+[ROUTER HARDWARE TELEMETRY]
+- Gateway Router: Zyxel NR5103E / 5G CPE
+- Serving Cell ID: 28419585 / Physical Cell ID (PCI): 312
+- Radio Access Technology (RAT): 5G NR (NSA / SA) + LTE PCC (Band n78 / Band 3)
+- Signal Power (RSRP): -98.4 dBm (Fair / Degrading)
+- Signal Purity (SINR): 4.2 dB (High Interference)
+- Tower Load (RSRQ): -14.1 dB (Severe Cell Congestion)
+
+[AUTOMATED SPEEDTEST BENCHMARK LOGS]
+- 1-Hour Average Download: 24.5 Mbps (Contracted Target: 100+ Mbps)
+- 1-Hour Average Upload: 3.1 Mbps
+- Latency / Jitter: 42 ms / 18 ms
+- Test Provider: Speedtest.net (Ookla Engine)
+
+[DIAGNOSTIC REQUEST]
+1. Verify if serving Cell ID 28419585 is experiencing high sector utilization or RF interference.
+2. Request a sector reset or optimization on Band n78 to resolve throughput throttling.</pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- FAQ & Troubleshooting Section -->
+        <section id="faq" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_faq_title">Frequently Asked Questions &amp; Troubleshooting</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="faq_desc">
+              Solutions to common questions and troubleshooting steps for router telemetry connections:
+            </p>
+
+            <div class="faq-accordion">
+              <details class="faq-item">
+                <summary class="faq-question" data-i18n="faq_q1">Why are signal gauges displaying "N/A"?</summary>
+                <div class="faq-answer" data-i18n="faq_a1">
+                  Signal metrics show N/A when NetPulse cannot communicate with your router. Fixes: 1) Verify Gateway IP in Settings (default 192.168.1.1). 2) Log into your router admin page in another tab to keep the session active. 3) Ensure your router is powered on and connected to your PC.
+                </div>
+              </details>
+
+              <details class="faq-item">
+                <summary class="faq-question" data-i18n="faq_q2">Can I run hourly speed tests while my PC is locked?</summary>
+                <div class="faq-answer" data-i18n="faq_a2">
+                  Yes! NetPulse utilizes Chrome Background Alarms and Service Workers (Manifest V3). As long as your browser remains open in the background, scheduled hourly tests will execute automatically.
+                </div>
+              </details>
+
+              <details class="faq-item">
+                <summary class="faq-question" data-i18n="faq_q3">How do I submit telemetry reports to my ISP for speed complaints?</summary>
+                <div class="faq-answer" data-i18n="faq_a3">
+                  Use the "ISP Complaint Generator" section above. Click "Copy Official ISP Complaint Report" to copy a pre-formatted technical ticket including your exact RSRP, SINR, Cell ID, and speed test averages. You can attach this to your ISP support ticket.
+                </div>
+              </details>
+
+              <details class="faq-item">
+                <summary class="faq-question" data-i18n="faq_q4">Is my router model supported?</summary>
+                <div class="faq-answer" data-i18n="faq_a4">
+                  NetPulse works out-of-the-box with Zyxel NR5103E / NR5103, Huawei 5G CPE Pro series, ZTE MC801A, Nokia FastMile, and generic routers operating on standard private subnets (192.168.*.*, 10.*.*.*).
+                </div>
+              </details>
+
+              <details class="faq-item">
+                <summary class="faq-question" data-i18n="faq_q5">How do I export historical RF data to CSV or JSON?</summary>
+                <div class="faq-answer" data-i18n="faq_a5">
+                  Open the Telemetry Dashboard and click the "Export CSV" or "Export JSON" buttons in the top action toolbar to download your complete historical database.
+                </div>
+              </details>
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings Section (Image 4) -->
+        <section id="settings" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_settings_title">4. Settings &amp; Gateway Configuration</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="settings_desc">
+              Allows users to configure router credentials, polling frequencies, auto-capture rules, and critical RF thresholds.
+            </p>
+
+            <div class="doc-image-container">
+              <img src="assets/Images/4.png" alt="NetPulse Settings Configuration" class="doc-image">
+              <p class="doc-image-caption" data-i18n="settings_img_cap">Figure 4: Settings Studio with Gateway Subnet Configuration, Credential Manager, and Polling Rates.</p>
+            </div>
+
+            <ul>
+              <li data-i18n="settings_cap1">Subnet &amp; Router Profile: Support for 192.168.1.1, 192.168.*.*, 10.*.*.*, and device profiles (Zyxel, Huawei, ZTE, Generic).</li>
+              <li data-i18n="settings_cap2">Automated Credential Vault: Secure administrative username and password storage with multi-pass reactive form injection.</li>
+              <li data-i18n="settings_cap3">Polling Engine Rates: Configurable polling intervals (2 seconds High Performance, 5 seconds Balanced, 15 seconds Power Saver).</li>
+              <li data-i18n="settings_cap4">RF Health Threshold Sliders: Customize critical alert warning thresholds for RSRP and SINR degradation.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- Author & License Section -->
+        <section id="author" class="docs-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <h2 class="section-title" data-i18n="sec_author_title">Author, Credits &amp; Open Source License</h2>
+          </div>
+          <div class="section-body">
+            <p data-i18n="author_desc">
+              NetPulse is created and maintained as an open-source project under the MIT License.
+            </p>
+
+            <div class="author-grid">
+              <!-- Made by Osama Abdallatif -->
+              <a href="https://wa.me/218916808225" target="_blank" rel="noopener noreferrer" class="author-card-item">
+                <div class="author-card-icon wa-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 5.001l-1.416 5.169 5.291-1.387c1.472.802 3.13 1.224 4.78 1.225h.004c5.506 0 9.989-4.478 9.99-9.984 0-2.667-1.038-5.175-2.925-7.062a9.924 9.924 0 0 0-7.056-2.946zm0 1.834c4.498 0 8.156 3.657 8.157 8.154 0 2.181-.849 4.23-2.392 5.772a8.106 8.106 0 0 1-5.765 2.41h-.003c-1.393 0-2.766-.363-3.972-1.05l-.284-.163-2.951.773.787-2.873-.185-.294a8.125 8.125 0 0 1-1.246-4.397c0-4.497 3.659-8.154 8.154-8.154zm4.675 11.758c-.198-.1-.1.171-1.637-.591-.796-.39-1.378-.456-1.959.418-.582.873-.756 1.09-.931 1.09-.174 0-.38-.073-1.077-.374-1.258-.541-2.453-1.616-3.32-2.943-.377-.577-.101-.871.121-1.094.22-.22.488-.57.732-.855.244-.284.325-.487.487-.824.163-.337.082-.631-.041-.876-.123-.245-1.09-2.628-1.493-3.598-.393-.97-.792-.838-1.09-.853-.284-.015-.611-.015-.938-.015-.327 0-.858.123-1.307.612-.449.49-1.714 1.674-1.714 4.08 0 2.406 1.755 4.73 2.001 5.058.245.328 3.456 5.278 8.373 7.4 1.17.505 2.083.807 2.795 1.033 1.174.373 2.242.32 3.088.194.943-.141 2.898-1.185 3.307-2.328.409-1.144.409-2.124.286-2.328-.123-.205-.449-.328-.938-.573z"/>
+                  </svg>
+                </div>
+                <div>
+                  <strong data-i18n="author_made_by">Made by Osama Abdallatif</strong>
+                  <div class="mono" style="font-size: 12px; color: var(--accent-primary);" data-i18n="author_whatsapp">Contact on WhatsApp (+218 916808225)</div>
+                </div>
+              </a>
+
+              <!-- GitHub Profile -->
+              <a href="https://github.com/ZerroDevs" target="_blank" rel="noopener noreferrer" class="author-card-item">
+                <div class="author-card-icon gh-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <strong data-i18n="author_github">Lead Developer Profile (@ZerroDevs)</strong>
+                  <div class="mono" style="font-size: 12px; color: var(--accent-primary);" data-i18n="author_repo">Official GitHub Repository (ZerroDevs/NetPulse)</div>
+                </div>
+              </a>
+            </div>
+
+            <p style="margin-top: 20px; font-size: 12px; color: var(--text-muted);" data-i18n="author_license">
+              Released under the MIT License. Copyright (c) 2026 ZerroDevs.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="assets/js/script.js"></script>
+</body>
+</html>

@@ -288,6 +288,30 @@
       view_screenshot: 'Screenshot',
       close_modal: 'Close',
 
+      // Navigation & About Page
+      nav_about: 'About & Developer',
+      about_title: 'About NetPulse Engine',
+      about_subtitle: 'Cellular RF Telemetry & Speedtest Correlation Engine for 4G/5G Gateways',
+      about_version_badge: 'v1.0.0 MV3',
+      about_opensource_badge: 'Open Source',
+      author_section_title: 'Author & Developer Information',
+      author_made_by: 'Made by Osama Abdallatif',
+      author_github: 'GitHub Profile (@ZerroDevs)',
+      author_github_sub: 'Official Developer Workspace',
+      author_whatsapp: 'Contact on WhatsApp (+218 916808225)',
+      repo_section_title: 'Project Repository & Documentation',
+      repo_readme_text: 'For detailed installation guides, technical telemetry metrics, router web scraping architecture, and release history, check out the official README on GitHub.',
+      repo_link_label: 'NetPulse Repository on GitHub',
+      feature_rf_title: 'Real-Time RF Telemetry',
+      feature_rf_desc: 'Extracts RSRP, SINR, RSRQ, RSSI, Cell ID, Bandwidth, and Carrier Aggregation from 4G/5G gateways (Zyxel, Huawei, ZTE, etc.).',
+      feature_speedtest_title: 'Speedtest Correlation',
+      feature_speedtest_desc: 'Automatically pairs speed test results (Speedtest.net, Fast.com) with matching RF signal snapshots.',
+      feature_hourly_title: 'Hourly Audits & AI Export',
+      feature_hourly_desc: 'Consolidates telemetry into hourly rollups and formatted Markdown diagnostic reports for easy sharing.',
+      feature_privacy_title: '100% Privacy First',
+      feature_privacy_desc: 'All data stays 100% local inside chrome.storage.local. Zero telemetry sent to external servers.',
+      about_footer_license: 'NetPulse Engine &copy; 2026 ZerroDevs. Released under the <a href="https://github.com/ZerroDevs/NetPulse/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="license-link">MIT License</a>.',
+
       // General Units
       unit_dbm: 'dBm',
       unit_db: 'dB',
@@ -565,6 +589,30 @@
       view_screenshot: 'لقطة الشاشة',
       close_modal: 'إغلاق',
 
+      // Navigation & About Page
+      nav_about: 'عن التطبيق والمطور',
+      about_title: 'عن محرك NetPulse',
+      about_subtitle: 'محرك قياس وتوثيق الإشارة اللاسلكية واختبارات السرعة لموجهات 4G/5G',
+      about_version_badge: 'الإصدار v1.0.0 MV3',
+      about_opensource_badge: 'مفتوح المصدر',
+      author_section_title: 'معلومات المطور والمنشئ',
+      author_made_by: 'تطوير أسامة عبد اللطيف (Osama Abdallatif)',
+      author_github: 'الملف الشخصي @ZerroDevs على GitHub',
+      author_github_sub: 'بيئة تطوير المنشئ الرسمية',
+      author_whatsapp: 'تواصل عبر واتساب (+218 916808225)',
+      repo_section_title: 'مستودع المشروع والتوثيق',
+      repo_readme_text: 'للحصول على دليل التثبيت الكامل، والمواصفات الفنية لقياسات التردد اللاسلكي، وبنية جلب البيانات، يرجى مراجعة ملف README على GitHub.',
+      repo_link_label: 'مستودع GitHub: ZerroDevs/NetPulse',
+      feature_rf_title: 'بيانات الإشارة اللاسلكية المباشرة',
+      feature_rf_desc: 'يستخرج مؤشرات RSRP وSINR وRSRQ وRSSI ومعرّف الخلية ونطاق التردد ودمج الترددات لموجهات 4G/5G.',
+      feature_speedtest_title: 'ربط نتائج اختبارات السرعة',
+      feature_speedtest_desc: 'يربط نتائج اختبار السرعة تلقائياً مع لقطة إشارة التردد اللاسلكي المطابقة.',
+      feature_hourly_title: 'التدقيق الساعي وتصدير تقارير الذكاء الاصطناعي',
+      feature_hourly_desc: 'يجمع البيانات في تقارير ساعية وتنسيقات تشخيصية بالذكاء الاصطناعي لمشاركتها بسهولة.',
+      feature_privacy_title: 'الخصوصية أولاً 100%',
+      feature_privacy_desc: 'جميع البيانات محفوظة 100% محلياً داخل التخزين المحلي. لا يتم إرسال أي بيانات لخوادم خارجية.',
+      about_footer_license: 'محرك NetPulse &copy; 2026 ZerroDevs. مرخص بموجب <a href="https://github.com/ZerroDevs/NetPulse/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="license-link">ترخيص MIT</a>.',
+
       // General Units
       unit_dbm: 'dBm',
       unit_db: 'dB',
@@ -601,7 +649,11 @@
       const key = elem.getAttribute('data-i18n');
       if (!key) return;
       const translated = t(key, lang);
-      elem.textContent = translated;
+      if (translated.includes('<a') || translated.includes('<code') || elem.hasAttribute('data-i18n-html')) {
+        elem.innerHTML = translated;
+      } else {
+        elem.textContent = translated;
+      }
     });
 
     const placeholders = targetDoc.querySelectorAll('[data-i18n-placeholder]');

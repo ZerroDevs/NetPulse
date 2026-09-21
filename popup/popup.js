@@ -551,4 +551,12 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.tabs.create({ url: optionsUrl });
     });
   }
+
+  const btnOpenAbout = document.getElementById('btn-open-about');
+  if (btnOpenAbout) {
+    btnOpenAbout.addEventListener('click', () => {
+      const aboutUrl = chrome.runtime.getURL('about/about.html');
+      chrome.tabs.create({ url: aboutUrl });
+    });
+  }
 });

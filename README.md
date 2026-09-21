@@ -1,10 +1,11 @@
 # NetPulse (Manifest V3 Chrome Extension)
 
 [![Developer](https://img.shields.io/badge/Developer-@ZerroDevs-6366f1.svg)](https://github.com/ZerroDevs)
-[![License](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-10b981.svg)](https://github.com/ZerroDevs/NetPulse/blob/main/LICENSE)
 [![Manifest](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-3b82f6.svg)](manifest.json)
 [![I18n](https://img.shields.io/badge/Languages-English%20%7C%20العربية%20(RTL)-f59e0b.svg)](shared/i18n.js)
-[![Tests](https://img.shields.io/badge/Verification-128%2B%20Passing-10b981.svg)](verify_netpulse.js)
+[![Documentation](https://img.shields.io/badge/Documentation-Interactive%20Guide-6366f1.svg)](docs/index.html)
+[![Tests](https://img.shields.io/badge/Verification-217%2B%20Passing-10b981.svg)](verify_netpulse.js)
 
 **NetPulse** is a production-grade cellular router RF telemetry monitor and automated performance correlation engine. Designed specifically for 5G / 4G LTE fixed-wireless broadband gateways (optimized for the **Zyxel NR5103E** and all routers across `192.168.*.*`, `10.*.*.*`, and `172.16.*.*`), NetPulse bridges the gap between physical radio-frequency (RF) signal conditions and actual network throughput benchmarks.
 
@@ -12,45 +13,48 @@ Developed and maintained by **[@ZerroDevs](https://github.com/ZerroDevs)**.
 
 ---
 
-## Developer Attribution
+## Developer Attribution & Documentation
 
+- **Interactive Documentation**: [Complete Guide & Manual](docs/index.html)
 - **Lead Developer**: [@ZerroDevs](https://github.com/ZerroDevs)
+- **Author & Creator**: Osama Abdallatif ([Contact via WhatsApp](https://wa.me/218916808225))
 - **GitHub Profile**: [https://github.com/ZerroDevs](https://github.com/ZerroDevs)
-- **Project Repository**: [https://github.com/ZerroDevs/NetPulse](https://github.com/ZerroDevs)
-- **License**: [MIT License](LICENSE)
+- **Project Repository**: [https://github.com/ZerroDevs/NetPulse](https://github.com/ZerroDevs/NetPulse)
+- **License**: [MIT License](https://github.com/ZerroDevs/NetPulse/blob/main/LICENSE)
 
 ---
 
 ## Key Capabilities & Engineering Architecture
 
 ```
-                               ┌────────────────────────────────────────┐
-                               │       Zyxel NR5103E & Gateway GUI       │
-                               │           (192.168.1.1 / etc.)         │
-                               └──────────────────┬─────────────────────┘
-                                                  │ (Live RF Telemetry & Auto-Fill)
-                                                  ▼
-┌───────────────────────────┐          ┌───────────────────────┐          ┌───────────────────────────┐
-│     Speedtest.net HUD     │          │    NetPulse Engine    │          │        Fast.com HUD       │
-│  (Non-blocking Scraper)   │◄─────────┤ (scripts/speedtest_   ├─────────►│  (Non-blocking Scraper)   │
-│  Down / Up / Ping / Jitter│          │      scraper.js)      │          │  Down / Up / Ping / Jitter│
-└─────────────┬─────────────┘          └──────────┬────────────┘          └─────────────┬─────────────┘
-              │                                   │                                     │
-              └─────────────────────────┬─────────┴─────────────────────────────────────┘
-                                        │ (Paired Correlation Snapshots)
-                                        ▼
-                       ┌─────────────────────────────────┐
-                       │     Central Storage Engine      │
-                       │     (chrome.storage.local)      │
-                       └────────────────┬────────────────┘
-                                        │
-        ┌───────────────────────────────┼───────────────────────────────┐
-        ▼                               ▼                               ▼
-┌──────────────┐             ┌────────────────────┐          ┌─────────────────────┐
-│ Popup View   │             │ Full-Page Dashboard│          │ Deep RF Correlation │
-│ (popup.html) │             │  (dashboard.html)  │          │ Studio (analysis.   │
-│ 380px Modal  │             │ Live Gauges & Logs │          │        html)        │
-└──────────────┘             └────────────────────┘          └─────────────────────┘
+                                ┌──────────────────────────────────────────────┐
+                                │      4G/5G Cellular Gateway Web GUI          │
+                                │    (Zyxel NR5103E, Huawei, ZTE, Nokia)       │
+                                └──────────────────────┬───────────────────────┘
+                                                       │ (Live Telemetry & Auto-Fill)
+                                                       ▼
+┌───────────────────────────────┐          ┌───────────────────────┐          ┌───────────────────────────────┐
+│       Speedtest.net HUD       │          │    NetPulse Engine    │          │         Fast.com HUD          │
+│    (speedtest_scraper.js)     │◄─────────┤    (background.js)    ├─────────►│    (speedtest_scraper.js)     │
+│  Down / Up / Ping / Jitter    │          │  (router_scraper.js)  │          │  Down / Up / Ping / Jitter    │
+└───────────────┬───────────────┘          └───────────┬───────────┘          └───────────────┬───────────────┘
+                │                                      │                                      │
+                └──────────────────────────┬───────────┴──────────────────────────────────────┘
+                                           │ (Paired Telemetry Snapshots)
+                                           ▼
+                            ┌──────────────────────────────────────────┐
+                            │          Central Storage Engine          │
+                            │          (chrome.storage.local)          │
+                            └────────────────────┬─────────────────────┘
+                                                 │
+        ┌──────────────────┬─────────────────────┼─────────────────────┬──────────────────┐
+        ▼                  ▼                     ▼                     ▼                  ▼
+┌─────────────────┐ ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐ ┌─────────────────┐
+│   Popup View    │ │ Full Dashboard  │   │ Deep RF Studio  │   │  Hourly Audit   │ │ About & Author  │
+│  (popup.html)   │ │ (dashboard.html)│   │ (analysis.html) │   │ (history.html)  │ │  (about.html)   │
+│   380px Quick   │ │  Live Gauges &  │   │ Multi-Waveform  │   │ Hourly Rollups  │ │ Developer Info  │
+│  Telemetry HUD  │ │ Telemetry Logs  │   │  Correlation    │   │   & AI Export   │ │  & Repo Links   │
+└─────────────────┘ └─────────────────┘   └─────────────────┘   └─────────────────┘ └─────────────────┘
 ```
 
 ---
@@ -115,14 +119,15 @@ Evaluates raw radio measurements against 3GPP and cellular RF engineering benchm
 
 - **Live RF Gauges**: Real-time visual progress meters for RSRP, SINR, RSRQ, and RSSI with dynamic status color coding.
 - **Cellular & Carrier Aggregation Details**: Displays Primary Band, PCI, Cell ID, Channel Bandwidth, and aggregated secondary component carriers (SCCs).
-- **Streamlined Topbar**: Clean navigation with "Portals & Links", Language Selector, Theme Switcher, and direct Router GUI launch.
-- **Contextual Actions**:
-  - RF Telemetry Card: "Scan Router Tab" & "Refresh".
-  - Speedtest History Card: "Capture Speedtest Tab", "Export CSV", "Export JSON", and "Clear History".
-- **Searchable & Filterable Benchmark Log**: Complete chronological table correlating Speedtest results with paired RF metrics.
+- **Searchable & Filterable Telemetry Log**: Correlates Speedtest runs with paired RF signal metrics.
+- **Multi-Select & Merge Records**:
+  - Select 2 or more log rows via checkboxes to reveal the **Merge Action Bar**.
+  - Merges multiple test runs into a single averaged record (averaging Download, Upload, Ping, and Jitter while pairing the latest cellular RF signal data).
+- **Per-Row Delete Action**: Hovering over any record row reveals a trash icon button with an instant confirmation modal to delete single entries.
+- **Export Capabilities**: 1-click **Export CSV** and **Export JSON** for offline analysis.
 - **Interactive Modals**:
   - **Portals & Links Modal** (`#modal-portals-overlay`): Quick launch cards for `192.168.1.1`, `speedtest.net`, and `fast.com` with one-click credential reveal and copy-to-clipboard.
-  - **Clear Data Confirmation Modal** (`#modal-confirm-overlay`): Wipes telemetry log history while safely preserving user preferences (language and theme).
+  - **Clear All Data Confirmation Modal** (`#modal-clear-overlay`): Wipes telemetry log history while safely preserving user preferences (language and theme).
 
 ---
 
@@ -137,7 +142,31 @@ A specialized statistical environment for in-depth RF performance investigation:
 
 ---
 
-## 6. Options & Configuration Studio (`options/options.html`)
+## 6. Hourly History Audit Studio (`history/history.html`)
+
+- **Hourly Block Rollups**: Groups telemetry into 1-hour time blocks (e.g., `2026-09-21 02:00 - 02:59`) with collapsible accordion cards.
+- **1-Click "Copy for AI Analysis" Generator**:
+  - Formats hourly cellular RF telemetry, band parameters, Cell IDs, and speed test runs into structured Markdown diagnostic reports.
+  - Generates prompts tuned for LLMs (ChatGPT, Claude, Gemini) in English and Arabic.
+- **Filtering & Search Engine**: Search by test ID, platform (`Speedtest.net`, `Fast.com`), or filter by date.
+- **Screenshot Viewer Modal**: View captured result screenshots with full-screen preview.
+- **CSV Audit Export**: Export hourly rollups to standard CSV.
+
+---
+
+## 7. About & Developer Studio (`about/about.html`)
+
+- **Developer & Author Attribution**:
+  - **Made by Osama Abdallatif**: Clickable WhatsApp tile connecting directly to `+218 916808225` ([https://wa.me/218916808225](https://wa.me/218916808225)).
+  - **GitHub Developer Profile**: [@ZerroDevs](https://github.com/ZerroDevs) ([https://github.com/ZerroDevs](https://github.com/ZerroDevs)).
+- **Project Documentation & License**:
+  - Direct repository link: [ZerroDevs/NetPulse](https://github.com/ZerroDevs/NetPulse).
+  - Clickable hyperlink to official [MIT License](https://github.com/ZerroDevs/NetPulse/blob/main/LICENSE).
+- **Full Bilingual i18n & Theme Sync**: All strings, badges, feature blocks, and footer licenses are fully translated and synchronized in real-time across open tabs.
+
+---
+
+## 8. Options & Configuration Studio (`options/options.html`)
 
 Customizable settings page accessible directly via Chrome Extension Options (`options_ui`):
 - **Gateway Network Configuration**: Custom gateway IP/subnet definition (e.g. `192.168.1.1`, `192.168.8.1`, `10.0.0.1`).
@@ -148,25 +177,25 @@ Customizable settings page accessible directly via Chrome Extension Options (`op
 
 ---
 
-## 7. Compact Quick Popup (`popup/popup.html`)
+## 9. Compact Quick Popup (`popup/popup.html`)
 
 - Lightweight 380px extension popup for instant status checks.
 - Live active-tab detection banner (identifies when the user is currently viewing a router interface or benchmark site).
 - Quick summary cards for current RF metrics and the latest Speedtest record.
-- Instant action buttons: `Scan Router Tab`, `Capture Speedtest Tab`, and `Open Full Analytics Dashboard`.
+- Instant action buttons: `Scan Router Tab`, `Capture Speedtest Tab`, `Deep RF Analysis`, `Settings`, `View History Reports`, and `Open Full Analytics Dashboard`.
 
 ---
 
-## 8. Internationalization (i18n) & Arabic RTL Engine (`shared/i18n.js`)
+## 10. Internationalization (i18n) & Arabic RTL Engine (`shared/i18n.js`)
 
 - Native bilingual translation engine supporting **English (LTR)** and **العربية (Arabic - RTL)**.
-- Full UI translation coverage across popup, dashboard, options, analysis studio, on-page HUDs, and toast alerts.
+- Full UI translation coverage across popup, dashboard, options, analysis studio, hourly audit, about page, on-page HUDs, and toast alerts.
 - Automatic layout flipping: dynamically sets `dir="rtl"`, reverses navigation margins, and mirrors grid columns.
 - State is preserved persistently in `chrome.storage.local` under `netpulse_lang`.
 
 ---
 
-## 9. Flat Dual-Theme Engine (Dark & Eye-Comfort Light)
+## 11. Flat Dual-Theme Engine (Dark & Eye-Comfort Light)
 
 Strict minimalist aesthetic philosophy across all pages:
 - **Zero Gradients**: Exclusively 100% solid, flat, matte color fills.
@@ -195,8 +224,11 @@ NetPulse/
 ├── README.md                  # Comprehensive technical documentation
 ├── manifest.json              # Chrome Manifest V3 configuration & permissions
 ├── background.js              # Service worker (lifecycle, badge, router & speedtest bus)
-├── verify_netpulse.js         # Automated verification suite (128+ passing tests)
+├── verify_netpulse.js         # Automated verification suite (217+ passing tests)
 ├── generate_icons.js          # PNG icon generation utility
+│
+├── release/
+│   └── NetPulse.zip           # Production extension release package
 │
 ├── shared/
 │   ├── evaluator.js           # Centralized 3GPP RF benchmarks & diagnostic advice engine
@@ -210,7 +242,17 @@ NetPulse/
 ├── dashboard/
 │   ├── dashboard.html         # Full-page analytics dashboard & live RF gauges
 │   ├── dashboard.css          # Modular grid layout with flat meters, themes & RTL
-│   └── dashboard.js           # Live updates, modals, CSV/JSON export engine
+│   └── dashboard.js           # Live updates, multi-select merge, per-row delete, CSV/JSON export
+│
+├── history/
+│   ├── history.html           # Hourly audit studio, date filters & AI report generator
+│   ├── history.css            # Hourly time block accordions & AI prompt copy styles
+│   └── history.js             # Hourly bucket builder, AI markdown generator & screenshot viewer
+│
+├── about/
+│   ├── about.html             # Author & developer info, WhatsApp contact & repo details
+│   ├── about.css              # Author tiles, GitHub link & responsive cards
+│   └── about.js               # Bilingual i18n & live netpulse_theme / netpulse_lang sync
 │
 ├── options/
 │   ├── options.html           # Gateway subnets, credentials & threshold settings
@@ -274,7 +316,7 @@ Expected output:
 ```
 === NETPULSE VERIFICATION SUITE ===
 ...
-Verification Complete: 128 passed, 0 failed.
+Verification Complete: 217 passed, 0 failed.
 ALL TESTS PASSED SUCCESSFULLY.
 ```
 
@@ -282,6 +324,6 @@ ALL TESTS PASSED SUCCESSFULLY.
 
 ## License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for complete details.
+This project is licensed under the **MIT License** — see the [LICENSE](https://github.com/ZerroDevs/NetPulse/blob/main/LICENSE) file for complete details.
 
 Copyright (c) 2026 **ZerroDevs** ([https://github.com/ZerroDevs](https://github.com/ZerroDevs)).
