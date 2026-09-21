@@ -124,16 +124,34 @@
         
         <!-- Center Arena: Speedtest Console -->
         <section class="card speedtest-arena-card">
-          <!-- Arena Header & Phase Badge -->
+          <!-- Arena Header & Controls Row -->
           <div class="arena-top-row">
             <div class="arena-heading-wrap">
               <h1 class="arena-title" data-i18n="speedtest_title">NetPulse Internal Speedtest</h1>
               <p class="arena-sub" data-i18n="speedtest_server_endpoint">Testing Endpoint: Cloudflare Anycast Speed Node</p>
             </div>
             
-            <div id="speedtest-phase-badge" class="phase-badge phase-ready">
-              <span class="phase-dot"></span>
-              <span id="speedtest-phase-text" data-i18n="test_state_ready">Ready to Test</span>
+            <div class="arena-controls-wrap">
+              <!-- Test Duration Selector -->
+              <div class="duration-selector-wrap">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <label for="select-test-duration" class="duration-label" data-i18n="speedtest_duration_label">Duration:</label>
+                <select id="select-test-duration" class="duration-select mono">
+                  <option value="quick" data-i18n="speedtest_dur_quick">Quick (5s)</option>
+                  <option value="standard" selected data-i18n="speedtest_dur_standard">Standard (10s - Default)</option>
+                  <option value="extended" data-i18n="speedtest_dur_extended">Extended (15s)</option>
+                  <option value="stress" data-i18n="speedtest_dur_stress">Stress Audit (30s)</option>
+                  <option value="endurance" data-i18n="speedtest_dur_endurance">Endurance (60s)</option>
+                </select>
+              </div>
+
+              <div id="speedtest-phase-badge" class="phase-badge phase-ready">
+                <span class="phase-dot"></span>
+                <span id="speedtest-phase-text" data-i18n="test_state_ready">Ready to Test</span>
+              </div>
             </div>
           </div>
 
@@ -239,8 +257,8 @@
             </button>
 
             <button id="btn-abort-speedtest" class="btn btn-danger btn-lg" type="button" style="display: none;">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="6" y="6" width="12" height="12"></rect>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none">
+                <rect x="5" y="5" width="14" height="14" rx="2" ry="2"/>
               </svg>
               <span data-i18n="btn_stop_speedtest">Abort Test</span>
             </button>

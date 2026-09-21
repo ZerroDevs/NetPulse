@@ -557,10 +557,22 @@
 
     setGaugePhase('ping', '--', 'ms');
 
+    // Resolve duration from selector
+    const durationMap = {
+      quick:     { dl: 5000,  ul: 4000  },
+      standard:  { dl: 10000, ul: 8000  },
+      extended:  { dl: 15000, ul: 12000 },
+      stress:    { dl: 30000, ul: 25000 },
+      endurance: { dl: 60000, ul: 50000 }
+    };
+    const durationSel = document.getElementById('select-test-duration');
+    const durationKey = (durationSel && durationSel.value) || 'standard';
+    const { dl: dlMs, ul: ulMs } = durationMap[durationKey] || durationMap.standard;
+
     activeRunner = new window.NetPulseSpeedtestRunner({
       pingProbes: 10,
-      downloadDurationMs: 8000,
-      uploadDurationMs: 6000,
+      downloadDurationMs: dlMs,
+      uploadDurationMs: ulMs,
       downloadStreams: 4,
       uploadStreams: 3,
       onProgress: (evt) => handleTestProgress(evt),

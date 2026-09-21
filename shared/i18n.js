@@ -562,6 +562,12 @@
       speedtest_server_endpoint: 'Testing Endpoint: Cloudflare Anycast Speed Node',
       speedtest_bufferbloat_preview: 'Bufferbloat Grade Preview',
       speedtest_csi_preview: 'CSI Gaming Stability',
+      speedtest_duration_label: 'Duration:',
+      speedtest_dur_quick: 'Quick (5s)',
+      speedtest_dur_standard: 'Standard (10s - Default)',
+      speedtest_dur_extended: 'Extended (15s)',
+      speedtest_dur_stress: 'Stress Audit (30s)',
+      speedtest_dur_endurance: 'Endurance (60s)',
 
       // General Units
       unit_dbm: 'dBm',
@@ -1114,6 +1120,12 @@
       speedtest_server_endpoint: 'نقطة الفحص: خادم Cloudflare Anycast العالمي',
       speedtest_bufferbloat_preview: 'معاينة تصنيف الذاكرة المؤقتة',
       speedtest_csi_preview: 'مؤشر استقرار الألعاب CSI',
+      speedtest_duration_label: 'مدة الفحص:',
+      speedtest_dur_quick: 'سريع (5 ثوانٍ)',
+      speedtest_dur_standard: 'قياسي (10 ثوانٍ - افتراضي)',
+      speedtest_dur_extended: 'موسّع (15 ثانية)',
+      speedtest_dur_stress: 'فحص ضغط (30 ثانية)',
+      speedtest_dur_endurance: 'فحص تحمّل (60 ثانية)',
 
       // General Units
       unit_dbm: 'dBm',
