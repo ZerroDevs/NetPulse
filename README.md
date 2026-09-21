@@ -5,9 +5,9 @@
 [![Manifest](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-3b82f6.svg)](manifest.json)
 [![I18n](https://img.shields.io/badge/Languages-English%20%7C%20العربية%20(RTL)-f59e0b.svg)](shared/i18n.js)
 [![Documentation](https://img.shields.io/badge/Documentation-Interactive%20Guide-6366f1.svg)](docs/index.html)
-[![Tests](https://img.shields.io/badge/Verification-217%2B%20Passing-10b981.svg)](verify_netpulse.js)
+[![Tests](https://img.shields.io/badge/Verification-499%2B%20Passing-10b981.svg)](verify_netpulse.js)
 
-**NetPulse** is a production-grade cellular router RF telemetry monitor and automated performance correlation engine. Designed specifically for 5G / 4G LTE fixed-wireless broadband gateways (optimized for the **Zyxel NR5103E** and all routers across `192.168.*.*`, `10.*.*.*`, and `172.16.*.*`), NetPulse bridges the gap between physical radio-frequency (RF) signal conditions and actual network throughput benchmarks.
+**NetPulse** is a production-grade cellular router RF telemetry monitor, internal speedtest benchmark suite, and competitive gaming latency diagnostics engine. Designed specifically for 5G / 4G LTE fixed-wireless broadband gateways (optimized for the **Zyxel NR5103E**, Huawei, ZTE, and all gateways across `192.168.*.*`, `10.*.*.*`, and `172.16.*.*`), NetPulse bridges the gap between physical radio-frequency (RF) signal conditions and actual network throughput benchmarks.
 
 Developed and maintained by **[@ZerroDevs](https://github.com/ZerroDevs)**.
 
@@ -47,28 +47,95 @@ Developed and maintained by **[@ZerroDevs](https://github.com/ZerroDevs)**.
                             │          (chrome.storage.local)          │
                             └────────────────────┬─────────────────────┘
                                                  │
-        ┌──────────────────┬─────────────────────┼─────────────────────┬──────────────────┐
-        ▼                  ▼                     ▼                     ▼                  ▼
-┌─────────────────┐ ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐ ┌─────────────────┐
-│   Popup View    │ │ Full Dashboard  │   │ Deep RF Studio  │   │  Hourly Audit   │ │ About & Author  │
-│  (popup.html)   │ │ (dashboard.html)│   │ (analysis.html) │   │ (history.html)  │ │  (about.html)   │
-│   380px Quick   │ │  Live Gauges &  │   │ Multi-Waveform  │   │ Hourly Rollups  │ │ Developer Info  │
-│  Telemetry HUD  │ │ Telemetry Logs  │   │  Correlation    │   │   & AI Export   │ │  & Repo Links   │
-└─────────────────┘ └─────────────────┘   └─────────────────┘   └─────────────────┘ └─────────────────┘
+        ┌──────────────────┬─────────────────────┼─────────────────────┬──────────────────┬──────────────────┐
+        ▼                  ▼                     ▼                     ▼                  ▼                  ▼
+┌─────────────────┐ ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐ ┌─────────────────┐  ┌─────────────────┐
+│   Popup View    │ │ Full Dashboard  │   │ Deep RF Studio  │   │  Hourly Audit   │ │ Mini Speedtest  │  │ About & Author  │
+│  (popup.html)   │ │ (dashboard.html)│   │ (analysis.html) │   │ (history.html)  │ │(speedtest.html) │  │  (about.html)   │
+│   380px Quick   │ │ Gaming Radar &  │   │ Multi-Waveform  │   │ Hourly Rollups  │ │ Radial Gauge &  │  │ Developer Info  │
+│  Telemetry HUD  │ │ Bufferbloat HUD │   │  Correlation    │   │   & AI Export   │ │ Bufferbloat CSI │  │  & Repo Links   │
+└─────────────────┘ └─────────────────┘   └─────────────────┘   └─────────────────┘ └─────────────────┘  └─────────────────┘
 ```
 
 ---
 
-## 1. Zyxel NR5103E & Gateway Scraper (`scripts/router_scraper.js`)
+## 1. Semi-Circular Speedometer Canvas & Internal Speedtest Suite (`speedtest/`)
+
+A completely self-contained, offline-compatible pure JavaScript speedtest engine that measures network performance directly in the browser:
+
+- **240-Degree High-DPI Canvas Gauge**:
+  - Semi-circular radial gauge sweeping from `150°` to `390°` with razor-sharp rendering on Retina and 4K displays (`devicePixelRatio` scaling).
+  - **Zero Gradients**: Solid matte dark slate base track (`#1f2937`) with solid Emerald (`#10b981`) for Download, Solid Blue (`#3b82f6`) for Upload, and Solid Amber (`#f59e0b`) for Ping.
+  - **Non-Linear / Logarithmic Scale Ticks**: Piecewise distribution across `0, 5, 10, 50, 100, 250, 500, 1000 Mbps` ensures fine readability for both lower rates (< 50 Mbps) and gigabit speeds.
+  - **Smooth Spring/Inertia Needle**: Animated tapered pointer rotating with fluid `requestAnimationFrame` cubic easing and zero jitter.
+- **Center Gauge HUD Overlay**:
+  - Positioned with ample breathing room above the needle pivot to eliminate visual overlap.
+  - Features real-time phase pill badge with inline vector SVG icons, large 52px monospace numeric readout, and uppercase `Mbps` / `ms` label.
+- **Multi-Stream Multi-Endpoint Download Engine (`speedtest_worker.js`)**:
+  - Multi-threaded chunk reader using parallel ReadableStreams with adaptive 10MB/25MB chunks.
+  - Resilient error handling with `res.ok` validation and automatic Anycast mirror fallback to prevent rate-limit loops.
+  - Clean stream cancellation (`reader.cancel()`) on phase transition to prevent socket leaks.
+- **Instant Bufferbloat & CSI Evaluation Preview**:
+  - Concurrently probes loaded latency against independent Anycast edge nodes (`1.1.1.1`, `google.com`, `amazonaws.com`) to evaluate queue delay without socket contention.
+  - Instantly computes Bufferbloat Grade (A+ to F) and Competitive Gaming Stability Index (CSI).
+- **Paired Cellular RF Telemetry**:
+  - Captures real-time RSRP, SINR, RSRQ, RSSI, Band, PCI, and Cell ID directly from the router and auto-logs the run into history under `"NetPulse Test"`.
+
+---
+
+## 2. Competitive Gaming & Latency Diagnostics Suite (`dashboard/`)
+
+A 5-part power-user latency diagnostic engine built directly into the main Telemetry Dashboard:
+
+### A. Bufferbloat & Loaded Latency Scoring Engine
+- Evaluates queue delay during network congestion by comparing idle baseline ping against download-loaded and upload-loaded latency.
+- Grades buffer management from **Grade A+** (< 5ms delta) to **Grade F** (> 80ms delta) based on 3GPP and SQM industry standards:
+  - **Grade A+**: Exceptional buffer management (< 5ms delta). Real-time gaming unaffected.
+  - **Grade A**: Good traffic shaping (<= 15ms delta). Minimal latency penalty.
+  - **Grade B**: Minor latency inflation (<= 35ms delta).
+  - **Grade C**: Noticeable queue buildup (<= 60ms delta). Gameplay micro-stutter likely.
+  - **Grade D**: High queue buildup (<= 80ms delta).
+  - **Grade F**: Severe bufferbloat (> 80ms delta). Critical gaming freezes and rubberbanding.
+
+### B. Competitive Gaming Stability Index (CSI: 0 - 100%)
+- Composite algorithm evaluating real-time gaming suitability:
+  $$\text{CSI} = 100 - (\text{Jitter Penalty}) - (\text{Packet Loss Penalty}) - (\text{Ping Penalty}) - (\text{Bufferbloat Penalty})$$
+- Tiers: **Tournament Ready** ($\ge 90\%$), **Competitive Tier** ($75 - 89\%$), **Casual Playable** ($60 - 74\%$), and **High Lag / Spike Risk** ($< 60\%$).
+
+### C. Real-Time Latency Spike & Route Deviation Radar
+- Detects micro-spikes and route deviations (+15ms over 60s baseline).
+- Classifies root causes into:
+  - **Local Network Saturation**: Buffer queue delay from concurrent household downloads.
+  - **Cell Tower RF Contention**: Sudden SINR degradation or physical tower load.
+  - **External ISP Peering Flap**: Core internet backbone route instability.
+
+### D. Pre-Match 15s Connection Flight Check
+- Automated 15-second high-rate readiness audit before joining competitive ranked matches.
+- Provides immediate actionable verdicts: **Safe to Queue**, **Play with Caution**, or **Do Not Queue** with comprehensive min/max/jitter/loss telemetry.
+
+### E. Household Capacity & Concurrency Headroom Estimator
+- Computes simultaneous 4K UHD video streams, 1080p video calls, and low-latency gaming headroom based on active bandwidth and traffic shaping.
+
+---
+
+## 3. Live Gaming Jitter & Packet Loss HUD (`dashboard/dashboard.js`)
+
+- Real-time precision latency probe targeting high-availability Anycast and gaming edge relays:
+  - **Cloudflare Ultra-Fast Edge** (Frankfurt / EU): `https://1.1.1.1/cdn-cgi/trace`
+  - **Google Cloud Global Edge** (Zero Overhead): `https://www.google.com/generate_204`
+  - **AWS European Gaming Hub** (Frankfurt): `https://checkip.amazonaws.com/`
+- Real-time sparkline canvas visualizing jitter variance, minimum/maximum RTT, and 60-second rolling packet loss.
+
+---
+
+## 4. Zyxel NR5103E & Gateway Scraper (`scripts/router_scraper.js`)
 
 - **Subnet Auto-Detection**: Monitors `http://` and `https://` interfaces across private subnets (`192.168.*.*`, `10.*.*.*`, `172.16.*.*`, `localhost`).
-- **All-Frame Coverage**: Operates seamlessly across nested iframes and Single-Page Applications (`all_frames: true`).
 - **Automated Credential Injection**:
   - Automatically identifies login fields for username and password.
-  - Injects target credentials (`User: admin`, `Password:<configured_in_options>` or custom user credentials configured in Options).
-  - Utilizes browser-native `document.execCommand('insertText')` combined with prototype property descriptors (`Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set`) to bypass modern frontend reactive frameworks (React, Vue, Angular) and ensure form validation succeeds.
-  - Multi-phase anti-wipe protection timers (100ms and 350ms) prevent aggressive router firmware scripts from clearing passwords on input blur.
-  - Login button `mousedown` safety interceptor guarantees credentials remain populated at the exact millisecond of submission.
+  - Injects target credentials (`admin` / user configured password).
+  - Uses `document.execCommand('insertText')` combined with prototype property descriptors to bypass reactive frameworks (React, Vue, Angular).
+  - Multi-phase anti-wipe protection timers (100ms and 350ms) prevent router scripts from clearing credentials on input blur.
 - **Multi-Pass RF Metric Extraction**:
   - **RSRP** (Reference Signal Received Power in dBm)
   - **SINR** (Signal-to-Interference-plus-Noise Ratio in dB)
@@ -78,29 +145,21 @@ Developed and maintained by **[@ZerroDevs](https://github.com/ZerroDevs)**.
   - **Physical Cell ID (PCI)** & **Cell ID**
   - **Downlink & Uplink Channel Bandwidths** (e.g. `100MHz`, `20MHz`)
   - **Carrier Aggregation (CA)** secondary component carriers (`SCC1`, `SCC2`, `SCC3`, etc.)
-- **On-Page Router HUD**: Displays an unobtrusive live telemetry badge in the top-right corner of the gateway page with live sync timestamps and a manual sync trigger.
 
 ---
 
-## 2. High-Performance Speedtest & Fast.com Automation (`scripts/speedtest_scraper.js`)
+## 5. High-Performance Speedtest & Fast.com Automation (`scripts/speedtest_scraper.js`)
 
-- **Main-Thread Freeze Prevention**:
-  - Completely eliminates heavy DOM `MutationObserver` loops that traditionally freeze benchmark canvases and 60fps animations.
-  - Employs a non-blocking, debounced 1.5-second polling interval (`setInterval(checkDom, 1500)`).
-  - **Fast-Path Idle Short-Circuit**: When Speedtest.net is idle on the home screen (`GO` button present and no results), the scraper short-circuits in `< 0.01ms`, leaving CPU usage at 0% and keeping the page 100% responsive for user clicks and interactions.
-  - Replaces all synchronous layout-reflow calls (`innerText`) with non-blocking `textContent`.
-- **Top-Level Window Guard**: Guarantees execution only in the primary benchmark tab (`window.top === window.self`), never running inside third-party advertising or analytics iframes.
-- **Telemetry Pairing**: Intercepts completed tests, extracts Download, Upload, Ping, and Jitter, immediately couples the result with the active router RF signal state, and records the entry to `netpulse_history`.
-- **Dismissible On-Page HUD Badge**:
-  - Live status indicator: `Speedtest.net Ready`, `Fast.com Detected`, `Test in progress...`, `Measuring speed...`, or `Logged: XX.XX Mbps`.
-  - Manual "Capture Now" button (`#netpulse-st-capture-btn`) to force instantaneous extraction at any stage.
-  - Dismiss close button (`&times;`) to completely remove the HUD if desired.
+- **Main-Thread Freeze Prevention**: Eliminates heavy DOM `MutationObserver` loops; uses non-blocking debounced 1.5s polling.
+- **Fast-Path Idle Short-Circuit**: When Speedtest.net is idle on the home screen (`GO` button present), the scraper short-circuits in `< 0.01ms`, leaving CPU usage at 0%.
+- **Telemetry Pairing**: Intercepts completed tests, extracts Download, Upload, Ping, and Jitter, and immediately couples the result with active RF signal state.
+- **Dismissible On-Page HUD Badge**: Live status indicator with manual "Capture Now" button.
 
 ---
 
-## 3. Centralized Evaluation & Engineering Diagnostics (`shared/evaluator.js`)
+## 6. Centralized Evaluation & Engineering Diagnostics (`shared/evaluator.js`)
 
-Evaluates raw radio measurements against 3GPP and cellular RF engineering benchmarks:
+Evaluates raw radio measurements against 3GPP cellular RF engineering benchmarks:
 
 | Metric | Excellent (Emerald) | Good (Blue) | Fair (Amber) | Poor (Rose) | Unit |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -109,110 +168,40 @@ Evaluates raw radio measurements against 3GPP and cellular RF engineering benchm
 | **RSRQ** | $\ge -9$ (Clean) | — | $-10$ to $-15$ (Congested) | $< -15$ (Heavy Load) | dB |
 | **RSSI** | $\ge -65$ | $-66$ to $-75$ | $-76$ to $-85$ | $< -85$ | dBm |
 
-- **Cross-Layer Diagnostic Advice**: Synthesizes multi-variable relationships between RF signal level and cell tower load:
-  - Distinguishes between **RF Path Loss** (weak signal, low RSRP) vs. **Sector Tower Congestion** (strong RSRP but degraded RSRQ / negative SINR).
-  - Provides actionable physical placement recommendations (e.g. window reorientation, external antenna requirements, band locking considerations).
+- **Link Spectral Efficiency & Sector Capacity**: Computes theoretical peak capacity against channel bandwidth and 256-QAM 4x4 MIMO modulation.
+- **Privacy & Public Sharing Mode**: 1-click toggle to redact sensitive IP addresses, Physical Cell IDs (PCIs), and Cell IDs for public screenshots.
+- **Export PNG Diagnostic Card**: Generates a high-resolution standalone diagnostic report card image.
 
 ---
 
-## 4. Standalone Analytics Dashboard (`dashboard/dashboard.html`)
+## 7. Hourly History Audit Studio (`history/history.html`)
 
-- **Live RF Gauges**: Real-time visual progress meters for RSRP, SINR, RSRQ, and RSSI with dynamic status color coding.
-- **Cellular & Carrier Aggregation Details**: Displays Primary Band, PCI, Cell ID, Channel Bandwidth, and aggregated secondary component carriers (SCCs).
-- **Searchable & Filterable Telemetry Log**: Correlates Speedtest runs with paired RF signal metrics.
-- **Multi-Select & Merge Records**:
-  - Select 2 or more log rows via checkboxes to reveal the **Merge Action Bar**.
-  - Merges multiple test runs into a single averaged record (averaging Download, Upload, Ping, and Jitter while pairing the latest cellular RF signal data).
-- **Per-Row Delete Action**: Hovering over any record row reveals a trash icon button with an instant confirmation modal to delete single entries.
-- **Export Capabilities**: 1-click **Export CSV** and **Export JSON** for offline analysis.
-- **Interactive Modals**:
-  - **Portals & Links Modal** (`#modal-portals-overlay`): Quick launch cards for `192.168.1.1`, `speedtest.net`, and `fast.com` with one-click credential reveal and copy-to-clipboard.
-  - **Clear All Data Confirmation Modal** (`#modal-clear-overlay`): Wipes telemetry log history while safely preserving user preferences (language and theme).
-
----
-
-## 5. Deep RF Correlation & Carrier Aggregation Studio (`analysis/analysis.html`)
-
-A specialized statistical environment for in-depth RF performance investigation:
-- **Signal vs. Throughput Scatter Matrix**: Visualizes RSRP and SINR correlation against achieved download bandwidth.
-- **Carrier Aggregation Component Breakdown**: Inspects primary and secondary carrier contributions (`PCC` + `SCC1` + `SCC2`).
-- **Real-Time Auto-Sync Engine**: Actively synchronizes with Dashboard storage changes via a continuous 3-second loop and `chrome.storage.onChanged` listener.
-- **Interactive "Clear History" Confirmation Modal**: High-contrast confirmation modal with backdrop dismissal and instant visual feedback.
-- **Manual Sync Button with Toast Banner**: "Sync with Dashboard" actively triggers router tab scraping and displays a bilingual toast notification.
-
----
-
-## 6. Hourly History Audit Studio (`history/history.html`)
-
-- **Hourly Block Rollups**: Groups telemetry into 1-hour time blocks (e.g., `2026-09-21 02:00 - 02:59`) with collapsible accordion cards.
+- **Hourly Block Rollups**: Groups telemetry into 1-hour time blocks (e.g. `2026-09-21 06:00 - 06:59`) with collapsible accordion cards.
+- **ISP Peak vs. Off-Peak Discrepancy Matrix**: Compares throughput and tower load between evening peak hours (19:00 - 01:00) and morning off-peak hours (02:00 - 08:00) to diagnose ISP throttling vs. tower saturation.
 - **1-Click "Copy for AI Analysis" Generator**:
-  - Formats hourly cellular RF telemetry, band parameters, Cell IDs, and speed test runs into structured Markdown diagnostic reports.
-  - Generates prompts tuned for LLMs (ChatGPT, Claude, Gemini) in English and Arabic.
-- **Filtering & Search Engine**: Search by test ID, platform (`Speedtest.net`, `Fast.com`), or filter by date.
-- **Screenshot Viewer Modal**: View captured result screenshots with full-screen preview.
-- **CSV Audit Export**: Export hourly rollups to standard CSV.
+  - Formats hourly cellular RF telemetry, band parameters, theoretical capacity, spectral efficiency, bufferbloat grades, and speed test runs into clean, markdown diagnostic reports for LLMs (ChatGPT, Claude, Gemini).
+- **Filtering & Search Engine**: Search by test ID, platform (`Speedtest.net`, `Fast.com`, `NetPulse Test`), or filter by date.
+- **CSV Audit Export**: Export hourly rollups to standard CSV format.
 
 ---
 
-## 7. About & Developer Studio (`about/about.html`)
-
-- **Developer & Author Attribution**:
-  - **Made by Osama Abdallatif**: Clickable WhatsApp tile connecting directly to `+218 916808225` ([https://wa.me/218916808225](https://wa.me/218916808225)).
-  - **GitHub Developer Profile**: [@ZerroDevs](https://github.com/ZerroDevs) ([https://github.com/ZerroDevs](https://github.com/ZerroDevs)).
-- **Project Documentation & License**:
-  - Direct repository link: [ZerroDevs/NetPulse](https://github.com/ZerroDevs/NetPulse).
-  - Clickable hyperlink to official [MIT License](https://github.com/ZerroDevs/NetPulse/blob/main/LICENSE).
-- **Full Bilingual i18n & Theme Sync**: All strings, badges, feature blocks, and footer licenses are fully translated and synchronized in real-time across open tabs.
-
----
-
-## 8. Options & Configuration Studio (`options/options.html`)
-
-Customizable settings page accessible directly via Chrome Extension Options (`options_ui`):
-- **Gateway Network Configuration**: Custom gateway IP/subnet definition (e.g. `192.168.1.1`, `192.168.8.1`, `10.0.0.1`).
-- **Router Credential Manager**: Secure local storage of gateway administrative username and password.
-- **Telemetry Polling Rates**: Configurable refresh intervals (High Performance: 2s, Balanced: 5s, Low Overhead: 15s).
-- **Granular Automation Toggles**: Independent toggles for Speedtest.net auto-capture, Fast.com auto-capture, and router auto-fill.
-- **RF Threshold Sliders**: Custom warning alert triggers for critical RSRP and SINR degradation.
-
----
-
-## 9. Compact Quick Popup (`popup/popup.html`)
-
-- Lightweight 380px extension popup for instant status checks.
-- Live active-tab detection banner (identifies when the user is currently viewing a router interface or benchmark site).
-- Quick summary cards for current RF metrics and the latest Speedtest record.
-- Instant action buttons: `Scan Router Tab`, `Capture Speedtest Tab`, `Deep RF Analysis`, `Settings`, `View History Reports`, and `Open Full Analytics Dashboard`.
-
----
-
-## 10. Internationalization (i18n) & Arabic RTL Engine (`shared/i18n.js`)
+## 8. Internationalization (i18n) & Arabic RTL Engine (`shared/i18n.js`)
 
 - Native bilingual translation engine supporting **English (LTR)** and **العربية (Arabic - RTL)**.
-- Full UI translation coverage across popup, dashboard, options, analysis studio, hourly audit, about page, on-page HUDs, and toast alerts.
+- 100% UI translation coverage across popup, dashboard, options, analysis studio, hourly audit, speedtest, about page, and toast alerts.
 - Automatic layout flipping: dynamically sets `dir="rtl"`, reverses navigation margins, and mirrors grid columns.
 - State is preserved persistently in `chrome.storage.local` under `netpulse_lang`.
 
 ---
 
-## 11. Flat Dual-Theme Engine (Dark & Eye-Comfort Light)
+## 9. Flat Dual-Theme Engine (Dark & Eye-Comfort Light)
 
 Strict minimalist aesthetic philosophy across all pages:
 - **Zero Gradients**: Exclusively 100% solid, flat, matte color fills.
 - **Zero Unicode Emojis**: Strictly zero emojis; all visual indicators use crisp, lightweight inline SVG vector icons.
 - **Dark Mode**: Sleek obsidian canvas (`#0b0f19`) with dark slate cards (`#111827`) and high-contrast borders (`#1f2937`).
-- **Eye-Comfort Light Mode**: Soothing, soft slate-grey canvas (`#dbe0e6`) with elevated comfort grey cards (`#eaedf1`), refined borders (`#bcc4cf`), and dark charcoal text (`#111827`). Eliminates harsh, glaring white backgrounds for effortless readability during nighttime or extended diagnostic sessions.
+- **Eye-Comfort Light Mode**: Soothing, soft slate-grey canvas (`#f3f4f6`) with elevated comfort cards (`#ffffff`), refined borders (`#e5e7eb`), and dark charcoal text (`#111827`).
 - State is preserved persistently in `chrome.storage.local` under `netpulse_theme`.
-
----
-
-## Strict Design & Engineering Standards
-
-- **Zero Gradients**: No `linear-gradient`, `radial-gradient`, or CSS gradient functions permitted in source code.
-- **Zero Emojis**: Zero unicode emojis across markup, scripts, and logs.
-- **Pure Vector Icons**: Scalable, geometrically aligned inline SVGs.
-- **Monospace Telemetry**: All RF measurements, IP addresses, cell IDs, and timestamps are rendered in monospace typography (`ui-monospace, SFMono-Regular, Consolas, monospace`).
-- **Manifest V3 Compliant**: Built strictly on Chrome Extension Manifest V3 with event-driven background service workers and non-persistent storage listeners.
 
 ---
 
@@ -223,16 +212,22 @@ NetPulse/
 ├── LICENSE                    # MIT License (Copyright 2026 ZerroDevs)
 ├── README.md                  # Comprehensive technical documentation
 ├── manifest.json              # Chrome Manifest V3 configuration & permissions
-├── background.js              # Service worker (lifecycle, badge, router & speedtest bus)
-├── verify_netpulse.js         # Automated verification suite (217+ passing tests)
+├── background.js              # Service worker (lifecycle, badge, speedtest & router bus)
+├── verify_netpulse.js         # Automated verification suite (499+ passing tests)
 ├── generate_icons.js          # PNG icon generation utility
 │
 ├── release/
 │   └── NetPulse.zip           # Production extension release package
 │
 ├── shared/
-│   ├── evaluator.js           # Centralized 3GPP RF benchmarks & diagnostic advice engine
+│   ├── evaluator.js           # 3GPP RF benchmarks, CSI, Bufferbloat, Spectral & PNG card generator
 │   └── i18n.js                # Bilingual dictionary (EN/AR) & dynamic RTL switching engine
+│
+├── speedtest/
+│   ├── speedtest.html         # Mini Speedtest suite & radial canvas gauge
+│   ├── speedtest.css          # Speedometer styling, center HUD overlay & themes
+│   ├── speedtest.js           # Radial gauge renderer, needle easing & controller
+│   └── speedtest_worker.js    # Multi-stream pure JS download/upload/ping engine
 │
 ├── popup/
 │   ├── popup.html             # 380px compact popup view
@@ -240,29 +235,29 @@ NetPulse/
 │   └── popup.js               # Quick metrics, tab detection, and manual triggers
 │
 ├── dashboard/
-│   ├── dashboard.html         # Full-page analytics dashboard & live RF gauges
+│   ├── dashboard.html         # Analytics dashboard, Gaming Radar, Bufferbloat & CSI HUD
 │   ├── dashboard.css          # Modular grid layout with flat meters, themes & RTL
-│   └── dashboard.js           # Live updates, multi-select merge, per-row delete, CSV/JSON export
+│   └── dashboard.js           # Live updates, gaming probe, multi-select merge, CSV/JSON export
 │
 ├── history/
-│   ├── history.html           # Hourly audit studio, date filters & AI report generator
+│   ├── history.html           # Hourly audit studio, Peak vs Off-Peak matrix & AI report generator
 │   ├── history.css            # Hourly time block accordions & AI prompt copy styles
 │   └── history.js             # Hourly bucket builder, AI markdown generator & screenshot viewer
 │
-├── about/
-│   ├── about.html             # Author & developer info, WhatsApp contact & repo details
-│   ├── about.css              # Author tiles, GitHub link & responsive cards
-│   └── about.js               # Bilingual i18n & live netpulse_theme / netpulse_lang sync
+├── analysis/
+│   ├── analysis.html          # Deep RF correlation & Carrier Aggregation studio
+│   ├── analysis.css           # Analytical scatter plots, charts & modal styling
+│   └── analysis.js            # Auto-sync engine, correlation math & confirmation dialogs
 │
 ├── options/
 │   ├── options.html           # Gateway subnets, credentials & threshold settings
 │   ├── options.css            # Options layout, toggles & sliders
 │   └── options.js             # Options storage synchronization & validation
 │
-├── analysis/
-│   ├── analysis.html          # Deep RF correlation & Carrier Aggregation studio
-│   ├── analysis.css           # Analytical scatter plots, charts & modal styling
-│   └── analysis.js            # Auto-sync engine, correlation math & confirmation dialogs
+├── about/
+│   ├── about.html             # Author & developer info, WhatsApp contact & repo details
+│   ├── about.css              # Author tiles, GitHub link & responsive cards
+│   └── about.js               # Bilingual i18n & live netpulse_theme / netpulse_lang sync
 │
 ├── scripts/
 │   ├── router_scraper.js      # Zyxel NR5103E & 192.168.* scraper with auto-fill & HUD
@@ -302,10 +297,12 @@ NetPulse includes a comprehensive, standalone Node.js automated test suite (`ver
 - File existence and integrity across all components.
 - RF evaluation grading algorithms across 3GPP threshold ranges.
 - Full English and Arabic translation key parity.
+- Bufferbloat grading, CSI scoring, Headroom estimation, and Peak/Off-Peak discrepancy formulas.
+- Semi-circular speedometer gauge geometry, non-linear tick scale points, and HUD overlays.
 - Multi-column Speedtest.net and Fast.com regex parsing engines.
 - Strict **Zero-Gradient** compliance across all `.html`, `.css`, and `.js` source files.
 - Strict **Zero-Emoji** compliance across all project files.
-- Main-thread freeze prevention (validates absence of runaway `MutationObserver` on benchmark pages and verifies non-blocking `textContent` usage).
+- Main-thread freeze prevention.
 
 To execute the test suite:
 ```bash
@@ -316,7 +313,7 @@ Expected output:
 ```
 === NETPULSE VERIFICATION SUITE ===
 ...
-Verification Complete: 217 passed, 0 failed.
+Verification Complete: 499 passed, 0 failed.
 ALL TESTS PASSED SUCCESSFULLY.
 ```
 
