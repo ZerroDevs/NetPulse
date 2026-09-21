@@ -27,6 +27,20 @@
   let isTestRunning = false;
 
   /**
+   * Check if the extension context is still valid.
+   * Returns false after the extension is reloaded/updated while this tab is open.
+   */
+  function isExtensionContextValid() {
+    try {
+      // Accessing chrome.runtime.id throws if context is invalidated
+      return !!(chrome && chrome.runtime && chrome.runtime.id);
+    } catch (e) {
+      return false;
+    }
+  }
+
+
+  /**
    * Parse speed values robustly, handling multi-number strings and units
    */
   function parseSpeed(valStr, unitStr) {
@@ -55,8 +69,22 @@
 
     const match = str.match(/\b\d+(?:\.\d+)?\b/);
     if (!match) return null;
-    const num = parseFloat(match[0]);
-    return isNaN(num) || num < 0 ? null : Math.round(num);
+    let num = parseFloat(match[0]);
+    if (isNaN(num) || num < 0) return null;
+
+    // Safety guard against concatenated digits like "16130238" (16 idle, 130 dl, 238 ul) or "16360"
+    if (num > 1000) {
+      const s = String(Math.round(num));
+      if (s.length >= 7) {
+        // e.g. 16130238 -> 16
+        num = parseInt(s.substring(0, s.length - 6), 10);
+      } else if (s.length >= 5) {
+        // e.g. 16360, 16130 -> 16
+        num = parseInt(s.substring(0, s.length - 3), 10);
+      }
+    }
+
+    return Math.round(num);
   }
 
   /**
@@ -235,41 +263,194 @@
   }
 
   /**
+   * Helper to extract Speedtest.net Result ID and full Result URL.
+   * Returns null if test has not completed yet.
+   */
+  function getSpeedtestResultInfo() {
+    // 1. URL Path: Speedtest pushes '/result/19696435847' upon test completion
+    const path = window.location.pathname || '';
+    const href = window.location.href || '';
+    const urlMatch = path.match(/\/result\/(?:c\/)?(\d+)/i) || href.match(/\/result\/(?:c\/)?(\d+)/i);
+    if (urlMatch) {
+      return {
+        resultId: urlMatch[1],
+        resultUrl: `https://www.speedtest.net/result/${urlMatch[1]}`
+      };
+    }
+
+    // 2. DOM Links: Share buttons or result links
+    const linkElem = document.querySelector('a.result-data-large[href*="/result/"]') ||
+                     document.querySelector('a[href*="/result/"]') ||
+                     document.querySelector('a[href*="speedtest.net/result/"]') ||
+                     document.querySelector('.result-item-id a') ||
+                     document.querySelector('[data-result-id]');
+    if (linkElem) {
+      const linkHref = linkElem.getAttribute('href') || linkElem.href || '';
+      const m = linkHref.match(/\/result\/(?:c\/)?(\d+)/i);
+      if (m) {
+        return {
+          resultId: m[1],
+          resultUrl: `https://www.speedtest.net/result/${m[1]}`
+        };
+      }
+      const dataId = linkElem.getAttribute('data-result-id');
+      if (dataId && /^\d+$/.test(dataId.trim())) {
+        return {
+          resultId: dataId.trim(),
+          resultUrl: `https://www.speedtest.net/result/${dataId.trim()}`
+        };
+      }
+    }
+
+    // 3. Text rendered on test completion: "Result ID: 19696435847"
+    const bodyText = (document.body ? document.body.textContent : '') || '';
+    const idMatch = bodyText.match(/Result\s*ID:?\s*(\d+)/i);
+    if (idMatch) {
+      return {
+        resultId: idMatch[1],
+        resultUrl: `https://www.speedtest.net/result/${idMatch[1]}`
+      };
+    }
+
+    return null;
+  }
+
+  /**
    * Multi-strategy Speedtest.net extractor
+   * Supports modern React / Tailwind / Material-UI DOM, legacy selectors, and full-page text fallbacks.
    */
   function extractSpeedtestNetMetrics() {
-    // Strategy 1: Search prioritized DOM selectors
-    let downloadSpeed = findNumericFromSelectors([
-      '.result-item-download .result-data-value',
-      '.result-item-download [class*="result-data"]',
-      '.result-item-download span',
-      '.result-item-download',
-      'span[data-download-status-value]',
-      '.result-data-large.download-speed',
-      '.result-view-data .download-speed',
-      '.result-container .download-speed',
-      '.download-speed',
-      '[class*="download-speed" i]',
-      '[id*="download-speed" i]',
-      '[data-test-id="download-speed"]'
-    ], false);
+    let downloadSpeed = null;
+    let uploadSpeed = null;
+    let ping = null;
+    let jitter = null;
+    let resultId = null;
+    let resultUrl = window.location.href;
+    let isp = 'Speedtest ISP';
+    let server = 'Speedtest Server';
 
-    let uploadSpeed = findNumericFromSelectors([
-      '.result-item-upload .result-data-value',
-      '.result-item-upload [class*="result-data"]',
-      '.result-item-upload span',
-      '.result-item-upload',
-      'span[data-upload-status-value]',
-      '.result-data-large.upload-speed',
-      '.result-view-data .upload-speed',
-      '.result-container .upload-speed',
-      '.upload-speed',
-      '[class*="upload-speed" i]',
-      '[id*="upload-speed" i]',
-      '[data-test-id="upload-speed"]'
-    ], false);
+    // 1. Result ID & URL from completion link
+    const resInfo = getSpeedtestResultInfo();
+    if (resInfo) {
+      resultId = resInfo.resultId;
+      resultUrl = resInfo.resultUrl;
+    }
 
-    let ping = findNumericFromSelectors([
+    // 2. DOM Strategy A: Modern React Speedtest Components
+    // Modern Speedtest renders speed in h3 with font-mono text-5xl inside container with "Download" / "Upload"
+    const allContainers = Array.from(document.querySelectorAll('div, section, p, [class*="flex"]'));
+    for (const c of allContainers) {
+      const text = (c.textContent || '').trim();
+      // Check if container labels download
+      if ((/^\s*download\b/i.test(text) || /\bdownload\s+mbps/i.test(text)) && !downloadSpeed) {
+        const numElem = c.querySelector('h3, [class*="text-5xl"], [class*="font-mono"], [class*="result-data"]') ||
+                        c.parentElement?.querySelector('h3, [class*="text-5xl"], [class*="font-mono"]');
+        if (numElem) {
+          const val = parseSpeed(numElem.textContent);
+          if (val !== null && val > 0) downloadSpeed = val;
+        }
+      }
+      // Check if container labels upload
+      if ((/^\s*upload\b/i.test(text) || /\bupload\s+mbps/i.test(text)) && !uploadSpeed) {
+        const numElem = c.querySelector('h3, [class*="text-5xl"], [class*="font-mono"], [class*="result-data"]') ||
+                        c.parentElement?.querySelector('h3, [class*="text-5xl"], [class*="font-mono"]');
+        if (numElem) {
+          const val = parseSpeed(numElem.textContent);
+          if (val !== null && val > 0) uploadSpeed = val;
+        }
+      }
+    }
+
+    // DOM Strategy B: Direct H3 / text-5xl numeric extraction
+    if (!downloadSpeed || !uploadSpeed) {
+      const numericH3s = Array.from(document.querySelectorAll('h3, [class*="text-5xl"], [class*="font-mono"]'))
+        .map(el => parseSpeed(el.textContent))
+        .filter(val => val !== null && val > 0);
+
+      if (numericH3s.length >= 2) {
+        if (!downloadSpeed) downloadSpeed = numericH3s[0];
+        if (!uploadSpeed) uploadSpeed = numericH3s[1];
+      } else if (numericH3s.length === 1 && !downloadSpeed) {
+        downloadSpeed = numericH3s[0];
+      }
+    }
+
+    // DOM Strategy C: Legacy class selectors
+    if (!downloadSpeed) {
+      downloadSpeed = findNumericFromSelectors([
+        '.result-item-download .result-data-value',
+        '.result-item-download [class*="result-data"]',
+        '.result-item-download span',
+        '.result-item-download',
+        'span[data-download-status-value]',
+        '.result-data-large.download-speed',
+        '.result-view-data .download-speed',
+        '.result-container .download-speed',
+        '.download-speed',
+        '[class*="download-speed" i]',
+        '[id*="download-speed" i]',
+        '[data-test-id="download-speed"]'
+      ], false);
+    }
+
+    if (!uploadSpeed) {
+      uploadSpeed = findNumericFromSelectors([
+        '.result-item-upload .result-data-value',
+        '.result-item-upload [class*="result-data"]',
+        '.result-item-upload span',
+        '.result-item-upload',
+        'span[data-upload-status-value]',
+        '.result-data-large.upload-speed',
+        '.result-view-data .upload-speed',
+        '.result-container .upload-speed',
+        '.upload-speed',
+        '[class*="upload-speed" i]',
+        '[id*="upload-speed" i]',
+        '[data-test-id="upload-speed"]'
+      ], false);
+    }
+
+    // Strategy D: Text Regex Extraction across page
+    let bodyText = null;
+    function getBodyText() {
+      if (bodyText === null) {
+        bodyText = (document.body ? document.body.textContent : '') || '';
+      }
+      return bodyText;
+    }
+
+    if (!downloadSpeed || !uploadSpeed) {
+      const bt = getBodyText();
+
+      // Look for Download Mbps followed by numbers
+      if (!downloadSpeed) {
+        const dlMatch = bt.match(/DOWNLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
+                        bt.match(/Download(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i) ||
+                        bt.match(/([\d.]+)\s*(?:Mbps)?\s*DOWNLOAD/i);
+        if (dlMatch) downloadSpeed = parseSpeed(dlMatch[1]);
+      }
+
+      // Look for Upload Mbps followed by numbers
+      if (!uploadSpeed) {
+        const ulMatch = bt.match(/UPLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
+                        bt.match(/Upload(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i) ||
+                        bt.match(/([\d.]+)\s*(?:Mbps)?\s*UPLOAD/i);
+        if (ulMatch) uploadSpeed = parseSpeed(ulMatch[1]);
+      }
+
+      // Multi-column layout fallback
+      if (!downloadSpeed || !uploadSpeed) {
+        const multiCol = bt.match(/DOWNLOAD[^\r\n]*UPLOAD[^\r\n]*[\r\n]+[\s]*([\d.]+)[\s]+([\d.]+)/i);
+        if (multiCol) {
+          if (!downloadSpeed) downloadSpeed = parseSpeed(multiCol[1]);
+          if (!uploadSpeed) uploadSpeed = parseSpeed(multiCol[2]);
+        }
+      }
+    }
+
+    // Ping / Latency Extraction
+    // Strategy A: Legacy CSS selectors
+    ping = findNumericFromSelectors([
       '.result-item-ping .result-data-value',
       '.result-item-ping [class*="result-data"]',
       '.result-item-ping span',
@@ -279,7 +460,82 @@
       '[class*="ping-speed" i]'
     ], true);
 
-    let jitter = findNumericFromSelectors([
+    // Strategy B: Modern Speedtest DOM — find the "Idle" label, take its sibling number
+    if (!ping || ping > 1000) {
+      const allLeafs = Array.from(document.querySelectorAll('*')).filter(el => el.children.length === 0);
+      // Look for an element whose text is exactly "Idle"
+      const idleEl = allLeafs.find(el => (el.textContent || '').trim().toLowerCase() === 'idle');
+      if (idleEl) {
+        // Walk to parent container, find the first numeric sibling
+        let container = idleEl.parentElement;
+        while (container && container.querySelectorAll('*').length < 3) {
+          container = container.parentElement;
+        }
+        if (container) {
+          const numLeafs = Array.from(container.querySelectorAll('*'))
+            .filter(el => el.children.length === 0)
+            .map(el => (el.textContent || '').trim())
+            .filter(t => /^\d+$/.test(t))
+            .map(t => parseInt(t, 10))
+            .filter(n => n > 0 && n <= 999);
+          if (numLeafs.length > 0) ping = numLeafs[0]; // first number = Idle ping
+        }
+      }
+    }
+
+    // Strategy C: "Ping ms" row — take ONLY the FIRST integer (Idle), not DL or UL numbers
+    if (!ping || ping > 1000) {
+      // Find the element whose direct text content (not children's) contains "Ping ms"
+      const allElems = Array.from(document.querySelectorAll('div, span, p, td, h4, h5, label'));
+      const pingLabel = allElems.find(el => {
+        const ownText = Array.from(el.childNodes)
+          .filter(n => n.nodeType === Node.TEXT_NODE)
+          .map(n => n.textContent.trim())
+          .join('');
+        return /ping\s*ms/i.test(ownText) || /^ping\s*ms$/i.test((el.textContent || '').trim());
+      });
+      if (pingLabel) {
+        // Walk up to find a container that holds the numeric siblings
+        let row = pingLabel.parentElement;
+        // Try up to 3 levels up
+        for (let i = 0; i < 3 && row; i++) {
+          const nums = Array.from(row.querySelectorAll('*'))
+            .filter(el => el.children.length === 0)
+            .map(el => (el.textContent || '').trim())
+            .filter(t => /^\d{1,4}$/.test(t))
+            .map(t => parseInt(t, 10))
+            .filter(n => n > 0 && n <= 999);
+          if (nums.length >= 1) {
+            ping = nums[0]; // first = Idle
+            if (nums.length >= 2) jitter = nums[1]; // second = Download jitter
+            break;
+          }
+          row = row.parentElement;
+        }
+      }
+    }
+
+    // Strategy D: Text regex — skip any non-digit chars between "Ping ms" and first number
+    if (!ping || ping > 1000) {
+      const bt = getBodyText();
+      // [^\d]*? skips icon/symbol characters that appear between label and values in modern Speedtest UI
+      const pingMatch = bt.match(/Ping\s*ms[^\d]*?(\d{1,4})/i);
+      if (pingMatch) {
+        const val = parseInt(pingMatch[1], 10);
+        if (val > 0 && val <= 999) ping = val;
+      }
+      // If still nothing, try just finding "Ping" followed by a reasonable number
+      if (!ping || ping > 999) {
+        const fallback = bt.match(/\bping\b[^\d]*?(\d{1,3})\s*ms/i);
+        if (fallback) {
+          const val = parseInt(fallback[1], 10);
+          if (val > 0 && val <= 999) ping = val;
+        }
+      }
+    }
+
+    // Jitter — same approach: look for Download jitter (2nd number in the Ping ms row)
+    jitter = findNumericFromSelectors([
       '.result-item-jitter .result-data-value',
       '.result-item-jitter span',
       '.result-item-jitter',
@@ -288,65 +544,37 @@
       '[class*="jitter-speed" i]'
     ], true);
 
-    let bodyText = null;
-    function getBodyText() {
-      if (bodyText === null) {
-        bodyText = (document.body ? document.body.textContent : '') || '';
+    if (!jitter) {
+      // Try to find "Download" jitter from ping row (2nd integer)
+      const pingLabel = Array.from(document.querySelectorAll('div, span, p, td'))
+        .find(el => /^ping\s*(ms)?$/i.test((el.textContent || '').trim()) && el.children.length <= 1);
+      if (pingLabel) {
+        const row = pingLabel.closest('div, tr, section, [class*="flex"]') || pingLabel.parentElement;
+        if (row) {
+          const nums = Array.from(row.querySelectorAll('*'))
+            .filter(el => el.children.length === 0)
+            .map(el => (el.textContent || '').trim())
+            .filter(t => /^\d{1,4}$/.test(t))
+            .map(t => parseInt(t, 10))
+            .filter(n => n > 0 && n <= 999);
+          if (nums.length >= 2) jitter = nums[1]; // 2nd = Download jitter
+        }
       }
-      return bodyText;
-    }
-
-    // Strategy 2: Text Regex Fallback if DOM selectors missed
-    if (!downloadSpeed) {
-      const bt = getBodyText();
-      const multiCol = bt.match(/DOWNLOAD[^\r\n]*UPLOAD[^\r\n]*[\r\n]+[\s]*([\d.]+)[\s]+([\d.]+)/i);
-      if (multiCol) {
-        downloadSpeed = parseSpeed(multiCol[1]);
-        if (!uploadSpeed) uploadSpeed = parseSpeed(multiCol[2]);
-      }
-    }
-
-    if (!downloadSpeed) {
-      const bt = getBodyText();
-      const dlMatch = bt.match(/DOWNLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
-                      bt.match(/([\d.]+)\s*(?:Mbps)?\s*DOWNLOAD/i) ||
-                      bt.match(/Download(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i);
-      if (dlMatch) downloadSpeed = parseSpeed(dlMatch[1]);
-    }
-
-    if (!uploadSpeed) {
-      const bt = getBodyText();
-      const ulMatch = bt.match(/UPLOAD(?:\s+Mbps)?[\s\r\n]+([\d.]+)/i) ||
-                      bt.match(/([\d.]+)\s*(?:Mbps)?\s*UPLOAD/i) ||
-                      bt.match(/Upload(?:\s*Speed)?\s*[:\s\r\n]+([\d.]+)/i);
-      if (ulMatch) uploadSpeed = parseSpeed(ulMatch[1]);
-    }
-
-    if (!ping) {
-      const bt = getBodyText();
-      const pingMatch = bt.match(/Ping\s*(?:ms)?[\s\r\n]+([\d]+)/i) ||
-                        bt.match(/([\d]+)\s*(?:ms)?\s*Ping/i);
-      if (pingMatch) ping = parseLatency(pingMatch[1]);
     }
 
     if (!jitter) {
       const bt = getBodyText();
-      const jitterMatch = bt.match(/Jitter\s*(?:ms)?[\s\r\n]+([\d]+)/i);
-      if (jitterMatch) jitter = parseLatency(jitterMatch[1]);
+      // [^\d]*? skips icon characters between label and value
+      const jitterMatch = bt.match(/Jitter\s*(?:ms)?[^\d]*?(\d{1,4})/i);
+      if (jitterMatch) {
+        const val = parseInt(jitterMatch[1], 10);
+        if (val >= 0 && val <= 999) jitter = val;
+      }
     }
 
-    // Result ID & URL
-    let resultUrl = window.location.href;
-    let resultId = null;
-    const resultLinkElem = document.querySelector('a.result-data-large[href*="/result/"]') ||
-                           document.querySelector('a[href*="/result/"]') ||
-                           document.querySelector('.result-item-id a') ||
-                           document.querySelector('[data-result-id]');
-    if (resultLinkElem && resultLinkElem.href) {
-      resultUrl = resultLinkElem.href;
-      const m = resultUrl.match(/\/result\/(?:c\/)?(\d+)/i);
-      if (m) resultId = m[1];
-    }
+    if (ping) ping = parseLatency(String(ping));
+
+    // Result ID from text if still not found
     if (!resultId) {
       const bt = getBodyText();
       const idMatch = bt.match(/Result\s*ID:?\s*(\d+)/i);
@@ -357,13 +585,14 @@
     }
 
     // ISP
-    let isp = 'Speedtest ISP';
     const ispElem = document.querySelector('.js-data-isp') ||
                     document.querySelector('[data-isp]') ||
                     document.querySelector('.result-data-source') ||
                     document.querySelector('.result-item-host .result-data-value');
     if (ispElem && ispElem.textContent.trim()) {
       isp = ispElem.textContent.trim();
+    } else if (window.__CLIENT_CONFIG__ && window.__CLIENT_CONFIG__.userSession && window.__CLIENT_CONFIG__.userSession.ispName) {
+      isp = window.__CLIENT_CONFIG__.userSession.ispName;
     } else {
       const bt = getBodyText();
       const ispMatch = bt.match(/Connections[\s\r\n]+(?:Multi|Single)[\s\r\n]+([^\r\n]+)/i);
@@ -373,7 +602,6 @@
     }
 
     // Server
-    let server = 'Speedtest Server';
     const serverElem = document.querySelector('.js-data-sponsor') ||
                        document.querySelector('.host-location') ||
                        document.querySelector('.server-name') ||
@@ -383,7 +611,7 @@
       server = serverElem.textContent.trim();
     } else {
       const bt = getBodyText();
-      const ipBlock = bt.match(/(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})[\s\r\n]+([\s\S]*?)\s*Change Server/i);
+      const ipBlock = bt.match(/(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})[\s\r\n]+([^\r\n]*?)\s*Change Server/i);
       if (ipBlock && ipBlock[1]) {
         server = ipBlock[1].trim().split(/[\r\n]+/).map(s => s.trim()).filter(Boolean).join(' ');
       } else {
@@ -408,13 +636,13 @@
         resultId: resultId
       };
     }
-
     return null;
   }
 
   /**
    * Fast.com extractor
    */
+
   function extractFastComMetrics() {
     const speedValElem = document.getElementById('speed-value');
     const speedUnitElem = document.getElementById('speed-units');
@@ -464,7 +692,14 @@
    * Save test result and pair with latest router telemetry
    */
   async function recordSpeedtestResult(testData, isManual = false) {
+    if (!isExtensionContextValid()) return null; // Extension was reloaded, stop gracefully
     if (!testData || !testData.downloadMbps) return;
+
+    // Automatic capture on Speedtest.net requires a valid resultId!
+    // This guarantees that we ONLY capture at the end from the result link, never intermediate test ticks.
+    if (testData.source === 'Speedtest.net' && !isManual && !testData.resultId) {
+      return null;
+    }
 
     // Check configuration settings if triggered automatically
     if (!isManual) {
@@ -477,7 +712,10 @@
       } catch (e) {}
     }
 
-    const testKey = `${testData.source}_${testData.downloadMbps}_${testData.uploadMbps}_${testData.resultId || Math.floor(Date.now() / 30000)}`;
+    const testKey = testData.resultId
+      ? `${testData.source}_${testData.resultId}`
+      : `${testData.source}_${testData.downloadMbps}_${testData.uploadMbps}_${Math.floor(Date.now() / 60000)}`;
+
     if (lastLoggedTestId === testKey) {
       if (isManual) {
         showToast(
@@ -515,9 +753,11 @@
           rssi: routerMetrics.rssi,
           band: routerMetrics.band,
           pci: routerMetrics.pci,
+          cellId: routerMetrics.cellId || null,
           dlBandwidth: routerMetrics.dlBandwidth,
           ulBandwidth: routerMetrics.ulBandwidth,
-          caBands: routerMetrics.caBands || []
+          caBands: routerMetrics.caBands || [],
+          secondaryBands: routerMetrics.secondaryBands || []
         } : null,
         correlationAnalysis: correlationAnalysis
       };
@@ -548,44 +788,80 @@
 
   // --- Speedtest.net Observers ---
   function initSpeedtestNet() {
+    // Intercept pushState & replaceState to detect instant result URL navigation!
+    try {
+      const origPush = history.pushState;
+      history.pushState = function (...args) {
+        origPush.apply(this, args);
+        // Wait 1800ms so React can finish rendering the result page (ping/jitter appear later than DL/UL)
+        setTimeout(checkDom, 1800);
+      };
+      const origReplace = history.replaceState;
+      history.replaceState = function (...args) {
+        origReplace.apply(this, args);
+        setTimeout(checkDom, 1800);
+      };
+      window.addEventListener('popstate', () => setTimeout(checkDom, 1800));
+    } catch (e) {}
+
     const checkDom = () => {
-      // 1. Idle state check:
-      // If the "GO" button is present and there are no results yet, the user is on the home screen.
-      // Short-circuit immediately to avoid unnecessary DOM queries and CPU usage.
-      const hasResultIndicators = !!(
-        document.querySelector('a[href*="/result/"]') ||
-        document.querySelector('.result-item-id') ||
-        document.querySelector('.result-view') ||
-        document.querySelector('.result-data-large.download-speed') ||
-        document.querySelector('.share-button, .social-share')
-      );
+      // Stop silently if extension was reloaded
+      if (!isExtensionContextValid()) return;
+      // 1. Completed state check:
+      // A Speedtest is completed ONLY when a Result ID / Result URL exists (e.g. https://www.speedtest.net/result/19696435847)!
+      const resultInfo = getSpeedtestResultInfo();
+      if (resultInfo && resultInfo.resultId) {
+        const extracted = extractCurrentSpeedtest();
+        if (extracted && extracted.downloadMbps > 0) {
+          isTestRunning = false;
 
-      const startButton = document.querySelector('.start-button, .js-start-test');
-      const isStartButtonPresent = !!(startButton && !startButton.closest('[style*="display: none"], [style*="visibility: hidden"]'));
+          // If ping is 0 but we have a result ID, the page may not have fully rendered yet.
+          // Retry once after 2 seconds to get the real ping value before logging.
+          if (extracted.pingMs === 0 && !extracted._retried) {
+            updateHudStatus('Capturing result...', '#f59e0b');
+            setTimeout(() => {
+              if (!isExtensionContextValid()) return;
+              const retried = extractCurrentSpeedtest();
+              if (retried && retried.downloadMbps > 0) {
+                retried._retried = true;
+                updateHudStatus(`Speedtest Logged: ${retried.downloadMbps} Mbps`, '#10b981');
+                recordSpeedtestResult(retried, false);
+              } else {
+                // Log with what we have
+                extracted._retried = true;
+                updateHudStatus(`Speedtest Logged: ${extracted.downloadMbps} Mbps`, '#10b981');
+                recordSpeedtestResult(extracted, false);
+              }
+            }, 2000);
+            return;
+          }
 
-      if (isStartButtonPresent && !hasResultIndicators) {
-        isTestRunning = false;
-        updateHudStatus('Speedtest.net Ready', '#10b981');
-        return;
+          updateHudStatus(`Speedtest Logged: ${extracted.downloadMbps} Mbps`, '#10b981');
+          recordSpeedtestResult(extracted, false);
+          return;
+        }
       }
 
-      // 2. Active test check:
-      const isGaugeActive = !!document.querySelector('.gauge-assembly.testing, .test-mode-progress, .gauge-speed-download, .gauge-speed-upload');
 
-      if (!hasResultIndicators && (isGaugeActive || !isStartButtonPresent)) {
+      // 2. Active test check:
+      // When resultId does not exist yet, check if test is currently running:
+      const isGaugeActive = !!document.querySelector(
+        '.gauge-assembly.testing, .test-mode-progress, .gauge-speed-download, .gauge-speed-upload, [class*="gauge-assembly"]'
+      );
+      const fullText = (document.body ? document.body.textContent : '') || '';
+      const isTestingText = /Testing download|Testing upload|Finding optimal server/i.test(fullText);
+      const extractedNow = extractCurrentSpeedtest();
+      const hasLiveSpeeds = extractedNow && (extractedNow.downloadMbps > 0 || extractedNow.uploadMbps > 0);
+
+      if (isGaugeActive || isTestingText || hasLiveSpeeds) {
         isTestRunning = true;
         updateHudStatus('Test in progress...', '#3b82f6');
         return;
       }
 
-      // 3. Completed state check:
-      if (hasResultIndicators) {
-        const extracted = extractCurrentSpeedtest();
-        if (extracted && extracted.downloadMbps > 0) {
-          isTestRunning = false;
-          recordSpeedtestResult(extracted, false);
-        }
-      }
+      // 3. Idle state on home screen
+      isTestRunning = false;
+      updateHudStatus('Speedtest.net Ready', '#10b981');
     };
 
     // Run periodic non-blocking check every 1.5 seconds.
@@ -599,6 +875,9 @@
     let fastRecorded = false;
 
     const checkFast = () => {
+      // Stop silently if extension was reloaded
+      if (!isExtensionContextValid()) return;
+
       const speedValElem = document.getElementById('speed-value');
       const progressIndicator = document.getElementById('speed-progress-indicator');
       const speedContainer = document.getElementById('speed-container');

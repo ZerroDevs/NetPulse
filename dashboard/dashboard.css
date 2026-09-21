@@ -861,6 +861,94 @@ body {
   background-color: var(--bg-card-hover);
 }
 
+/* Checkbox & actions columns */
+.col-check {
+  width: 32px;
+  text-align: center;
+  padding: 0 4px !important;
+}
+.col-actions {
+  width: 44px;
+  text-align: center;
+  padding: 0 4px !important;
+}
+
+/* Selected row highlight */
+.data-table tbody tr.row-selected {
+  background-color: rgba(99, 102, 241, 0.08) !important;
+  outline: 1px solid rgba(99, 102, 241, 0.25);
+  outline-offset: -1px;
+}
+
+/* Trash button per row */
+.btn-row-trash {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.35;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+.btn-row-trash:hover {
+  opacity: 1;
+  color: #f43f5e;
+  border-color: #f43f5e;
+  background-color: rgba(244, 63, 94, 0.1);
+}
+
+/* Make trash visible on row hover */
+.data-table tbody tr:hover .btn-row-trash {
+  opacity: 0.6;
+}
+
+/* Merge action bar */
+.merge-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin-bottom: 8px;
+  gap: 12px;
+  animation: fadeIn 0.15s ease;
+}
+.merge-selection-count {
+  color: #818cf8;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.merge-action-btns {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.btn-merge {
+  background-color: #6366f1;
+  border: 1px solid #6366f1;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.15s ease;
+}
+.btn-merge:hover {
+  background-color: #4f46e5;
+  border-color: #4f46e5;
+}
+
 .speed-val-bold {
   font-weight: 700;
   font-size: 13px;
@@ -1069,6 +1157,34 @@ body {
 .toast-banner.active {
   display: flex;
   animation: netpulse-modal-fade 0.2s ease-out;
+}
+
+.toast-banner.warning {
+  border-left-color: var(--accent-amber);
+}
+[dir="rtl"] .toast-banner.warning {
+  border-right-color: var(--accent-amber);
+}
+
+.toast-banner.error {
+  border-left-color: var(--accent-rose);
+}
+[dir="rtl"] .toast-banner.error {
+  border-right-color: var(--accent-rose);
+}
+
+.toast-banner.success {
+  border-left-color: var(--accent-emerald);
+}
+[dir="rtl"] .toast-banner.success {
+  border-right-color: var(--accent-emerald);
+}
+
+.toast-banner.info {
+  border-left-color: var(--accent-indigo);
+}
+[dir="rtl"] .toast-banner.info {
+  border-right-color: var(--accent-indigo);
 }
 
 /* ==========================================================================

@@ -35,6 +35,19 @@
   let pollTimer = null;
   let credentialsInjected = false;
 
+  /**
+   * Returns false if the extension has been reloaded/updated since this script ran.
+   * Prevents "Extension context invalidated" errors in long-running tabs.
+   */
+  function isExtensionContextValid() {
+    try {
+      return !!(chrome && chrome.runtime && chrome.runtime.id);
+    } catch (e) {
+      return false;
+    }
+  }
+
+
   // Default credentials configured for Zyxel NR5103E & 192.168.1.1
   const DEFAULT_ROUTER_CREDS = {
     user: 'admin',
@@ -123,6 +136,7 @@
    */
   function autoFillRouterCredentials() {
     try {
+      if (!isExtensionContextValid()) return; // Extension reloaded — stop silently
       chrome.storage.local.get(['netpulse_settings', 'netpulse_router_creds'], (result) => {
         const settings = result.netpulse_settings || {};
         const creds = result.netpulse_router_creds || {};
@@ -550,6 +564,7 @@
     lastCommittedData = payload;
 
     try {
+      if (!isExtensionContextValid()) return payload; // Extension reloaded, skip storage
       const storage = await chrome.storage.local.get(['netpulse_rf_timeline']);
       let timeline = storage.netpulse_rf_timeline || [];
       if (metrics && (metrics.rsrp !== null || metrics.rssi !== null)) {

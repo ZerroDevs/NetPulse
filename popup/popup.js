@@ -528,6 +528,14 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.tabs.create({ url: dashboardUrl });
   });
 
+  const btnOpenHistory = document.getElementById('btn-open-history');
+  if (btnOpenHistory) {
+    btnOpenHistory.addEventListener('click', () => {
+      const historyUrl = chrome.runtime.getURL('history/history.html');
+      chrome.tabs.create({ url: historyUrl });
+    });
+  }
+
   const btnOpenAnalysis = document.getElementById('btn-open-analysis');
   if (btnOpenAnalysis) {
     btnOpenAnalysis.addEventListener('click', () => {

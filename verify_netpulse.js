@@ -60,6 +60,9 @@ const requiredFiles = [
   'analysis/analysis.html',
   'analysis/analysis.css',
   'analysis/analysis.js',
+  'history/history.html',
+  'history/history.css',
+  'history/history.js',
   'scripts/router_scraper.js',
   'scripts/speedtest_scraper.js',
   'icons/icon.svg',
@@ -73,6 +76,16 @@ const requiredFiles = [
 requiredFiles.forEach((relPath) => {
   const fullPath = path.join(ROOT_DIR, relPath);
   assert(fs.existsSync(fullPath), `File exists: ${relPath}`);
+  if (relPath.endsWith('.js')) {
+    try {
+      const code = fs.readFileSync(fullPath, 'utf8');
+      const vm = require('vm');
+      new vm.Script(code, { filename: relPath });
+      assert(true, `Syntax check passed: ${relPath}`);
+    } catch (err) {
+      assert(false, `Syntax error in ${relPath}: ${err.message}`);
+    }
+  }
 });
 
 // 3. Test Shared Evaluator
@@ -112,6 +125,13 @@ assert(healthOpt.status === 'Optimal RF', 'Healthy metrics return "Optimal RF"')
 
 const healthCongested = Evaluator.getOverallHealth(-80, 15, -16);
 assert(healthCongested.status === 'Sector Congestion', 'Heavy RSRQ triggers "Sector Congestion"');
+
+// Specific evaluateRSRP / evaluateSINR / evaluateRSRQ tests
+assert(typeof Evaluator.evaluateRSRP === 'function', 'Evaluator.evaluateRSRP is a function');
+const rsrpEvalRes = Evaluator.evaluateRSRP(-75);
+assert(rsrpEvalRes.grade === 'Excellent' && rsrpEvalRes.statusClass === 'status-excellent', 'evaluateRSRP returns grade and statusClass');
+assert(typeof Evaluator.evaluateSINR === 'function', 'Evaluator.evaluateSINR is a function');
+assert(typeof Evaluator.evaluateRSRQ === 'function', 'Evaluator.evaluateRSRQ is a function');
 
 // 4. Test i18n Engine
 const I18n = require('./shared/i18n.js');
@@ -206,6 +226,9 @@ const filesToCheck = [
   'analysis/analysis.html',
   'analysis/analysis.css',
   'analysis/analysis.js',
+  'history/history.html',
+  'history/history.css',
+  'history/history.js',
   'scripts/router_scraper.js',
   'scripts/speedtest_scraper.js',
   'shared/evaluator.js',
@@ -228,6 +251,14 @@ filesToCheck.forEach((f) => {
   assert(!hasEmoji, `Zero-Emoji check: ${f} contains NO unicode emojis`);
 });
 
+// 7. Strict ZERO BROWSER ALERT Verification across all JS files
+const alertCallRegex = /\balert\s*\(/;
+filesToCheck.filter(f => f.endsWith('.js')).forEach((f) => {
+  const content = fs.readFileSync(path.join(ROOT_DIR, f), 'utf8');
+  const hasAlert = alertCallRegex.test(content);
+  assert(!hasAlert, `Zero-Alert check: ${f} contains NO native alert() calls (uses toast/modal)`);
+});
+
 // 10. Speedtest & Fast.com Non-Blocking Performance & Responsiveness Assertions
 const scraperContent = fs.readFileSync(path.join(ROOT_DIR, 'scripts/speedtest_scraper.js'), 'utf8');
 assert(!scraperContent.includes('new MutationObserver'), 'speedtest_scraper.js does NOT instantiate runaway MutationObserver on document.body');
@@ -235,6 +266,9 @@ assert(!scraperContent.includes('document.body.innerText'), 'speedtest_scraper.j
 assert(scraperContent.includes('window.top !== window.self'), 'speedtest_scraper.js includes top-level benchmark window guard');
 assert(scraperContent.includes('netpulse-st-close-btn'), 'speedtest_scraper.js includes dismissible HUD close button');
 assert(scraperContent.includes('Speedtest.net Ready'), 'speedtest_scraper.js includes fast idle short-circuit for Speedtest home screen');
+assert(scraperContent.includes('getSpeedtestResultInfo'), 'speedtest_scraper.js includes getSpeedtestResultInfo completion detector');
+assert(scraperContent.includes('history.pushState'), 'speedtest_scraper.js intercepts history.pushState for instant result URL navigation');
+assert(scraperContent.includes('!testData.resultId'), 'speedtest_scraper.js requires resultId before auto-capturing Speedtest.net');
 
 // 11. Developer Attribution & License Verification
 const readmeContent = fs.readFileSync(path.join(ROOT_DIR, 'README.md'), 'utf8');
@@ -258,6 +292,62 @@ const analysisJsText = fs.readFileSync(path.join(ROOT_DIR, 'analysis/analysis.js
 assert(analysisJsText.includes('getConsolidatedRfPoints'), 'analysis.js includes multi-source getConsolidatedRfPoints engine');
 assert(analysisJsText.includes('netpulse_rf_timeline'), 'analysis.js loads and monitors netpulse_rf_timeline');
 assert(analysisJsText.includes('REQUEST_DASHBOARD_SYNC'), 'analysis.js requests live sync from active Dashboard tabs');
+
+// 13. Hourly History Audit & AI Analysis Export Assertions
+assert(I18n.t('nav_history', 'en') === 'Hourly Audit', 'EN translation for nav_history exists');
+assert(I18n.t('nav_history', 'ar') === 'سجل التدقيق الساعي', 'AR translation for nav_history exists');
+assert(I18n.t('view_history_reports', 'en') === 'View History Reports', 'EN translation for view_history_reports exists');
+assert(I18n.t('view_history_reports', 'ar') === 'عرض تقارير السجل', 'AR translation for view_history_reports exists');
+assert(I18n.t('hourly_audit_title', 'en') === 'Hourly Historical Audit & Diagnostic Studio', 'EN translation for hourly_audit_title exists');
+assert(I18n.t('hourly_audit_title', 'ar') === 'استوديو التدقيق الساعي والتحليل التاريخي', 'AR translation for hourly_audit_title exists');
+assert(I18n.t('btn_copy_ai', 'en') === 'Copy for AI Analysis', 'EN translation for btn_copy_ai exists');
+assert(I18n.t('btn_copy_ai', 'ar') === 'نسخ للتحليل بالذكاء الاصطناعي', 'AR translation for btn_copy_ai exists');
+assert(I18n.t('toast_copied_ai', 'en') === 'Copied to clipboard formatted for AI analysis', 'EN translation for toast_copied_ai exists');
+assert(I18n.t('toast_copied_ai', 'ar') === 'تم النسخ إلى الحافظة بتنسيق التحليل بالذكاء الاصطناعي', 'AR translation for toast_copied_ai exists');
+assert(I18n.t('router_data_unavailable', 'en') === 'Router data unavailable for this hour', 'EN translation for router_data_unavailable exists');
+assert(I18n.t('router_data_unavailable', 'ar') === 'بيانات الموجه غير متوفرة لهذه الساعة', 'AR translation for router_data_unavailable exists');
+
+const historyHtmlContent = fs.readFileSync(path.join(ROOT_DIR, 'history/history.html'), 'utf8');
+assert(historyHtmlContent.includes('id="hourly-blocks-container"'), 'history.html contains hourly-blocks-container');
+assert(historyHtmlContent.includes('id="hourly-empty-state"'), 'history.html contains hourly-empty-state');
+assert(historyHtmlContent.includes('id="badge-total-hours"'), 'history.html contains badge-total-hours');
+assert(historyHtmlContent.includes('id="input-search-history"'), 'history.html contains input-search-history');
+assert(historyHtmlContent.includes('id="input-date-filter"'), 'history.html contains input-date-filter');
+assert(historyHtmlContent.includes('id="select-provider"'), 'history.html contains select-provider filter');
+assert(historyHtmlContent.includes('id="btn-refresh-history"'), 'history.html contains btn-refresh-history');
+assert(historyHtmlContent.includes('id="btn-export-csv"'), 'history.html contains btn-export-csv');
+assert(historyHtmlContent.includes('id="btn-open-clear-modal"'), 'history.html contains btn-open-clear-modal');
+assert(historyHtmlContent.includes('id="modal-screenshot-overlay"'), 'history.html contains modal-screenshot-overlay');
+assert(historyHtmlContent.includes('id="modal-clear-overlay"'), 'history.html contains modal-clear-overlay');
+assert(historyHtmlContent.includes('id="toast-banner"'), 'history.html contains toast-banner');
+
+const historyJsContent = fs.readFileSync(path.join(ROOT_DIR, 'history/history.js'), 'utf8');
+assert(historyJsContent.includes('buildHourlyBuckets'), 'history.js includes buildHourlyBuckets algorithm');
+assert(historyJsContent.includes('generateAiReportMarkdown'), 'history.js includes generateAiReportMarkdown generator');
+assert(historyJsContent.includes('تقرير فحص الشبكة - NetPulse'), 'history.js includes Arabic AI Report header');
+assert(historyJsContent.includes('المطلوب من الذكاء الاصطناعي:'), 'history.js includes Arabic AI prompt query');
+assert(historyJsContent.includes('Network Diagnostic Report - NetPulse'), 'history.js includes English AI Report header');
+assert(historyJsContent.includes('AI Prompt: Analyze these network metrics'), 'history.js includes English AI prompt query');
+assert(historyJsContent.includes('exportHistoryCsv'), 'history.js includes exportHistoryCsv generator');
+assert(historyJsContent.includes('openScreenshotModal'), 'history.js includes openScreenshotModal viewer');
+
+const popupHtmlContent = fs.readFileSync(path.join(ROOT_DIR, 'popup/popup.html'), 'utf8');
+assert(popupHtmlContent.includes('id="btn-open-history"'), 'popup.html contains btn-open-history');
+assert(popupHtmlContent.includes('view_history_reports'), 'popup.html includes view_history_reports i18n attribute');
+
+const popupJsContent = fs.readFileSync(path.join(ROOT_DIR, 'popup/popup.js'), 'utf8');
+assert(popupJsContent.includes('btn-open-history'), 'popup.js hooks up btn-open-history click listener');
+assert(popupJsContent.includes('history/history.html'), 'popup.js opens history/history.html');
+
+const dashHtml = fs.readFileSync(path.join(ROOT_DIR, 'dashboard/dashboard.html'), 'utf8');
+assert(dashHtml.includes('history/history.html'), 'dashboard.html links to history/history.html in topbar');
+
+const analysisHtml = fs.readFileSync(path.join(ROOT_DIR, 'analysis/analysis.html'), 'utf8');
+assert(analysisHtml.includes('history/history.html'), 'analysis.html links to history/history.html in topbar');
+
+const bgJsContent = fs.readFileSync(path.join(ROOT_DIR, 'background.js'), 'utf8');
+assert(bgJsContent.includes('OPEN_HISTORY'), 'background.js handles OPEN_HISTORY message');
+assert(bgJsContent.includes('CAPTURE_ACTIVE_TAB'), 'background.js handles CAPTURE_ACTIVE_TAB message');
 
 console.log(`\nVerification Complete: ${passes} passed, ${failures} failed.`);
 if (failures > 0) {

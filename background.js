@@ -91,6 +91,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'OPEN_HISTORY') {
+    const historyUrl = chrome.runtime.getURL('history/history.html');
+    chrome.tabs.query({ url: historyUrl }, (tabs) => {
+      if (tabs && tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { active: true });
+        if (tabs[0].windowId) {
+          chrome.windows.update(tabs[0].windowId, { focused: true });
+        }
+      } else {
+        chrome.tabs.create({ url: historyUrl });
+      }
+    });
+    sendResponse({ status: 'ok' });
+    return true;
+  }
+
+  if (message.type === 'CAPTURE_ACTIVE_TAB') {
+    chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ status: 'error', message: chrome.runtime.lastError.message });
+      } else {
+        sendResponse({ status: 'ok', dataUrl: dataUrl });
+      }
+    });
+    return true;
+  }
+
   if (message.type === 'GET_ROUTER_METRICS') {
     chrome.storage.local.get('netpulse_router_latest', (res) => {
       sendResponse(res.netpulse_router_latest || null);

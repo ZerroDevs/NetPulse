@@ -736,7 +736,7 @@
   function exportAuditCsv() {
     const rfPoints = getConsolidatedRfPoints();
     if (rfPoints.length === 0) {
-      alert(currentLang === 'ar' ? 'لا توجد بيانات متاحة للتصدير.' : 'No telemetry data available to export.');
+      showToast(currentLang === 'ar' ? 'لا توجد بيانات متاحة للتصدير.' : 'No telemetry data available to export.');
       return;
     }
 

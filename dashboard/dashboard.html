@@ -50,6 +50,13 @@
           </svg>
           <span data-i18n="nav_analysis">Deep RF Analysis</span>
         </a>
+        <a href="../history/history.html" class="nav-link">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span data-i18n="nav_history">Hourly Audit</span>
+        </a>
         <a href="../options/options.html" class="nav-link">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
@@ -418,9 +425,25 @@
 
         <!-- Structured Data Table -->
         <div class="table-container">
+          <!-- Merge Action Bar (appears when 2+ rows selected) -->
+          <div id="merge-action-bar" class="merge-action-bar" style="display:none;">
+            <span id="merge-selection-count" class="merge-selection-count">0 selected</span>
+            <div class="merge-action-btns">
+              <button id="btn-merge-selected" class="btn btn-merge" type="button">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3"></path><polyline points="15 3 12 6 9 3"></polyline><line x1="12" y1="3" x2="12" y2="13"></line></svg>
+                <span>Merge Selected</span>
+              </button>
+              <button id="btn-cancel-merge" class="btn btn-secondary" type="button" style="padding: 4px 10px; font-size: 12px;">
+                Cancel
+              </button>
+            </div>
+          </div>
           <table class="data-table">
             <thead>
               <tr>
+                <th style="width: 32px;" class="col-check">
+                  <input type="checkbox" id="check-all-rows" title="Select all" style="cursor:pointer; accent-color: #6366f1;">
+                </th>
                 <th style="width: 140px;" data-i18n="th_timestamp">TIMESTAMP</th>
                 <th style="width: 100px;" data-i18n="th_source">SOURCE</th>
                 <th style="width: 100px;" class="text-right" data-i18n="th_download">DOWNLOAD</th>
@@ -431,6 +454,7 @@
                 <th style="width: 90px;" class="text-right" data-i18n="th_paired_sinr">PAIRED SINR</th>
                 <th style="width: 80px;" data-i18n="th_band">BAND</th>
                 <th data-i18n="th_correlation">RF CORRELATION &amp; DIAGNOSTIC CONCLUSION</th>
+                <th style="width: 44px;" class="col-actions"></th>
               </tr>
             </thead>
             <tbody id="history-tbody">
@@ -473,6 +497,49 @@
       <div class="modal-actions">
         <button id="btn-modal-cancel" class="modal-btn-cancel" type="button" data-i18n="modal_btn_cancel">Cancel</button>
         <button id="btn-modal-confirm" class="modal-btn-confirm" type="button" data-i18n="modal_btn_confirm">Confirm Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Single Log Entry Modal -->
+  <div id="modal-delete-entry-overlay" class="modal-overlay" tabindex="-1" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header-row">
+        <div class="modal-icon-badge">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path><path d="M14 11v6"></path>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+          </svg>
+        </div>
+        <h3 class="modal-title">Delete Test Entry</h3>
+      </div>
+      <p class="modal-body-text" id="delete-entry-modal-body">Delete this speedtest record? This cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="btn-delete-entry-cancel" class="modal-btn-cancel" type="button">Cancel</button>
+        <button id="btn-delete-entry-confirm" class="modal-btn-confirm" type="button">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Merge Selected Entries Modal -->
+  <div id="modal-merge-overlay" class="modal-overlay" tabindex="-1" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header-row">
+        <div class="modal-icon-badge" style="background: rgba(99,102,241,0.15);">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3"></path>
+            <polyline points="15 3 12 6 9 3"></polyline>
+            <line x1="12" y1="3" x2="12" y2="13"></line>
+          </svg>
+        </div>
+        <h3 class="modal-title">Merge Selected Records</h3>
+      </div>
+      <p class="modal-body-text" id="merge-modal-body">Merge the selected records into one averaged entry? The originals will be removed.</p>
+      <div class="modal-actions">
+        <button id="btn-merge-cancel" class="modal-btn-cancel" type="button">Cancel</button>
+        <button id="btn-merge-confirm" class="modal-btn-confirm" style="background: #6366f1; border-color: #6366f1;" type="button">Merge Into One</button>
       </div>
     </div>
   </div>

@@ -66,6 +66,45 @@
   }
 
   /**
+   * Helper specifically for RSRP evaluation with statusClass and grade
+   */
+  function evaluateRSRP(value) {
+    const res = evaluateMetric('rsrp', value);
+    return {
+      grade: res.grade,
+      label: res.grade,
+      color: res.color,
+      statusClass: 'status-' + (res.grade || 'unknown').toLowerCase().replace(/\s+/g, '-')
+    };
+  }
+
+  /**
+   * Helper specifically for SINR evaluation with statusClass and grade
+   */
+  function evaluateSINR(value) {
+    const res = evaluateMetric('sinr', value);
+    return {
+      grade: res.grade,
+      label: res.grade,
+      color: res.color,
+      statusClass: 'status-' + (res.grade || 'unknown').toLowerCase().replace(/\s+/g, '-')
+    };
+  }
+
+  /**
+   * Helper specifically for RSRQ evaluation with statusClass and grade
+   */
+  function evaluateRSRQ(value) {
+    const res = evaluateMetric('rsrq', value);
+    return {
+      grade: res.grade,
+      label: res.grade,
+      color: res.color,
+      statusClass: 'status-' + (res.grade || 'unknown').toLowerCase().replace(/\s+/g, '-')
+    };
+  }
+
+  /**
    * Calculate overall health status and badge
    */
   function getOverallHealth(rsrp, sinr, rsrq) {
@@ -233,6 +272,9 @@
   return {
     BENCHMARKS,
     evaluateMetric,
+    evaluateRSRP,
+    evaluateSINR,
+    evaluateRSRQ,
     getOverallHealth,
     generateDiagnosticAdvice,
     correlateSpeedtestWithRF

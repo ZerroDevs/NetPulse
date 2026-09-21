@@ -82,6 +82,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnModalCancel = document.getElementById('btn-modal-cancel');
   const btnModalConfirm = document.getElementById('btn-modal-confirm');
 
+  // Delete Entry Modal
+  const modalDeleteEntryOverlay = document.getElementById('modal-delete-entry-overlay');
+  const deleteEntryModalBody = document.getElementById('delete-entry-modal-body');
+  const btnDeleteEntryCancel = document.getElementById('btn-delete-entry-cancel');
+  const btnDeleteEntryConfirm = document.getElementById('btn-delete-entry-confirm');
+  let pendingDeleteEntryId = null;
+
+  // Merge Modal
+  const modalMergeOverlay = document.getElementById('modal-merge-overlay');
+  const mergeModalBody = document.getElementById('merge-modal-body');
+  const btnMergeCancel = document.getElementById('btn-merge-cancel');
+  const btnMergeConfirm = document.getElementById('btn-merge-confirm');
+
+  // Merge Action Bar
+  const mergeActionBar = document.getElementById('merge-action-bar');
+  const mergeSelectionCount = document.getElementById('merge-selection-count');
+  const btnMergeSelected = document.getElementById('btn-merge-selected');
+  const btnCancelMerge = document.getElementById('btn-cancel-merge');
+  const checkAllRows = document.getElementById('check-all-rows');
+
+  // Track selected row IDs for merge
+  let selectedRowIds = new Set();
+
   // Network Portals Modal Elements
   const btnOpenPortals = document.getElementById('btn-open-portals');
   const modalPortalsOverlay = document.getElementById('modal-portals-overlay');
@@ -149,9 +172,34 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ==========================================================================
      TOAST NOTIFICATIONS
      ========================================================================== */
-  function showToast(text) {
+  const toastIconContainer = toastBanner ? toastBanner.querySelector('svg') : null;
+
+  function showToast(text, type = 'info') {
+    if (!toastBanner || !toastMessage) return;
     if (toastTimer) clearTimeout(toastTimer);
     toastMessage.textContent = text;
+
+    // Reset modifier classes
+    toastBanner.classList.remove('warning', 'error', 'success', 'info');
+    toastBanner.classList.add(type);
+
+    // Update icon to matching vector SVG
+    if (toastIconContainer) {
+      if (type === 'warning') {
+        toastIconContainer.setAttribute('stroke', '#f59e0b');
+        toastIconContainer.innerHTML = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>';
+      } else if (type === 'error') {
+        toastIconContainer.setAttribute('stroke', '#f43f5e');
+        toastIconContainer.innerHTML = '<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>';
+      } else if (type === 'success') {
+        toastIconContainer.setAttribute('stroke', '#10b981');
+        toastIconContainer.innerHTML = '<polyline points="20 6 9 17 4 12"></polyline>';
+      } else {
+        toastIconContainer.setAttribute('stroke', '#6366f1');
+        toastIconContainer.innerHTML = '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>';
+      }
+    }
+
     toastBanner.classList.add('active');
     toastTimer = setTimeout(() => {
       toastBanner.classList.remove('active');
@@ -500,6 +548,11 @@ document.addEventListener('DOMContentLoaded', () => {
       ? i18n.t('records_count', currentLang, { filtered: filteredHistory.length, total: allHistory.length })
       : `${filteredHistory.length} of ${allHistory.length} records`;
 
+    // Clear previous selection on re-render
+    selectedRowIds.clear();
+    updateMergeBar();
+    if (checkAllRows) checkAllRows.checked = false;
+
     if (filteredHistory.length === 0) {
       const emptyTitle = allHistory.length === 0
         ? (i18n ? i18n.t('empty_history_title', currentLang) : 'No network speedtest or RF correlation records recorded yet.')
@@ -511,7 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       historyTbody.innerHTML = `
         <tr>
-          <td colspan="10" class="empty-state">
+          <td colspan="12" class="empty-state">
             <div class="empty-state-inner">
               <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#64748b" stroke-width="1.5">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -527,9 +580,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const rows = filteredHistory.map((item) => {
+    historyTbody.innerHTML = '';
+
+    filteredHistory.forEach((item) => {
       const st = item.speedtest || {};
       const r = item.router || {};
+      const entryId = item.id || String(item.timestamp);
 
       let sourceTagClass = 'table-source-tag';
       if ((item.source || '').includes('Speedtest')) sourceTagClass += ' source-speedtest';
@@ -548,24 +604,261 @@ document.addEventListener('DOMContentLoaded', () => {
         sinrColor = evaluator.evaluateMetric('sinr', r.sinr).color;
       }
 
-      return `
-        <tr>
-          <td class="mono" style="color: var(--text-muted); font-size: 11px;">${formatTimestamp(item.timestamp)}</td>
-          <td><span class="${sourceTagClass}">${item.source || 'Speedtest'}</span></td>
-          <td class="text-right mono speed-val-bold text-emerald">${st.downloadMbps !== undefined ? st.downloadMbps.toFixed(1) : '--'}</td>
-          <td class="text-right mono speed-val-bold text-blue">${st.uploadMbps !== undefined ? st.uploadMbps.toFixed(1) : '--'}</td>
-          <td class="text-right mono">${st.pingMs !== undefined ? st.pingMs : '--'}</td>
-          <td class="text-right mono" style="color: var(--text-muted);">${st.jitterMs !== undefined ? st.jitterMs : '--'}</td>
-          <td class="text-right mono" style="font-weight: 700; color: ${rsrpColor};">${rsrpVal} ${rsrpVal !== '--' ? 'dBm' : ''}</td>
-          <td class="text-right mono" style="font-weight: 700; color: ${sinrColor};">${sinrVal} ${sinrVal !== '--' ? 'dB' : ''}</td>
-          <td class="mono" style="font-weight: 600; color: var(--text-primary);">${r.band || (currentLang === 'ar' ? 'خلوي' : 'Cellular')}</td>
-          <td class="correlation-text">${item.correlationAnalysis || (currentLang === 'ar' ? 'تم قفل الإشارة اللاسلكية بنجاح.' : 'RF telemetry paired.')}</td>
-        </tr>
-      `;
-    }).join('');
+      let pingDisplay = '--';
+      if (st.pingMs !== undefined && st.pingMs !== null) {
+        let p = Number(st.pingMs);
+        if (!isNaN(p)) {
+          if (p > 1000) {
+            const s = String(Math.round(p));
+            if (s.length >= 7) p = parseInt(s.substring(0, s.length - 6), 10);
+            else if (s.length >= 5) p = parseInt(s.substring(0, s.length - 3), 10);
+          }
+          pingDisplay = p;
+        }
+      }
 
-    historyTbody.innerHTML = rows;
+      const tr = document.createElement('tr');
+      tr.dataset.entryId = entryId;
+
+      // Checkbox cell
+      const tdCheck = document.createElement('td');
+      tdCheck.className = 'col-check';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'row-select-check';
+      checkbox.style.cursor = 'pointer';
+      checkbox.style.accentColor = '#6366f1';
+      checkbox.dataset.entryId = entryId;
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          selectedRowIds.add(entryId);
+          tr.classList.add('row-selected');
+        } else {
+          selectedRowIds.delete(entryId);
+          tr.classList.remove('row-selected');
+        }
+        updateMergeBar();
+        if (checkAllRows) {
+          checkAllRows.checked = selectedRowIds.size === filteredHistory.length && filteredHistory.length > 0;
+        }
+      });
+      tdCheck.appendChild(checkbox);
+      tr.appendChild(tdCheck);
+
+      // Data cells
+      const cells = [
+        { content: formatTimestamp(item.timestamp), cls: 'mono', style: 'color: var(--text-muted); font-size: 11px;' },
+        null, // source tag - handled separately
+        { content: st.downloadMbps !== undefined ? st.downloadMbps.toFixed(1) : '--', cls: 'text-right mono speed-val-bold text-emerald' },
+        { content: st.uploadMbps !== undefined ? st.uploadMbps.toFixed(1) : '--', cls: 'text-right mono speed-val-bold text-blue' },
+        { content: String(pingDisplay), cls: 'text-right mono' },
+        { content: st.jitterMs !== undefined ? String(st.jitterMs) : '--', cls: 'text-right mono', style: 'color: var(--text-muted);' },
+        { content: `${rsrpVal}${rsrpVal !== '--' ? ' dBm' : ''}`, cls: 'text-right mono', style: `font-weight: 700; color: ${rsrpColor};` },
+        { content: `${sinrVal}${sinrVal !== '--' ? ' dB' : ''}`, cls: 'text-right mono', style: `font-weight: 700; color: ${sinrColor};` },
+        { content: r.band || (currentLang === 'ar' ? 'خلوي' : 'Cellular'), cls: 'mono', style: 'font-weight: 600; color: var(--text-primary);' },
+        { content: item.correlationAnalysis || (currentLang === 'ar' ? 'تم قفل الإشارة اللاسلكية بنجاح.' : 'RF telemetry paired.'), cls: 'correlation-text' }
+      ];
+
+      cells.forEach((cell, idx) => {
+        if (idx === 1) {
+          // Source tag
+          const td = document.createElement('td');
+          const span = document.createElement('span');
+          span.className = sourceTagClass;
+          span.textContent = item.source || 'Speedtest';
+          td.appendChild(span);
+          tr.appendChild(td);
+        } else {
+          const td = document.createElement('td');
+          if (cell.cls) td.className = cell.cls;
+          if (cell.style) td.setAttribute('style', cell.style);
+          td.textContent = cell.content;
+          tr.appendChild(td);
+        }
+      });
+
+      // Trash button cell
+      const tdActions = document.createElement('td');
+      tdActions.className = 'col-actions';
+      const trashBtn = document.createElement('button');
+      trashBtn.type = 'button';
+      trashBtn.className = 'btn-row-trash';
+      trashBtn.title = 'Delete this record';
+      trashBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+        <path d="M10 11v6"></path><path d="M14 11v6"></path>
+        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+      </svg>`;
+      trashBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDeleteEntryModal(entryId, item);
+      });
+      tdActions.appendChild(trashBtn);
+      tr.appendChild(tdActions);
+
+      historyTbody.appendChild(tr);
+    });
   }
+
+  /* ==========================================================================
+     UPDATE MERGE ACTION BAR
+     ========================================================================== */
+  function updateMergeBar() {
+    const count = selectedRowIds.size;
+    if (mergeActionBar) mergeActionBar.style.display = count >= 1 ? 'flex' : 'none';
+    if (mergeSelectionCount) mergeSelectionCount.textContent = `${count} selected`;
+  }
+
+  /* ==========================================================================
+     SELECT ALL ROWS
+     ========================================================================== */
+  if (checkAllRows) {
+    checkAllRows.addEventListener('change', () => {
+      const checkboxes = historyTbody.querySelectorAll('.row-select-check');
+      checkboxes.forEach(cb => {
+        cb.checked = checkAllRows.checked;
+        const id = cb.dataset.entryId;
+        const row = cb.closest('tr');
+        if (checkAllRows.checked) {
+          selectedRowIds.add(id);
+          if (row) row.classList.add('row-selected');
+        } else {
+          selectedRowIds.delete(id);
+          if (row) row.classList.remove('row-selected');
+        }
+      });
+      updateMergeBar();
+    });
+  }
+
+  if (btnCancelMerge) {
+    btnCancelMerge.addEventListener('click', () => {
+      selectedRowIds.clear();
+      if (checkAllRows) checkAllRows.checked = false;
+      historyTbody.querySelectorAll('tr').forEach(r => r.classList.remove('row-selected'));
+      historyTbody.querySelectorAll('.row-select-check').forEach(cb => { cb.checked = false; });
+      updateMergeBar();
+    });
+  }
+
+  /* ==========================================================================
+     DELETE SINGLE ENTRY
+     ========================================================================== */
+  function openDeleteEntryModal(entryId, item) {
+    pendingDeleteEntryId = entryId;
+    if (deleteEntryModalBody) {
+      const ts = formatTimestamp(item.timestamp);
+      const dl = item.speedtest ? item.speedtest.downloadMbps : '--';
+      deleteEntryModalBody.textContent = `Delete "${ts} — ${item.source || 'Speedtest'} ${dl} Mbps"? This cannot be undone.`;
+    }
+    if (modalDeleteEntryOverlay) modalDeleteEntryOverlay.classList.add('active');
+  }
+
+  function closeDeleteEntryModal() {
+    if (modalDeleteEntryOverlay) modalDeleteEntryOverlay.classList.remove('active');
+    pendingDeleteEntryId = null;
+  }
+
+  async function executeDeleteEntry() {
+    if (!pendingDeleteEntryId) { closeDeleteEntryModal(); return; }
+    const idToDelete = pendingDeleteEntryId;
+    closeDeleteEntryModal();
+
+    try {
+      allHistory = allHistory.filter(e => (e.id || String(e.timestamp)) !== idToDelete);
+      await chrome.storage.local.set({ netpulse_history: allHistory });
+      applyFilters();
+      renderTable();
+      showToast('Record deleted successfully.');
+    } catch (err) {
+      console.error('[NetPulse] Delete entry error:', err);
+    }
+  }
+
+  if (btnDeleteEntryCancel) btnDeleteEntryCancel.addEventListener('click', closeDeleteEntryModal);
+  if (btnDeleteEntryConfirm) btnDeleteEntryConfirm.addEventListener('click', executeDeleteEntry);
+  if (modalDeleteEntryOverlay) {
+    modalDeleteEntryOverlay.addEventListener('click', e => { if (e.target === modalDeleteEntryOverlay) closeDeleteEntryModal(); });
+  }
+
+  /* ==========================================================================
+     MERGE SELECTED ENTRIES
+     ========================================================================== */
+  function openMergeModal() {
+    if (selectedRowIds.size < 2) {
+      showToast('Select at least 2 records to merge.');
+      return;
+    }
+    if (mergeModalBody) {
+      mergeModalBody.textContent = `Merge ${selectedRowIds.size} selected records into one averaged entry? The originals will be removed and replaced with the merged result.`;
+    }
+    if (modalMergeOverlay) modalMergeOverlay.classList.add('active');
+  }
+
+  function closeMergeModal() {
+    if (modalMergeOverlay) modalMergeOverlay.classList.remove('active');
+  }
+
+  async function executeMerge() {
+    closeMergeModal();
+    const ids = new Set(selectedRowIds);
+    const toMerge = allHistory.filter(e => ids.has(e.id || String(e.timestamp)));
+    if (toMerge.length < 2) return;
+
+    // Average all numeric speedtest fields
+    const avg = (arr, fn) => {
+      const vals = arr.map(fn).filter(v => v !== null && v !== undefined && !isNaN(Number(v)));
+      return vals.length > 0 ? parseFloat((vals.reduce((a, b) => a + Number(b), 0) / vals.length).toFixed(2)) : null;
+    };
+
+    const sources = [...new Set(toMerge.map(e => e.source).filter(Boolean))];
+    const latestRouter = toMerge.find(e => e.router)?.router || null;
+    const correlations = toMerge.map(e => e.correlationAnalysis).filter(Boolean);
+
+    const mergedEntry = {
+      id: 'merged_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      timestamp: Math.round(toMerge.reduce((a, b) => a + (b.timestamp || 0), 0) / toMerge.length),
+      dateIso: new Date().toISOString(),
+      source: sources.join(' + '),
+      speedtest: {
+        source: sources.join(' + '),
+        downloadMbps: avg(toMerge, e => e.speedtest?.downloadMbps),
+        uploadMbps: avg(toMerge, e => e.speedtest?.uploadMbps),
+        pingMs: avg(toMerge, e => e.speedtest?.pingMs),
+        jitterMs: avg(toMerge, e => e.speedtest?.jitterMs),
+        isp: toMerge[0]?.speedtest?.isp || null,
+        server: toMerge[0]?.speedtest?.server || null,
+        resultUrl: null,
+        resultId: null
+      },
+      router: latestRouter,
+      correlationAnalysis: `[Merged from ${toMerge.length} records] ${correlations[0] || ''}`,
+      _merged: true,
+      _mergedCount: toMerge.length
+    };
+
+    try {
+      allHistory = allHistory.filter(e => !ids.has(e.id || String(e.timestamp)));
+      allHistory.unshift(mergedEntry);
+      await chrome.storage.local.set({ netpulse_history: allHistory });
+      selectedRowIds.clear();
+      applyFilters();
+      renderTable();
+      showToast(`Merged ${toMerge.length} records into one averaged entry.`);
+    } catch (err) {
+      console.error('[NetPulse] Merge error:', err);
+    }
+  }
+
+  if (btnMergeSelected) btnMergeSelected.addEventListener('click', openMergeModal);
+  if (btnMergeCancel) btnMergeCancel.addEventListener('click', closeMergeModal);
+  if (btnMergeConfirm) btnMergeConfirm.addEventListener('click', executeMerge);
+  if (modalMergeOverlay) {
+    modalMergeOverlay.addEventListener('click', e => { if (e.target === modalMergeOverlay) closeMergeModal(); });
+  }
+
+
 
   /* ==========================================================================
      LOAD DATA FROM STORAGE
@@ -650,9 +943,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (routerTabs.length === 0) {
-        alert(currentLang === 'ar'
+        showToast(currentLang === 'ar'
           ? 'لم يتم العثور على أي علامة تبويب مفتوحة للموجه (192.168.*). يرجى فتح واجهة الموجه في المتصفح والمحاولة مرة أخرى.'
-          : 'No open router tabs found (matching 192.168.*). Please open your router GUI in a tab and try again.'
+          : 'No open router tabs found (matching 192.168.*). Please open your router GUI in a tab and try again.',
+          'warning'
         );
         btnScanRouterLabel.textContent = i18n ? i18n.t('scan_router_tab', currentLang) : 'Scan Router Tab';
         return;
@@ -698,19 +992,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (foundData) {
         renderLiveTelemetry(foundData);
-        alert(currentLang === 'ar'
-          ? `تم فحص بيانات الموجه بنجاح من ${foundData.routerUrl || 'البوابة'}!\nRSRP: ${foundData.metrics.rsrp} dBm | RSRQ: ${foundData.metrics.rsrq} dB`
-          : `Successfully scanned router telemetry from ${foundData.routerUrl || 'gateway'}!\nRSRP: ${foundData.metrics.rsrp} dBm | RSRQ: ${foundData.metrics.rsrq} dB`
+        showToast(currentLang === 'ar'
+          ? `تم فحص بيانات الموجه بنجاح من ${foundData.routerUrl || 'البوابة'}! RSRP: ${foundData.metrics.rsrp} dBm | RSRQ: ${foundData.metrics.rsrq} dB`
+          : `Successfully scanned router telemetry from ${foundData.routerUrl || 'gateway'}! RSRP: ${foundData.metrics.rsrp} dBm | RSRQ: ${foundData.metrics.rsrq} dB`,
+          'success'
         );
       } else {
-        alert(currentLang === 'ar'
+        showToast(currentLang === 'ar'
           ? 'تم مسح علامات الموجه المفتوحة، ولكن لم يتم العثور على أرقام التردد اللاسلكي. يرجى التأكد من الدخول لصفحة Cellular Info / معلومات الخلية.'
-          : 'Scanned open router tab(s), but no cellular metrics were visible on the active page. Please ensure you are on the Cellular Info / Status page.'
+          : 'Scanned open router tab(s), but no cellular metrics were visible on the active page. Please ensure you are on the Cellular Info / Status page.',
+          'warning'
         );
       }
     } catch (err) {
       console.error('Scan error:', err);
-      alert(`Scan failed: ${err.message}`);
+      showToast(currentLang === 'ar' ? `فشل الفحص: ${err.message}` : `Scan failed: ${err.message}`, 'error');
     } finally {
       btnScanRouterLabel.textContent = i18n ? i18n.t('scan_router_tab', currentLang) : 'Scan Router Tab';
     }
@@ -730,9 +1026,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (testTabs.length === 0) {
-        alert(currentLang === 'ar'
+        showToast(currentLang === 'ar'
           ? 'لم يتم العثور على علامة تبويب مفتوحة لـ Speedtest.net أو Fast.com. يرجى فتح إحداهما وإجراء اختبار.'
-          : 'No open Speedtest.net or Fast.com tabs detected. Please run a test in a tab and click this button to capture it.'
+          : 'No open Speedtest.net or Fast.com tabs detected. Please run a test in a tab and click this button to capture it.',
+          'warning'
         );
         btnScanSpeedtestLabel.textContent = i18n ? i18n.t('capture_speedtest_tab', currentLang) : 'Capture Speedtest Tab';
         return;
@@ -775,26 +1072,29 @@ document.addEventListener('DOMContentLoaded', () => {
         applyFiltersAndSort();
 
         if (captured && captured.downloadMbps > 0) {
-          alert(currentLang === 'ar'
-            ? `تم التقاط نتيجة الاختبار بنجاح!\nالمصدر: ${captured.source}\nالتنزيل: ${captured.downloadMbps} Mbps\nالرفع: ${captured.uploadMbps || '--'} Mbps\nالاستجابة: ${captured.pingMs || '--'} ms`
-            : `Successfully captured test results!\nSource: ${captured.source}\nDownload: ${captured.downloadMbps} Mbps\nUpload: ${captured.uploadMbps || '--'} Mbps\nPing: ${captured.pingMs || '--'} ms`
+          showToast(currentLang === 'ar'
+            ? `تم التقاط نتيجة الاختبار بنجاح! المصدر: ${captured.source} | التنزيل: ${captured.downloadMbps} Mbps | الرفع: ${captured.uploadMbps || '--'} Mbps`
+            : `Successfully captured test results! Source: ${captured.source} | Download: ${captured.downloadMbps} Mbps | Upload: ${captured.uploadMbps || '--'} Mbps | Ping: ${captured.pingMs || '--'} ms`,
+            'success'
           );
         } else if (allHistory.length > 0 && allHistory[0].speedtest && allHistory[0].speedtest.downloadMbps > 0) {
           const st = allHistory[0].speedtest;
-          alert(currentLang === 'ar'
-            ? `تم تسجيل الاختبار!\nالمصدر: ${allHistory[0].source}\nالتنزيل: ${st.downloadMbps} Mbps\nالرفع: ${st.uploadMbps || '--'} Mbps\nالاستجابة: ${st.pingMs || '--'} ms`
-            : `Test captured!\nSource: ${allHistory[0].source}\nDownload: ${st.downloadMbps} Mbps\nUpload: ${st.uploadMbps || '--'} Mbps\nPing: ${st.pingMs || '--'} ms`
+          showToast(currentLang === 'ar'
+            ? `تم تسجيل الاختبار! المصدر: ${allHistory[0].source} | التنزيل: ${st.downloadMbps} Mbps | الرفع: ${st.uploadMbps || '--'} Mbps`
+            : `Test captured! Source: ${allHistory[0].source} | Download: ${st.downloadMbps} Mbps | Upload: ${st.uploadMbps || '--'} Mbps | Ping: ${st.pingMs || '--'} ms`,
+            'success'
           );
         } else {
-          alert(currentLang === 'ar'
+          showToast(currentLang === 'ar'
             ? 'تم العثور على علامة اختبار، ولكن لم تنتهِ نتائج القياس بعد. يرجى الانتظار حتى اكتمال الاختبار.'
-            : 'Found an open test tab, but speed numbers were not finalized yet. Please let the test complete and try again.'
+            : 'Found an open test tab, but speed numbers were not finalized yet. Please let the test complete and try again.',
+            'warning'
           );
         }
       });
     } catch (err) {
       console.error('Speedtest capture error:', err);
-      alert(`Capture failed: ${err.message}`);
+      showToast(currentLang === 'ar' ? `فشل التقاط الاختبار: ${err.message}` : `Capture failed: ${err.message}`, 'error');
     } finally {
       btnScanSpeedtestLabel.textContent = i18n ? i18n.t('capture_speedtest_tab', currentLang) : 'Capture Speedtest Tab';
     }
@@ -805,7 +1105,7 @@ document.addEventListener('DOMContentLoaded', () => {
      ========================================================================== */
   btnExportCsv.addEventListener('click', () => {
     if (allHistory.length === 0) {
-      alert(currentLang === 'ar' ? 'لا توجد سجلات لتصديرها.' : 'No history records to export.');
+      showToast(currentLang === 'ar' ? 'لا توجد سجلات لتصديرها.' : 'No history records to export.', 'warning');
       return;
     }
 
@@ -872,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnExportJson.addEventListener('click', () => {
     if (allHistory.length === 0) {
-      alert(currentLang === 'ar' ? 'لا توجد سجلات لتصديرها.' : 'No history records to export.');
+      showToast(currentLang === 'ar' ? 'لا توجد سجلات لتصديرها.' : 'No history records to export.', 'warning');
       return;
     }
 
