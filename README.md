@@ -65,7 +65,7 @@ Developed and maintained by **[@ZerroDevs](https://github.com/ZerroDevs)**.
 - **All-Frame Coverage**: Operates seamlessly across nested iframes and Single-Page Applications (`all_frames: true`).
 - **Automated Credential Injection**:
   - Automatically identifies login fields for username and password.
-  - Injects target credentials (`User: admin`, `Password: SKdigital8008@` or custom user credentials configured in Options).
+  - Injects target credentials (`User: admin`, `Password:<configured_in_options>` or custom user credentials configured in Options).
   - Utilizes browser-native `document.execCommand('insertText')` combined with prototype property descriptors (`Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set`) to bypass modern frontend reactive frameworks (React, Vue, Angular) and ensure form validation succeeds.
   - Multi-phase anti-wipe protection timers (100ms and 350ms) prevent aggressive router firmware scripts from clearing passwords on input blur.
   - Login button `mousedown` safety interceptor guarantees credentials remain populated at the exact millisecond of submission.
