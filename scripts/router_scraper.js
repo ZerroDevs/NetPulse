@@ -56,8 +56,9 @@
   };
 
   /**
-   * Robust value injector supporting browser execCommand, prototype descriptors, and native input events
-   * Completely avoids dummy keystroke events that corrupt passwords.
+   * Robust value injector supporting prototype descriptors and clean native events.
+   * Completely avoids execCommand and synthetic InputEvent data payloads that cause router firmware
+   * password masks to corrupt inputs into duplicate '@' characters.
    */
   function setNativeInputValue(element, value) {
     if (!element || element.disabled || element.readOnly) return false;
@@ -66,52 +67,42 @@
       element.focus();
     } catch (e) {}
 
-    // Method 1: document.execCommand('insertText') - simulates genuine user typing/pasting
-    let execOk = false;
+    // Method 1: HTMLInputElement prototype descriptor setter (bypasses custom framework mask traps)
     try {
-      element.select();
-      execOk = document.execCommand('insertText', false, value);
-    } catch (e) {
-      execOk = false;
-    }
-
-    // Method 2: HTMLInputElement prototype descriptor setter
-    if (element.value !== value) {
-      try {
-        const proto = Object.getPrototypeOf(element);
-        const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
-        if (descriptor && descriptor.set) {
-          descriptor.set.call(element, value);
-        } else {
-          element.value = value;
-        }
-      } catch (e) {
+      const proto = Object.getPrototypeOf(element) || window.HTMLInputElement.prototype;
+      const descriptor = Object.getOwnPropertyDescriptor(proto, 'value') || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+      if (descriptor && descriptor.set) {
+        descriptor.set.call(element, value);
+      } else {
         element.value = value;
       }
-    }
-
-    // Method 3: Direct assignment fallback
-    if (element.value !== value) {
+    } catch (e) {
       element.value = value;
     }
 
-    // Dispatch native InputEvent & change events with correct data payload
+    // Method 2: Direct property, attribute, and defaultValue assignment
     try {
-      element.dispatchEvent(new InputEvent('input', {
-        bubbles: true,
-        cancelable: true,
-        data: value,
-        inputType: 'insertText'
-      }));
-    } catch (e) {
-      element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-    }
-
-    try {
-      element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+      element.value = value;
+      element.setAttribute('value', value);
+      element.defaultValue = value;
     } catch (e) {}
 
-    return element.value === value;
+    // Method 3: Support custom framework properties if element uses custom backing fields
+    try {
+      if ('_value' in element) element._value = value;
+      if ('__value' in element) element.__value = value;
+      if ('realValue' in element) element.realValue = value;
+      if ('savedPassword' in element) element.savedPassword = value;
+      if ('pwd' in element) element.pwd = value;
+    } catch (e) {}
+
+    // Method 4: Clean native event dispatch WITHOUT synthetic data string (prevents router mask loop)
+    try {
+      element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true, composed: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true, composed: true }));
+    } catch (e) {}
+
+    return true;
   }
 
   /**
@@ -132,11 +123,13 @@
 
   /**
    * Automatically detect and inject credentials into router login form
-   * Specifically tailored for Zyxel NR5103E ("User Name", "Password", "Login")
+   * Specifically tailored for Zyxel NR5103E ("User Name", "Password", "Login", duplicate #userpassword in .zypasswordBox)
    */
-  function autoFillRouterCredentials() {
+  function autoFillRouterCredentials(force = false) {
     try {
       if (!isExtensionContextValid()) return; // Extension reloaded — stop silently
+      if (credentialsInjected && !force) return;
+
       chrome.storage.local.get(['netpulse_settings', 'netpulse_router_creds'], (result) => {
         const settings = result.netpulse_settings || {};
         const creds = result.netpulse_router_creds || {};
@@ -150,133 +143,107 @@
         const targetUser = settings.routerUsername || creds.user || DEFAULT_ROUTER_CREDS.user;
         const targetPass = settings.routerPassword || creds.pass || DEFAULT_ROUTER_CREDS.pass;
 
-        // 1. Find all visible, interactive inputs on the page
-        const allInputs = Array.from(document.querySelectorAll('input')).filter(el => {
-          return el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'submit' && el.type !== 'button' && (el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
-        });
+        // 1. Target ALL Password Inputs (including duplicate #userpassword nodes, .zypasswordBox inputs, and hidden clones)
+        const passInputs = Array.from(document.querySelectorAll(
+          '#userpassword, .zypasswordBox input, input.maskPassword, input[type="password"], input[name*="password" i], input[name*="pwd" i], input[id*="password" i], input[id*="pwd" i]'
+        ));
 
-        if (allInputs.length === 0) return;
-
-        let userInput = null;
-        let passInput = null;
-
-        // 2. Identify Password Input
-        // Method A: Exact type="password"
-        passInput = allInputs.find(el => el.type === 'password');
-
-        // Method B: Input adjacent to "Password" label
-        if (!passInput) {
+        // Fallback: search adjacent to "Password" label
+        if (passInputs.length === 0) {
           const passLabels = Array.from(document.querySelectorAll('label, div, span, p')).filter(el => /^Password$/i.test((el.textContent || '').trim()));
           for (const lbl of passLabels) {
             if (lbl.htmlFor) {
-              const target = document.getElementById(lbl.htmlFor);
-              if (target && allInputs.includes(target)) { passInput = target; break; }
+              const targets = document.querySelectorAll(`[id="${lbl.htmlFor}"]`);
+              targets.forEach(t => { if (!passInputs.includes(t)) passInputs.push(t); });
             }
             let next = lbl.nextElementSibling;
             while (next) {
-              const inp = next.tagName === 'INPUT' ? next : next.querySelector('input');
-              if (inp && allInputs.includes(inp)) { passInput = inp; break; }
+              const inps = next.tagName === 'INPUT' ? [next] : Array.from(next.querySelectorAll('input'));
+              inps.forEach(inp => { if (!passInputs.includes(inp)) passInputs.push(inp); });
+              if (passInputs.length > 0) break;
               next = next.nextElementSibling;
             }
-            if (passInput) break;
           }
         }
 
-        // Method C: Input with password-like name/id
-        if (!passInput) {
-          passInput = allInputs.find(el => /password|pwd/i.test(el.name || '') || /password|pwd/i.test(el.id || ''));
+        // 2. Target ALL Username Inputs
+        const userInputs = Array.from(document.querySelectorAll(
+          '#username, #user, input[name*="username" i], input[name*="user" i], input[name*="login" i], input[id*="username" i], input[id*="user" i]'
+        )).filter(el => !passInputs.includes(el));
+
+        // Fallback: search adjacent to "User Name" or "Username" label
+        if (userInputs.length === 0) {
+          const userLabels = Array.from(document.querySelectorAll('label, div, span, p')).filter(el => {
+            const t = (el.textContent || '').trim();
+            return /^User\s*Name$/i.test(t) || /^Username$/i.test(t) || /^اسم المستخدم$/i.test(t);
+          });
+          for (const lbl of userLabels) {
+            if (lbl.htmlFor) {
+              const targets = document.querySelectorAll(`[id="${lbl.htmlFor}"]`);
+              targets.forEach(t => { if (!userInputs.includes(t) && !passInputs.includes(t)) userInputs.push(t); });
+            }
+            let next = lbl.nextElementSibling;
+            while (next) {
+              const inps = next.tagName === 'INPUT' ? [next] : Array.from(next.querySelectorAll('input'));
+              inps.forEach(inp => { if (!userInputs.includes(inp) && !passInputs.includes(inp)) userInputs.push(inp); });
+              if (userInputs.length > 0) break;
+              next = next.nextElementSibling;
+            }
+          }
         }
 
-        // 3. Identify User Name Input
-        // Method A: Input adjacent to "User Name" or "Username" label (matches screenshot)
-        const userLabels = Array.from(document.querySelectorAll('label, div, span, p')).filter(el => {
-          const t = (el.textContent || '').trim();
-          return /^User\s*Name$/i.test(t) || /^Username$/i.test(t) || /^اسم المستخدم$/i.test(t);
+        // 3. Fallback Layout Resolver if specific selectors weren't matched
+        if (userInputs.length === 0 || passInputs.length === 0) {
+          const allFormInputs = Array.from(document.querySelectorAll('input')).filter(el => {
+            return el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'submit' && el.type !== 'button';
+          });
+          if (allFormInputs.length >= 2) {
+            if (userInputs.length === 0 && passInputs.length > 0) {
+              allFormInputs.filter(el => !passInputs.includes(el)).forEach(el => userInputs.push(el));
+            } else if (userInputs.length > 0 && passInputs.length === 0) {
+              allFormInputs.filter(el => !userInputs.includes(el)).forEach(el => passInputs.push(el));
+            } else if (userInputs.length === 0 && passInputs.length === 0) {
+              userInputs.push(allFormInputs[0]);
+              for (let i = 1; i < allFormInputs.length; i++) passInputs.push(allFormInputs[i]);
+            }
+          }
+        }
+
+        if (userInputs.length === 0 && passInputs.length === 0) return;
+
+        // 4. Fill ALL Username inputs
+        userInputs.forEach(inp => setNativeInputValue(inp, targetUser));
+
+        // 5. Fill ALL Password inputs (both visible and hidden clones inside .zypasswordBox)
+        passInputs.forEach(inp => setNativeInputValue(inp, targetPass));
+
+        // 6. Synchronize Vue Component reactive state if present on Zyxel WebGUI
+        const vueCandidates = [
+          document.querySelector('.zypasswordBox'),
+          document.querySelector('#userpassword'),
+          document.querySelector('.form-group'),
+          document.querySelector('form'),
+          document.querySelector('#app')
+        ];
+        vueCandidates.forEach(el => {
+          if (el && el.__vue__) {
+            try {
+              const vm = el.__vue__;
+              if ('value' in vm) vm.value = targetPass;
+              if ('password' in vm) vm.password = targetPass;
+              if ('userpassword' in vm) vm.userpassword = targetPass;
+              if ('realPassword' in vm) vm.realPassword = targetPass;
+              if ('maskPassword' in vm) vm.maskPassword = targetPass;
+              if (vm.formData) {
+                if ('password' in vm.formData) vm.formData.password = targetPass;
+                if ('userpassword' in vm.formData) vm.formData.userpassword = targetPass;
+                if ('username' in vm.formData) vm.formData.username = targetUser;
+              }
+            } catch (e) {}
+          }
         });
-        for (const lbl of userLabels) {
-          if (lbl.htmlFor) {
-            const target = document.getElementById(lbl.htmlFor);
-            if (target && allInputs.includes(target) && target !== passInput) { userInput = target; break; }
-          }
-          let next = lbl.nextElementSibling;
-          while (next) {
-            const inp = next.tagName === 'INPUT' ? next : next.querySelector('input');
-            if (inp && allInputs.includes(inp) && inp !== passInput) { userInput = inp; break; }
-            next = next.nextElementSibling;
-          }
-          if (userInput) break;
-        }
 
-        // Method B: Input with username-like name/id
-        if (!userInput) {
-          userInput = allInputs.find(el => el !== passInput && (/username|user|admin/i.test(el.name || '') || /username|user|admin/i.test(el.id || '')));
-        }
-
-        // 4. Guaranteed 2-Field Layout Resolver (Matches user's exact login form)
-        // If there are 2 inputs on the page, the top is User Name and bottom is Password
-        if (allInputs.length >= 2) {
-          if (!userInput && passInput) {
-            userInput = allInputs.find(el => el !== passInput);
-          } else if (userInput && !passInput) {
-            passInput = allInputs.find(el => el !== userInput);
-          } else if (!userInput && !passInput) {
-            userInput = allInputs[0];
-            passInput = allInputs[1];
-          }
-        } else if (allInputs.length === 1) {
-          if (allInputs[0].type === 'password') {
-            passInput = allInputs[0];
-          } else {
-            userInput = allInputs[0];
-          }
-        }
-
-        // ABSOLUTE SAFETY INVARIANT: userInput and passInput MUST NEVER BE THE SAME
-        if (userInput && passInput && userInput === passInput) {
-          if (allInputs.length >= 2) {
-            userInput = allInputs[0];
-            passInput = allInputs[1];
-          }
-        }
-
-        // 5. Fill User Name with targetUser ("admin")
-        let userFilled = false;
-        if (userInput) {
-          if (userInput.value !== targetUser) {
-            setNativeInputValue(userInput, targetUser);
-          }
-          userFilled = (userInput.value === targetUser);
-        }
-
-        // 6. Fill Password with targetPass ("SKdigital8008@")
-        let passFilled = false;
-        if (passInput && passInput !== userInput) {
-          if (passInput.value !== targetPass) {
-            setNativeInputValue(passInput, targetPass);
-          }
-          passFilled = (passInput.value === targetPass);
-        }
-
-        // 7. Anti-Wipe Protection: if a page change-listener wiped or swapped values, re-assert cleanly
-        setTimeout(() => {
-          if (userInput && userInput.value !== targetUser) {
-            setNativeInputValue(userInput, targetUser);
-          }
-          if (passInput && passInput !== userInput && passInput.value !== targetPass) {
-            setNativeInputValue(passInput, targetPass);
-          }
-        }, 120);
-
-        setTimeout(() => {
-          if (userInput && userInput.value !== targetUser) {
-            setNativeInputValue(userInput, targetUser);
-          }
-          if (passInput && passInput !== userInput && passInput.value !== targetPass) {
-            setNativeInputValue(passInput, targetPass);
-          }
-        }, 350);
-
-        // 8. Find and activate the "Login" button from the screenshot
+        // 7. Find and activate the "Login" button from the screenshot
         const loginBtn = findLoginButton();
         if (loginBtn) {
           if (loginBtn.hasAttribute('disabled')) {
@@ -287,14 +254,26 @@
           loginBtn.style.cursor = 'pointer';
           loginBtn.style.pointerEvents = 'auto';
 
-          // Safety hook on Login button click: guarantee correct credentials before form submission
+          // Safety hook on Login button click: guarantee correct credentials on ALL fields before form submission
           if (!loginBtn.__netpulse_bound) {
             loginBtn.__netpulse_bound = true;
-            loginBtn.addEventListener('mousedown', () => {
-              if (userInput && userInput.value !== targetUser) setNativeInputValue(userInput, targetUser);
-              if (passInput && passInput !== userInput && passInput.value !== targetPass) setNativeInputValue(passInput, targetPass);
-            });
+            const reapplyCreds = () => {
+              userInputs.forEach(inp => setNativeInputValue(inp, targetUser));
+              passInputs.forEach(inp => setNativeInputValue(inp, targetPass));
+            };
+            loginBtn.addEventListener('mousedown', reapplyCreds);
+            loginBtn.addEventListener('click', reapplyCreds);
           }
+        }
+
+        // 8. Hook form submit if present
+        const form = document.querySelector('form');
+        if (form && !form.__netpulse_bound) {
+          form.__netpulse_bound = true;
+          form.addEventListener('submit', () => {
+            userInputs.forEach(inp => setNativeInputValue(inp, targetUser));
+            passInputs.forEach(inp => setNativeInputValue(inp, targetPass));
+          });
         }
 
         // 9. Wire up One-Click Log In on the NetPulse HUD
@@ -302,30 +281,25 @@
         if (hudLoginBtn) {
           hudLoginBtn.style.display = 'inline-block';
           hudLoginBtn.onclick = () => {
-            if (userInput) setNativeInputValue(userInput, targetUser);
-            if (passInput && passInput !== userInput) setNativeInputValue(passInput, targetPass);
+            userInputs.forEach(inp => setNativeInputValue(inp, targetUser));
+            passInputs.forEach(inp => setNativeInputValue(inp, targetPass));
 
             if (loginBtn) {
               if (loginBtn.hasAttribute('disabled')) loginBtn.removeAttribute('disabled');
               loginBtn.click();
-            } else {
-              const form = document.querySelector('form');
-              if (form) form.submit();
+            } else if (form) {
+              form.submit();
             }
           };
         }
 
-        if (userFilled && passFilled) {
-          credentialsInjected = true;
-          console.log('[NetPulse] Router credentials successfully populated. User:', targetUser, '| Pass:', targetPass);
+        credentialsInjected = true;
+        console.log('[NetPulse] Router credentials successfully populated. User:', targetUser, '| Pass:', targetPass, '| Pass Nodes:', passInputs.length);
 
-          const hudLabel = document.getElementById('netpulse-hud-label');
-          if (hudLabel && !hudLabel.textContent.includes('RSRP:')) {
-            hudLabel.textContent = `Auto-filled: ${targetUser}`;
-            hudLabel.style.color = '#10b981';
-          }
-        } else {
-          credentialsInjected = false;
+        const hudLabel = document.getElementById('netpulse-hud-label');
+        if (hudLabel && !hudLabel.textContent.includes('RSRP:')) {
+          hudLabel.textContent = `Auto-filled: ${targetUser}`;
+          hudLabel.style.color = '#10b981';
         }
       });
     } catch (err) {
@@ -676,7 +650,9 @@
   function observeMutations() {
     let debounceTimer = null;
     const observer = new MutationObserver(() => {
-      autoFillRouterCredentials();
+      if (!credentialsInjected) {
+        autoFillRouterCredentials();
+      }
 
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {

@@ -32,6 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const activeTabBanner = document.getElementById('active-tab-banner');
   const activeTabText = document.getElementById('active-tab-text');
 
+  // DOM Elements - Router Launcher & Autofill
+  const btnPopupRouterLaunch = document.getElementById('btn-popup-router-launch');
+  const btnOpenRouterLogin = document.getElementById('btn-open-router-login');
+
   // DOM Elements - Manual Scan (Router)
   const btnManualScan = document.getElementById('btn-manual-scan');
   const btnScanLabel = document.getElementById('btn-scan-label');
@@ -393,6 +397,75 @@ document.addEventListener('DOMContentLoaded', () => {
       resetScanButton(btnManualScan, btnScanLabel, i18n ? i18n.t('manual_check_router', currentLang) : 'Manual Check / Scan Router Tab');
     }
   });
+
+  /* ==========================================================================
+     OPEN ROUTER & AUTO-FILL LOGIN
+     ========================================================================== */
+  async function openAndAutofillRouter() {
+    scanStatusMsg.className = 'scan-status';
+    scanStatusMsg.textContent = i18n ? i18n.t('opening_router_page', currentLang) : 'Opening Router Gateway...';
+
+    try {
+      const res = await chrome.storage.local.get(['netpulse_settings', 'netpulse_router_creds']);
+      const settings = res.netpulse_settings || {};
+      const gatewayIp = (settings.gatewayIp || '192.168.1.1').trim();
+      const targetUrl = gatewayIp.startsWith('http://') || gatewayIp.startsWith('https://')
+        ? gatewayIp
+        : `http://${gatewayIp}/`;
+
+      // Check if a tab with this gateway IP is already open
+      const allTabs = await chrome.tabs.query({});
+      let targetTab = allTabs.find(t => t.url && (t.url.includes(gatewayIp) || (gatewayIp === '192.168.1.1' && t.url.includes('192.168.'))));
+
+      if (targetTab) {
+        await chrome.tabs.update(targetTab.id, { active: true });
+        if (targetTab.windowId) {
+          try {
+            await chrome.windows.update(targetTab.windowId, { focused: true });
+          } catch (e) {}
+        }
+      } else {
+        targetTab = await chrome.tabs.create({ url: targetUrl });
+      }
+
+      // Inject scraper and trigger instant credential autofill
+      if (targetTab && targetTab.id) {
+        setTimeout(async () => {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: targetTab.id, allFrames: true },
+              files: ['shared/evaluator.js', 'scripts/router_scraper.js']
+            });
+            await chrome.scripting.executeScript({
+              target: { tabId: targetTab.id, allFrames: true },
+              func: () => {
+                if (typeof window.__netpulse_autofill_now === 'function') {
+                  window.__netpulse_autofill_now(true);
+                }
+              }
+            });
+          } catch (e) {}
+        }, 500);
+      }
+
+      scanStatusMsg.className = 'scan-status success';
+      scanStatusMsg.textContent = i18n
+        ? i18n.t('router_opened_success', currentLang, { host: gatewayIp })
+        : `Opened ${gatewayIp} and auto-filled login credentials.`;
+    } catch (err) {
+      console.error('Failed to open router page:', err);
+      scanStatusMsg.className = 'scan-status error';
+      scanStatusMsg.textContent = `Error: ${err.message || 'Could not open router tab'}`;
+    }
+  }
+
+  if (btnPopupRouterLaunch) {
+    btnPopupRouterLaunch.addEventListener('click', openAndAutofillRouter);
+  }
+
+  if (btnOpenRouterLogin) {
+    btnOpenRouterLogin.addEventListener('click', openAndAutofillRouter);
+  }
 
   /* ==========================================================================
      MANUAL SPEEDTEST CAPTURE

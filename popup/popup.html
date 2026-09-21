@@ -21,6 +21,18 @@
       </div>
 
       <div class="header-right">
+        <!-- Router Gateway & Autofill Quick Icon -->
+        <button id="btn-popup-router-launch" class="btn-icon-toggle" type="button" title="Open Router & Auto-Fill Login (192.168.1.1)" data-i18n-title="open_router_login">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            <path d="M15 6l3 0"></path>
+            <path d="M15 18l3 0"></path>
+          </svg>
+        </button>
+
         <!-- Language Switcher -->
         <button id="btn-popup-lang" class="btn-icon-toggle" type="button" title="Switch Language / تبديل اللغة">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -90,6 +102,14 @@
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
             </svg>
             <span id="btn-scan-label" data-i18n="manual_check_router">Manual Check / Scan Router Tab</span>
+          </button>
+          <button id="btn-open-router-login" class="btn-scan btn-scan-router" type="button" style="margin-top: 5px;">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+              <polyline points="10 17 15 12 10 7"></polyline>
+              <line x1="15" y1="12" x2="3" y2="12"></line>
+            </svg>
+            <span id="btn-router-launch-label" data-i18n="open_and_autofill_router">Open Router & Auto-Fill Login</span>
           </button>
           <div id="scan-status-msg" class="scan-status mono"></div>
         </div>

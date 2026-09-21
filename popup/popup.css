@@ -329,6 +329,18 @@ body {
   color: #ffffff;
 }
 
+.btn-scan-router {
+  background-color: var(--accent-indigo);
+  border-color: var(--accent-indigo);
+  color: #ffffff;
+}
+
+.btn-scan-router:hover {
+  background-color: var(--accent-indigo-hover);
+  border-color: var(--accent-indigo-hover);
+  color: #ffffff;
+}
+
 .btn-scan.scanning svg {
   animation: netpulse-spin 0.8s linear infinite;
 }

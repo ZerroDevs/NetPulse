@@ -347,7 +347,15 @@ assert(analysisHtml.includes('history/history.html'), 'analysis.html links to hi
 
 const bgJsContent = fs.readFileSync(path.join(ROOT_DIR, 'background.js'), 'utf8');
 assert(bgJsContent.includes('OPEN_HISTORY'), 'background.js handles OPEN_HISTORY message');
-assert(bgJsContent.includes('CAPTURE_ACTIVE_TAB'), 'background.js handles CAPTURE_ACTIVE_TAB message');
+assert(popupHtmlContent.includes('id="btn-popup-router-launch"'), 'popup.html contains btn-popup-router-launch in header');
+assert(popupHtmlContent.includes('id="btn-open-router-login"'), 'popup.html contains btn-open-router-login in manual scan box');
+assert(popupJsContent.includes('openAndAutofillRouter'), 'popup.js contains openAndAutofillRouter handler');
+assert(popupJsContent.includes('btnPopupRouterLaunch'), 'popup.js binds btnPopupRouterLaunch');
+assert(popupJsContent.includes('btnOpenRouterLogin'), 'popup.js binds btnOpenRouterLogin');
+assert(I18n.t('open_router_login', 'en').includes('Open Router'), 'EN translation for open_router_login exists');
+assert(I18n.t('open_router_login', 'ar').includes('فتح صفحة الموجه'), 'AR translation for open_router_login exists');
+assert(I18n.t('open_and_autofill_router', 'en').includes('Open Router'), 'EN translation for open_and_autofill_router exists');
+assert(I18n.t('open_and_autofill_router', 'ar').includes('فتح الموجه'), 'AR translation for open_and_autofill_router exists');
 
 console.log(`\nVerification Complete: ${passes} passed, ${failures} failed.`);
 if (failures > 0) {
