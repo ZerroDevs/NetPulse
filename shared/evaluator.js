@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NetPulse - Shared Telemetry Evaluation & Diagnostic Engine
  * Provides benchmark grading, health status determination, and technical RF advice.
  * 
@@ -516,44 +516,53 @@
     let summaryEn = 'Good traffic shaping. Minimal latency penalty during heavy traffic.';
     let summaryAr = 'تحكم جيد في حركة المرور. تأثير طفيف على الألعاب أثناء التحميل.';
 
-    if (worstDelta <= 5) {
+    // Cellular-Calibrated Bufferbloat Grading
+    // Based on IQM-filtered delta (idle ping vs. loaded ping) after top-10% spike rejection.
+    // 4G LTE / 5G CA at full saturation adds 50-150ms PHY scheduling delay -
+    // this is normal radio behavior, not broken AQM or routing congestion.
+    //   A+: delta <= 15ms  -- Active AQM (Cake/FQ-CoDel), fiber or fixed wireless
+    //   A : delta <= 45ms  -- Excellent; gaming fully responsive under load
+    //   B : delta <= 90ms  -- Good; standard broadband queue management
+    //   C : delta <= 160ms -- Acceptable; 5G CA / LTE under maximum saturation
+    //   D : delta <= 280ms -- Moderate queue delay; noticeable during large concurrent DL
+    //   F : delta >  280ms -- Severe unmanaged buffer saturation
+    if (worstDelta <= 15) {
       grade = 'A+';
       color = '#10b981';
       descKey = 'bb_grade_aplus_desc';
-      summaryEn = 'Exceptional buffer management. Real-time gaming unaffected by household traffic.';
-      summaryAr = 'إدارة مثالية لطوابير البيانات. ألعاب خالية تماماً من التقطيع.';
-    } else if (worstDelta <= 15) {
+      summaryEn = 'Exceptional buffer management. Real-time gaming fully unaffected by saturated household traffic.';
+      summaryAr = 'إدارة مثالية لطوابير البيانات. ألعاب خالية تماماً من التقطع.';
+    } else if (worstDelta <= 45) {
       grade = 'A';
       color = '#3b82f6';
       descKey = 'bb_grade_a_desc';
-      summaryEn = 'Good traffic shaping. Minimal latency penalty during heavy traffic.';
+      summaryEn = 'Good traffic shaping. Minimal latency penalty during heavy traffic. Gaming remains responsive.';
       summaryAr = 'تحكم جيد في حركة المرور. تأثير طفيف على الألعاب أثناء التحميل.';
-    } else if (worstDelta <= 35) {
+    } else if (worstDelta <= 90) {
       grade = 'B';
       color = '#f59e0b';
       descKey = 'bb_grade_b_desc';
-      summaryEn = 'Minor latency inflation. Noticeable lag if simultaneous large downloads occur.';
+      summaryEn = 'Minor latency inflation. Standard broadband queue management. Light gaming impact under heavy concurrent load.';
       summaryAr = 'زيادة طفيفة في زمن التأخير. قد يحدث بطء طفيف عند التحميل المتزامن.';
-    } else if (worstDelta <= 60) {
+    } else if (worstDelta <= 160) {
       grade = 'C';
-      color = '#f43f5e';
+      color = '#f59e0b';
       descKey = 'bb_grade_c_desc';
-      summaryEn = 'Noticeable queue buildup. Packet queue delay causes gameplay stutter.';
-      summaryAr = 'تراكم ملحوظ في طوابير الحزم. يتسبب في تقطيع أثناء اللعب.';
-    } else if (worstDelta <= 80) {
+      summaryEn = 'Acceptable for high-speed cellular (LTE 4CA / 5G) under maximum radio slot saturation. Casual gaming remains playable.';
+      summaryAr = 'مقبول لشبكات الجيل الخامس و LTE tdCA تحت أقصى تشبع للبرج. الألعاب العادية لا تزال سلسة.';
+    } else if (worstDelta <= 280) {
       grade = 'D';
       color = '#f43f5e';
       descKey = 'bb_grade_d_desc';
-      summaryEn = 'High queue buildup. Significant latency spikes when others stream.';
-      summaryAr = 'تأخير مرتفع في طابور الحزم. قفزات مفاجئة في البينج عند المشاهدة المتزامنة.';
+      summaryEn = 'Moderate queue delay. Noticeable lag during massive concurrent downloads or 4K streaming.';
+      summaryAr = 'تأخير متوسط في طابور الحزم. تأخير ملحوظ أثناء التحميلات الضخمة.';
     } else {
       grade = 'F';
       color = '#f43f5e';
       descKey = 'bb_grade_f_desc';
-      summaryEn = 'Severe bufferbloat. Router buffer saturation causes critical gaming freezes.';
-      summaryAr = 'امتلاء حرج للمخزن المؤقت. تشبع طوابير الموجه يؤدي لتجميد الألعاب تماماً.';
+      summaryEn = 'Severe bufferbloat. Unmanaged router queues cause critical freezes for gaming and real-time applications.';
+      summaryAr = 'امتلاء حرج للمخزن المؤقت. تشبع طوابير الموجه يؤدي لتجميد الألعاب.';
     }
-
     return {
       idlePing,
       dlLoaded,
@@ -586,7 +595,11 @@
     const jitterPenalty = parseFloat((j * 2.0).toFixed(1));
     const lossPenalty = parseFloat((loss * 12.0).toFixed(1));
     const pingPenalty = parseFloat((Math.max(0, p - 30) * 0.5).toFixed(1));
-    const bufferbloatPenalty = parseFloat((delta * 0.2).toFixed(1));
+    // bufferbloatPenalty is scaled down vs. the old coefficient (0.2) because the
+    // new cellular-calibrated thresholds allow much higher deltas before Grade F.
+    // A delta of 280ms (Grade D boundary) should cost ~20 points maximum.
+    // 280 * 0.07 = 19.6 points — matches intuition.
+    const bufferbloatPenalty = parseFloat((delta * 0.07).toFixed(1));
 
     const score = Math.max(0, Math.min(100, Math.round(100 - jitterPenalty - lossPenalty - pingPenalty - bufferbloatPenalty)));
 
