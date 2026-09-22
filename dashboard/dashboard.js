@@ -1038,8 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       allHistory = allHistory.filter(e => (e.id || String(e.timestamp)) !== idToDelete);
       await chrome.storage.local.set({ netpulse_history: allHistory });
-      applyFilters();
-      renderTable();
+      applyFiltersAndSort();
       showToast('Record deleted successfully.');
     } catch (err) {
       console.error('[NetPulse] Delete entry error:', err);
